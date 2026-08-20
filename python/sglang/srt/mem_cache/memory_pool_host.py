@@ -1779,7 +1779,7 @@ class DSAIndexerPoolHost(HostKVCache):
         if self.use_scaled_index_cache:
             return device_pool.index_k_with_scale_buffer
         return [
-            buf.view(torch.uint8).view(buf.shape[0], -1)
+            buf.view(torch.uint8).view(buf.shape[0], self.indexer_page_stride_size)
             for buf in device_pool.index_k_buffer
         ]
 

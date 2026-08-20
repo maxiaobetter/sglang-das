@@ -4,7 +4,10 @@ from types import SimpleNamespace
 import torch
 
 from sglang.srt.layers.cp.utils import get_layer_owner, get_layer_shard_range
-from sglang.srt.mem_cache.dsa_cache_layer_split import LayerSplitDSATokenToKVPool
+from sglang.srt.mem_cache.dsa_cache_layer_split import (
+    LayerSplitDSATokenToKVPool,
+    LayerSplitIndexKeyCache,
+)
 from sglang.test.ci.ci_register import register_cpu_ci
 from sglang.test.test_utils import CustomTestCase
 
@@ -12,6 +15,26 @@ register_cpu_ci(est_time=1, suite="base-a-test-cpu")
 
 
 class TestDSALayerShardUtils(CustomTestCase):
+    def test_non_owner_fused_write_uses_remote_index_scratch(self):
+        local = object()
+        remote = object()
+        pool = SimpleNamespace(
+            layer_transfer_counter=None,
+            start_layer=0,
+            _get_indexer_cache_index=lambda _: 0,
+            _is_layer_owned=lambda layer_id: layer_id == 0,
+        )
+        cache = object.__new__(LayerSplitIndexKeyCache)
+        cache.pool = pool
+        cache.buffer = [local]
+        cache.remote_buffer = remote
+        cache.remote_layer_id = 7
+
+        self.assertIs(cache.get_write_buffer(0), local)
+        self.assertEqual(cache.remote_layer_id, 7)
+        self.assertIs(cache.get_write_buffer(1), remote)
+        self.assertIsNone(cache.remote_layer_id)
+
     def test_balanced_layer_ranges_cover_all_layers_once(self):
         ranges = [get_layer_shard_range(rank, 4, 10) for rank in range(4)]
         self.assertEqual(ranges, [(0, 3), (3, 6), (6, 8), (8, 10)])
