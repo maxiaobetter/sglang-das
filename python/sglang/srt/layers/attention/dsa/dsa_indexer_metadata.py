@@ -14,6 +14,8 @@ from sglang.srt.layers.attention.dsa.dsa_topk_backend import (
     DSATopKBackend,
     TopkTransformMethod,
 )
+from sglang.srt.layers.dcp.layout import get_dcp_lens
+from sglang.srt.runtime_context import get_parallel
 
 if TYPE_CHECKING:
     from sglang.srt.layers.attention.dsa_backend import DSAMetadata
@@ -108,17 +110,58 @@ class DSAIndexerMetadata(BaseIndexerMetadata):
     paged_mqa_schedule_metadata: Optional[torch.Tensor] = None
     paged_mqa_ctx_lens_2d: Optional[torch.Tensor] = None
     force_unfused_topk: bool = False
+    dcp_indexer_enabled: bool = False
+
+    def _dcp_indexer_enabled(self) -> bool:
+        """Whether this metadata is consumed by the DCP-local Index-K scorer."""
+        parallel = get_parallel()
+        return (
+            self.dcp_indexer_enabled
+            and parallel.dcp_enabled
+            and parallel.attn_dcp_size > 1
+        )
 
     def get_seqlens_int32(self) -> torch.Tensor:
+        if self._dcp_indexer_enabled():
+            parallel = get_parallel()
+            return get_dcp_lens(
+                self.attn_metadata.cache_seqlens_int32,
+                parallel.attn_dcp_size,
+                parallel.attn_dcp_rank,
+            ).to(torch.int32)
         return self.attn_metadata.cache_seqlens_int32
 
     def get_page_table_64(self) -> torch.Tensor:
+        if self._dcp_indexer_enabled():
+            page_table = self.attn_metadata.page_table_1
+            if page_table is None:
+                raise RuntimeError(
+                    "DSA DCP Index-K needs the wide page table during CUDA graph "
+                    "replay; do not enable the compact-only DSA graph metadata path."
+                )
+            parallel = get_parallel()
+            stride = self.attn_metadata.page_size * parallel.attn_dcp_size
+            # A virtual DCP page contains one physical 64-token page per rank.
+            # Selecting rank r's first token then dividing by the widened page
+            # size yields this rank's physical Index-K page id.
+            return torch.div(
+                page_table[:, parallel.attn_dcp_rank :: stride],
+                stride,
+                rounding_mode="floor",
+            ).to(torch.int32)
         return self.attn_metadata.real_page_table
 
     def get_page_table_1(self) -> torch.Tensor:
         return self.attn_metadata.page_table_1
 
     def get_seqlens_expanded(self) -> torch.Tensor:
+        if self._dcp_indexer_enabled():
+            parallel = get_parallel()
+            return get_dcp_lens(
+                self.attn_metadata.dsa_seqlens_expanded,
+                parallel.attn_dcp_size,
+                parallel.attn_dcp_rank,
+            ).to(torch.int32)
         return self.attn_metadata.dsa_seqlens_expanded
 
     def get_indexer_kvcache_range(self) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -146,6 +189,21 @@ class DSAIndexerMetadata(BaseIndexerMetadata):
         batch_idx_list: Optional[List[int]] = None,
         topk_indices_offset_override: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
+        if self._dcp_indexer_enabled():
+            if (
+                self.topk_transform_method != TopkTransformMethod.PAGED
+                or ks is not None
+                or cu_seqlens_q is not None
+                or ke_offset is not None
+                or batch_idx_list is not None
+                or topk_indices_offset_override is not None
+            ):
+                raise RuntimeError(
+                    "DSA DCP requires the paged Index-K TopK contract for "
+                    "decode, target verify, and draft extend."
+                )
+            return self._dcp_global_topk(logits, topk)
+
         if topk_indices_offset_override is not None:
             cu_topk_indices_offset = topk_indices_offset_override
             cu_seqlens_q_topk = None
@@ -177,6 +235,79 @@ class DSAIndexerMetadata(BaseIndexerMetadata):
             batch_idx_list=batch_idx_list,
             force_unfused_topk=self.force_unfused_topk,
         )
+
+    def _dcp_global_topk(self, logits: torch.Tensor, topk: int) -> torch.Tensor:
+        """Exact deterministic TopK over all physical DCP Index-K shards.
+
+        The paged MQA kernel scores only this rank's physical cache rows.  We
+        exchange each rank's local candidates, then use stable sorts (position
+        first, score second) so equal scores are resolved by lower global token
+        position.  The returned values are *global sequence positions* -- the
+        normal sparse-attention page-table transform still maps them to widened
+        MLA KV slots before the final owner/local remap.
+        """
+        parallel = get_parallel()
+        rows, width = logits.shape
+        local_lens = self.get_seqlens_expanded()[:rows].to(torch.int64)
+        if rows == 0 or topk == 0:
+            return torch.full((rows, topk), -1, dtype=torch.int32, device=logits.device)
+
+        candidate_count = min(topk, width)
+        columns = torch.arange(width, device=logits.device, dtype=torch.int64)
+        local_valid = columns.unsqueeze(0) < local_lens.unsqueeze(1)
+        local_scores = logits.masked_fill(~local_valid, float("-inf"))
+        # Stable descending order preserves the ascending local column order on
+        # ties.  That is equivalent to ascending global position within a rank.
+        local_order = torch.argsort(local_scores, dim=-1, descending=True, stable=True)[
+            :, :candidate_count
+        ]
+        local_scores = local_scores.gather(1, local_order)
+        local_positions = (
+            local_order.to(torch.int64) * parallel.attn_dcp_size
+            + parallel.attn_dcp_rank
+        )
+        local_positions = local_positions.masked_fill(torch.isneginf(local_scores), -1)
+
+        gathered_scores = logits.new_empty(
+            (parallel.attn_dcp_size * rows, candidate_count)
+        )
+        gathered_positions = torch.empty(
+            (parallel.attn_dcp_size * rows, candidate_count),
+            dtype=torch.int64,
+            device=logits.device,
+        )
+        parallel.dcp_group.all_gather_into_tensor(gathered_scores, local_scores)
+        parallel.dcp_group.all_gather_into_tensor(gathered_positions, local_positions)
+        gathered_scores = (
+            gathered_scores.view(parallel.attn_dcp_size, rows, candidate_count)
+            .transpose(0, 1)
+            .reshape(rows, -1)
+        )
+        gathered_positions = (
+            gathered_positions.view(parallel.attn_dcp_size, rows, candidate_count)
+            .transpose(0, 1)
+            .reshape(rows, -1)
+        )
+
+        # Deterministic global tie break: establish position order first, then
+        # stable-sort by score.  Invalid entries carry -inf and are masked out.
+        position_order = torch.argsort(gathered_positions, dim=-1, stable=True)
+        ordered_scores = gathered_scores.gather(1, position_order)
+        ordered_positions = gathered_positions.gather(1, position_order)
+        score_order = torch.argsort(
+            ordered_scores, dim=-1, descending=True, stable=True
+        )[:, :topk]
+        result_scores = ordered_scores.gather(1, score_order)
+        result_positions = (
+            ordered_positions.gather(1, score_order)
+            .masked_fill(torch.isneginf(result_scores), -1)
+            .to(torch.int32)
+        )
+        if candidate_count == topk:
+            return result_positions
+        result = torch.full((rows, topk), -1, dtype=torch.int32, device=logits.device)
+        result[:, :candidate_count] = result_positions
+        return result
 
     def topk_transform_sparse_mask(
         self,

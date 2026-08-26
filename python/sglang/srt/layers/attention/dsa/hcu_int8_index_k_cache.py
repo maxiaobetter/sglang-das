@@ -424,3 +424,38 @@ def validate_hcu_int8_index_k_cache_server_args(server_args) -> None:
             + ", ".join(unsupported)
             + "."
         )
+
+
+def validate_hcu_dsa_dcp_bringup_server_args(server_args) -> bool:
+    """Validate the supported HCU DSA+DCP topology, not a bring-up subset."""
+    if not is_hcu() or server_args.dcp_size <= 1:
+        return False
+
+    unsupported = []
+    if server_args.dsa_decode_backend not in ("flashmla_sparse", "flashmla_kv"):
+        unsupported.append("--dsa-decode-backend {flashmla_sparse,flashmla_kv}")
+    if server_args.dcp_replicate_q_proj:
+        unsupported.append("--no-dcp-replicate-q-proj")
+    if not server_args.disable_radix_cache:
+        unsupported.append("--disable-radix-cache")
+    if server_args.enable_hierarchical_cache:
+        unsupported.append("no --enable-hierarchical-cache")
+    if server_args.enable_hisparse:
+        unsupported.append("no --enable-hisparse")
+    if server_args.enable_dsa_cache_layer_split:
+        unsupported.append("no --enable-dsa-cache-layer-split")
+    if (
+        server_args.disaggregation_mode != "null"
+        and server_args.disaggregation_transfer_backend
+        not in ("mooncake", "mooncake_tcp")
+    ):
+        unsupported.append("--disaggregation-transfer-backend=mooncake")
+
+    if unsupported:
+        raise ValueError(
+            "HCU DSA DCP currently requires "
+            + ", ".join(unsupported)
+            + ". The DCP path uses physical Main-KV/Index-K shards and does "
+            "not support HiCache, HiSparse, or DSA LayerSplit."
+        )
+    return True

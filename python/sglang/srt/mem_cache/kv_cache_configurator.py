@@ -297,14 +297,21 @@ class KVCacheConfigurator:
             unified_memory_pool=pools.unified_memory_pool,
         )
 
-    # Note(kpham-sgl):
-    # 1. A replicated draft indexes the allocator's virtual locs raw, so its pools
-    #    span and page that space; the sharded target translates and stays per-rank.
-    # 2. A pool must page as its allocator does, or its last page falls short.
+    # Note(kpham-sgl): most draft pools still index the shared allocator's
+    # widened virtual locations directly.  DSA is different: both target and
+    # draft Index-K/Main-KV are DCP-physical and the write paths translate the
+    # owner slots before touching a pool.  Keep generic speculative models on
+    # their established replicated layout while giving DSA the same physical
+    # capacity semantics on target and draft workers.
     @property
     def loc_space_scale(self) -> int:
         dcp_size = get_parallel().attn_dcp_size
-        return dcp_size if (self.is_draft_worker and dcp_size > 1) else 1
+        dsa_physical_draft = is_deepseek_dsa(self.model_config.hf_config)
+        return (
+            dcp_size
+            if (self.is_draft_worker and dcp_size > 1 and not dsa_physical_draft)
+            else 1
+        )
 
     @property
     def pool_page_size(self) -> int:
@@ -319,8 +326,8 @@ class KVCacheConfigurator:
             full_max_total_num_tokens = config.full_max_total_num_tokens
             swa_max_total_num_tokens = config.swa_max_total_num_tokens
 
-        # Draft pools are replicated, not DCP-sharded, yet consume the shared
-        # allocator's virtual locs in [0, max_total * dcp_size) untranslated.
+        # Non-DSA draft pools are replicated and consume the shared allocator's
+        # virtual locs untranslated. DSA draft pools are physical DCP shards.
         loc_scale = self.loc_space_scale
         max_total_num_tokens *= loc_scale
         if full_max_total_num_tokens is not None:
@@ -1405,6 +1412,7 @@ class KVCacheConfigurator:
             enable_memory_saver=get_exec().features.enable_memory_saver,
             start_layer=self.layer_info.start_layer,
             end_layer=self.layer_info.end_layer,
+            dcp_physical_cache=self.loc_space_scale == 1,
         )
         return token_to_kv_pool
 
@@ -1420,6 +1428,7 @@ class KVCacheConfigurator:
             enable_memory_saver=get_exec().features.enable_memory_saver,
             start_layer=self.layer_info.start_layer,
             end_layer=self.layer_info.end_layer,
+            dcp_physical_cache=self.loc_space_scale == 1,
         )
         return token_to_kv_pool
 

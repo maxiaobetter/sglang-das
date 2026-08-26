@@ -4047,6 +4047,22 @@ class ServerArgs:
                     "communication backend (it removes the head-dim Q all-gather); "
                     f"got --dcp-comm-backend={self.dcp_comm_backend}."
                 )
+        if self.dcp_size > 1:
+            view = self._resolved()
+            attention_dp_size = self.dp_size if view.enable_dp_attention else 1
+            attention_tp_size = self.tp_size // (attention_dp_size * view.attn_cp_size)
+            if attention_tp_size < self.dcp_size or (
+                attention_tp_size % self.dcp_size != 0
+            ):
+                raise ValueError(
+                    "--dcp-size must divide the effective attention TP size; got "
+                    f"tp_size={self.tp_size}, dp_size={self.dp_size}, "
+                    f"enable_dp_attention={view.enable_dp_attention}, "
+                    f"attn_cp_size={view.attn_cp_size}, "
+                    f"attention_tp_size={attention_tp_size}, "
+                    f"dcp_size={self.dcp_size}. Remove DP attention or reduce "
+                    "--dcp-size so DCP is nested inside one attention replica."
+                )
 
     def _handle_load_balance_method(self):
         if self.disaggregation_mode not in ("null", "prefill", "decode"):
@@ -5427,6 +5443,12 @@ class ServerArgs:
                         major, resolved_view(self).quantization
                     )
                     self._set_default_dsa_backends(major)
+
+                    from sglang.srt.layers.attention.dsa.hcu_int8_index_k_cache import (
+                        validate_hcu_dsa_dcp_bringup_server_args,
+                    )
+
+                    validate_hcu_dsa_dcp_bringup_server_args(self)
 
                 if self.enable_prefill_cp:
                     assert (

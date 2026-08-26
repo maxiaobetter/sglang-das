@@ -61,6 +61,7 @@ from sglang.srt.layers.attention.dsa.hcu_int8_index_k_cache import (
     resolve_index_k_cache_mode,
 )
 from sglang.srt.layers.attention.dsa.utils import aiter_can_use_preshuffle_paged_mqa
+from sglang.srt.layers.dcp.layout import translate_dcp_cache_write
 from sglang.srt.layers.quantization.fp4_kv_cache_quant_method import (
     UnquantizedKVCacheMethod,
 )
@@ -150,6 +151,57 @@ def get_tensor_size_bytes(t: Union[torch.Tensor, List[torch.Tensor]]):
     if isinstance(t, list):
         return sum(get_tensor_size_bytes(x) for x in t)
     return np.prod(t.shape) * t.dtype.itemsize
+
+
+def _move_dcp_cache_rows(
+    buffers: Sequence[torch.Tensor],
+    tgt_loc: torch.Tensor,
+    src_loc: torch.Tensor,
+) -> None:
+    """Move token-major cache rows, including transfers between DCP owners."""
+    if not buffers or tgt_loc.numel() == 0:
+        return
+
+    parallel = get_parallel()
+    if not parallel.dcp_enabled:
+        tgt_loc_flat = tgt_loc.view(-1).long()
+        src_loc_flat = src_loc.view(-1).long()
+        for buffer in buffers:
+            buffer[tgt_loc_flat] = buffer[src_loc_flat]
+        return
+
+    dcp_size = parallel.attn_dcp_size
+    target_owner = torch.remainder(tgt_loc, dcp_size).view(-1)
+    source_owner = torch.remainder(src_loc, dcp_size).view(-1)
+    local_tgt = torch.div(tgt_loc, dcp_size, rounding_mode="floor").view(-1).long()
+    local_src = torch.div(src_loc, dcp_size, rounding_mode="floor").view(-1).long()
+    owned_target = target_owner == parallel.attn_dcp_rank
+
+    if torch.equal(target_owner, source_owner):
+        for buffer in buffers:
+            buffer[local_tgt[owned_target]] = buffer[local_src[owned_target]]
+        return
+
+    # Pack all layers and gather raw bytes once. Each rank reads the same local
+    # row numbers, but only source_owner[i]'s copy is selected for pair i. Using
+    # uint8 on the wire also covers FP8 cache storage on RCCL backends that do not
+    # expose an FP8 collective datatype.
+    local_rows = torch.stack([buffer[local_src] for buffer in buffers], dim=0)
+    local_shape = local_rows.shape
+    wire_rows = local_rows.contiguous().view(torch.uint8)
+    gathered_wire = torch.empty(
+        (dcp_size * wire_rows.shape[0], *wire_rows.shape[1:]),
+        dtype=torch.uint8,
+        device=wire_rows.device,
+    )
+    parallel.dcp_group.all_gather_into_tensor(gathered_wire, wire_rows)
+    gathered_rows = gathered_wire.view(local_rows.dtype).view(dcp_size, *local_shape)
+    gathered_rows = gathered_rows.transpose(1, 2)
+    pair_ids = torch.arange(local_src.numel(), device=local_src.device)
+    selected_rows = gathered_rows[source_owner.long(), pair_ids].transpose(0, 1)
+
+    for layer_idx, buffer in enumerate(buffers):
+        buffer[local_tgt[owned_target]] = selected_rows[layer_idx, owned_target]
 
 
 def _set_kv_buffer_impl(
@@ -4024,6 +4076,7 @@ class MLATokenToKVPool(KVCache):
         end_layer: Optional[int] = None,
         use_dsa: bool = False,
         override_kv_cache_dim: Optional[int] = None,
+        dcp_physical_cache: bool = True,
     ):
         super().__init__(
             size,
@@ -4039,6 +4092,7 @@ class MLATokenToKVPool(KVCache):
         self.kv_lora_rank = kv_lora_rank
         self.qk_rope_head_dim = qk_rope_head_dim
         self.use_dsa = use_dsa
+        self.dcp_physical_cache = dcp_physical_cache
         self.dsa_kv_cache_store_fp8 = (
             use_dsa
             and dtype == torch.float8_e4m3fn
@@ -4145,7 +4199,7 @@ class MLATokenToKVPool(KVCache):
         layer_id = layer.layer_id
         assert not self.dsa_kv_cache_store_fp8
         parallel = get_parallel()
-        if parallel.dcp_enabled:
+        if parallel.dcp_enabled and self.dcp_physical_cache:
             valid_mask = loc % parallel.attn_dcp_size == parallel.attn_dcp_rank
             if not valid_mask.all():
                 loc = loc[valid_mask]
@@ -4200,6 +4254,11 @@ class MLATokenToKVPool(KVCache):
             if _is_hcu:
                 from lightop import kvcache as op
 
+                loc, (cache_k_nope, cache_k_rope) = translate_dcp_cache_write(
+                    loc, cache_k_nope, cache_k_rope
+                )
+                if loc.numel() == 0:
+                    return
                 op.fused_quantize_and_store_mla_kv_cache(
                     cache_k_nope,
                     cache_k_rope,
@@ -4280,6 +4339,18 @@ class MLATokenToKVPool(KVCache):
 
     def move_kv_cache(self, tgt_loc: torch.Tensor, src_loc: torch.Tensor):
         """Relocate accepted-token combined MLA KV (latent + rope) per layer."""
+        parallel = get_parallel()
+        if parallel.dcp_enabled and self.dcp_physical_cache:
+            logical_size_limit = (self.size + self.page_size) * parallel.attn_dcp_size
+            maybe_detect_oob(
+                tgt_loc, 0, logical_size_limit, "move_kv_cache tgt_loc (DCP)"
+            )
+            maybe_detect_oob(
+                src_loc, 0, logical_size_limit, "move_kv_cache src_loc (DCP)"
+            )
+            _move_dcp_cache_rows(self.kv_buffer, tgt_loc, src_loc)
+            return
+
         size_limit = self.size + self.page_size
         maybe_detect_oob(tgt_loc, 0, size_limit, "move_kv_cache tgt_loc")
         maybe_detect_oob(src_loc, 0, size_limit, "move_kv_cache src_loc")
@@ -4684,6 +4755,32 @@ class DSATokenToKVPool(MLATokenToKVPool):
     def move_kv_cache(self, tgt_loc: torch.Tensor, src_loc: torch.Tensor):
         """Move latent KV and the DSA indexer cache (key + scale) in lockstep."""
         super().move_kv_cache(tgt_loc, src_loc)
+        parallel = get_parallel()
+        if parallel.dcp_enabled:
+            if self.index_key_cache is not None:
+                page_size = self.page_size
+                k_bytes_per_token = self.index_head_dim
+                scale_bytes_per_token = self.index_head_dim // self.quant_block_size * 4
+                k_bytes_per_page = page_size * k_bytes_per_token
+                k_views = [
+                    buffer[:, :k_bytes_per_page].view(-1, k_bytes_per_token)
+                    for buffer in self.index_key_cache.buffer
+                ]
+                scale_views = [
+                    buffer[:, k_bytes_per_page:].view(-1, scale_bytes_per_token)
+                    for buffer in self.index_key_cache.buffer
+                ]
+                _move_dcp_cache_rows(k_views, tgt_loc, src_loc)
+                _move_dcp_cache_rows(scale_views, tgt_loc, src_loc)
+                return
+
+            index_k_views = [
+                index_k.view(-1, 1, self.index_head_dim)
+                for index_k in self.index_k_buffer
+            ]
+            _move_dcp_cache_rows(index_k_views, tgt_loc, src_loc)
+            return
+
         if self.index_key_cache is not None:
             self.index_key_cache.move(tgt_loc, src_loc)
             return
@@ -4803,6 +4900,11 @@ class DSATokenToKVPool(MLATokenToKVPool):
         index_k_scale: torch.Tensor,
     ) -> None:
         assert self.use_fp8_index_k_cache, "FP8 index K cache is not enabled"
+        loc, (index_k, index_k_scale) = translate_dcp_cache_write(
+            loc, index_k, index_k_scale
+        )
+        if loc.numel() == 0:
+            return
         self.index_key_cache.store_quantized(layer_id, loc, index_k, index_k_scale)
 
     def set_index_k_int8_buffer(
@@ -4812,6 +4914,9 @@ class DSATokenToKVPool(MLATokenToKVPool):
         index_k: torch.Tensor,
     ) -> None:
         assert self.use_int8_index_k_cache, "INT8 index K cache is not enabled"
+        loc, (index_k,) = translate_dcp_cache_write(loc, index_k)
+        if loc.numel() == 0:
+            return
         cache_index = self._get_indexer_cache_index(layer_id)
         int8_k, fp32_scales = self.index_k_int8_aliases[cache_index]
         quantize_and_store_index_k_int8(
@@ -4884,6 +4989,9 @@ class DSATokenToKVPool(MLATokenToKVPool):
         index_k: torch.Tensor,
     ) -> None:
         assert self.index_k_buffer is not None, "BF16 index K cache is not enabled"
+        loc, (index_k,) = translate_dcp_cache_write(loc, index_k)
+        if loc.numel() == 0:
+            return
         if index_k.dtype != self.index_k_buffer_dtype:
             index_k = index_k.to(self.index_k_buffer_dtype)
 

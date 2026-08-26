@@ -1198,6 +1198,25 @@ class DecodePreallocQueue(DecodeHiCachePreallocMixin):
                 ]
                 # Indexer lives on device pool; always use device page_size
                 device_page_size = self.token_to_kv_pool.page_size
+                # Mooncake DCP1-prefill -> DCPn-decode transfers DSA state at
+                # token granularity. The decode pool is physical while this
+                # request table holds widened logical slots, so register only
+                # this rank's physical pages. NIXL/MoRI retain their existing
+                # non-relayout state protocol.
+                if (
+                    self.transfer_backend == TransferBackend.MOONCAKE
+                    and get_parallel().dcp_enabled
+                ):
+                    parallel = get_parallel()
+                    owned = kv_indices_full[
+                        torch.remainder(kv_indices_full, parallel.attn_dcp_size)
+                        == parallel.attn_dcp_rank
+                    ]
+                    kv_indices_full = torch.div(
+                        owned,
+                        parallel.attn_dcp_size,
+                        rounding_mode="floor",
+                    )
                 return kv_to_page_indices(kv_indices_full, device_page_size)
 
             def _swa_ring_payload():

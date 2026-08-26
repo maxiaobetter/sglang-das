@@ -1001,6 +1001,120 @@ class MooncakeKVManager(CommonKVManager):
             )
         return self._transfer_data(mooncake_session_id, transfer_blocks)
 
+    def send_dsa_state_dcp(
+        self,
+        mooncake_session_id: str,
+        src_page_indices: List[int],
+        dst_page_indices: List[int],
+        src_data_ptrs: List[int],
+        dst_data_ptrs: List[int],
+        src_item_lens: List[int],
+        dst_item_lens: List[int],
+        *,
+        dst_dcp_size: int,
+        dst_dcp_rank: int,
+        decode_prefix_len: int,
+        num_kv_tokens: int,
+        executor: concurrent.futures.ThreadPoolExecutor,
+        src_layer_ids: Optional[List[int]] = None,
+        dst_layer_ids: Optional[List[int]] = None,
+    ) -> int:
+        """Relayout page-planar DSA Index-K from DCP1 into one DCP shard."""
+        if decode_prefix_len != 0:
+            raise RuntimeError(
+                "Mooncake DSA DCP state relayout requires radix-free decode "
+                "(decode_prefix_len=0)."
+            )
+        if num_kv_tokens is None:
+            raise ValueError("Mooncake DSA DCP state relayout requires num_kv_tokens")
+        page_size = self.kv_args.page_size
+        plan = build_dcp_token_transfer_plan(
+            np.asarray(src_page_indices, dtype=np.int32),
+            np.asarray(dst_page_indices, dtype=np.int32),
+            physical_page_size=page_size,
+            dcp_size=dst_dcp_size,
+            dcp_rank=dst_dcp_rank,
+            decode_prefix_len=decode_prefix_len,
+            num_kv_tokens=num_kv_tokens,
+        )
+        if plan.src_token_indices.size == 0:
+            return 0
+
+        src_groups, dst_groups = group_concurrent_contiguous(
+            plan.src_token_indices, plan.dst_token_indices
+        )
+        if not src_layer_ids and not dst_layer_ids:
+            if len(src_data_ptrs) != len(dst_data_ptrs):
+                raise RuntimeError(
+                    "Mooncake DSA DCP state count differs between Prefill and "
+                    "Decode. Target and draft Index-K buffers are model-specific "
+                    "states and cannot be replicated by matching their ABI; run "
+                    "the Prefill EAGLE draft-extend path so both state sets are "
+                    "registered. "
+                    f"Got src={len(src_data_ptrs)} dst={len(dst_data_ptrs)}."
+                )
+            pairs = [(i, i) for i in range(len(src_data_ptrs))]
+        else:
+            pairs = build_transfer_entry_pairs(
+                src_layer_ids or [],
+                dst_layer_ids or [],
+                len(src_data_ptrs),
+                len(dst_data_ptrs),
+                allow_positional_fallback=self.pp_size == 1,
+            )
+        layers_params = []
+        for src_idx, dst_idx in pairs:
+            src_item_len = src_item_lens[src_idx]
+            dst_item_len = dst_item_lens[dst_idx]
+            if src_item_len % page_size or dst_item_len % page_size:
+                raise RuntimeError(
+                    "Mooncake DSA state item length must be page-aligned for "
+                    f"DCP relayout; src={src_item_len}, dst={dst_item_len}, "
+                    f"page_size={page_size}."
+                )
+            src_token_len = src_item_len // page_size
+            dst_token_len = dst_item_len // page_size
+            if src_token_len != dst_token_len:
+                raise RuntimeError(
+                    "Mooncake DSA DCP Index-K token geometry differs: "
+                    f"src={src_token_len}, dst={dst_token_len}."
+                )
+            layers_params.append(
+                (src_data_ptrs[src_idx], dst_data_ptrs[dst_idx], src_token_len)
+            )
+
+        def make_blocks(src_ptr: int, dst_ptr: int, token_len: int):
+            return [
+                (
+                    src_ptr + int(src_group[0]) * token_len,
+                    dst_ptr + int(dst_group[0]) * token_len,
+                    len(src_group) * token_len,
+                )
+                for src_group, dst_group in zip(src_groups, dst_groups)
+            ]
+
+        if self.enable_custom_mem_pool:
+            futures = [
+                executor.submit(
+                    self._transfer_data,
+                    mooncake_session_id,
+                    make_blocks(src_ptr, dst_ptr, token_len),
+                )
+                for src_ptr, dst_ptr, token_len in layers_params
+            ]
+            for future in concurrent.futures.as_completed(futures):
+                status = future.result()
+                if status != 0:
+                    for pending in futures:
+                        pending.cancel()
+                    return status
+            return 0
+
+        blocks = []
+        for src_ptr, dst_ptr, token_len in layers_params:
+            blocks.extend(make_blocks(src_ptr, dst_ptr, token_len))
+        return self._transfer_data(mooncake_session_id, blocks)
+
     def send_kvcache_slice(
         self,
         mooncake_session_id: str,
@@ -1275,6 +1389,7 @@ class MooncakeKVManager(CommonKVManager):
         prefill_state_indices: List,
         executor: concurrent.futures.ThreadPoolExecutor,
         target_rank_registration_info: Optional[KVArgsRegisterInfo] = None,
+        dcp_state_num_tokens: Optional[int] = None,
     ):
         rc = 0
         state_types = getattr(self.kv_args, "state_types", [])
@@ -1402,7 +1517,12 @@ class MooncakeKVManager(CommonKVManager):
                     and len(dst_indices_local) == 0
                 ):
                     continue
-                if len(src_indices) != len(dst_indices_local):
+                dsa_dcp_relayout = (
+                    st == StateType.DSA
+                    and target_rank_registration_info is not None
+                    and target_rank_registration_info.requires_dcp_relayout
+                )
+                if len(src_indices) != len(dst_indices_local) and not dsa_dcp_relayout:
                     # These components are position- or request-indexed:
                     # truncating silently misaligns rows and corrupts KV.
                     # Paged SWA/DSA tolerate a 1-page drift -> keep the
@@ -1419,19 +1539,42 @@ class MooncakeKVManager(CommonKVManager):
                         src_indices = src_indices[: len(dst_indices_local)]
                     else:
                         dst_indices_local = dst_indices_local[: len(src_indices)]
-                rc = (
-                    self._send_kvcache_generic(
-                        mooncake_session_id=req.mooncake_session_id,
-                        src_data_ptrs=src_data_ptrs,
-                        dst_data_ptrs=dst_data_ptrs,
-                        item_lens=src_item_lens,
-                        prefill_data_indices=np.array(src_indices, dtype=np.int32),
-                        dst_data_indices=np.array(dst_indices_local, dtype=np.int32),
-                        executor=executor,
-                        state_type=st,
+                if dsa_dcp_relayout:
+                    rc = (
+                        self.send_dsa_state_dcp(
+                            mooncake_session_id=req.mooncake_session_id,
+                            src_page_indices=src_indices,
+                            dst_page_indices=dst_indices_local,
+                            src_data_ptrs=src_data_ptrs,
+                            dst_data_ptrs=dst_data_ptrs,
+                            src_item_lens=src_item_lens,
+                            dst_item_lens=dst_item_lens,
+                            dst_dcp_size=target_rank_registration_info.dst_dcp_size,
+                            dst_dcp_rank=target_rank_registration_info.dst_dcp_rank,
+                            decode_prefix_len=req.decode_prefix_len or 0,
+                            num_kv_tokens=dcp_state_num_tokens,
+                            executor=executor,
+                            src_layer_ids=src_state_layer_ids,
+                            dst_layer_ids=dst_state_layer_ids,
+                        )
+                        or rc
                     )
-                    or rc
-                )
+                else:
+                    rc = (
+                        self._send_kvcache_generic(
+                            mooncake_session_id=req.mooncake_session_id,
+                            src_data_ptrs=src_data_ptrs,
+                            dst_data_ptrs=dst_data_ptrs,
+                            item_lens=src_item_lens,
+                            prefill_data_indices=np.array(src_indices, dtype=np.int32),
+                            dst_data_indices=np.array(
+                                dst_indices_local, dtype=np.int32
+                            ),
+                            executor=executor,
+                            state_type=st,
+                        )
+                        or rc
+                    )
             elif st == StateType.MINIMAX_INDEX_K:
                 # Equal-TP / PP=1 only. Sub-pools are compacted sparse-layer
                 # lists, so PP>1 mis-slices and heterogeneous TP is unsupported.
@@ -1903,11 +2046,30 @@ class MooncakeKVManager(CommonKVManager):
 
                         if kv_chunk.is_last_chunk:
                             if kv_chunk.state_indices and not skip_state:
+                                dcp_state_num_tokens = None
+                                if is_dcp_transfer:
+                                    if kv_chunk.num_kv_tokens is None:
+                                        raise RuntimeError(
+                                            "Mooncake DSA DCP state relayout requires "
+                                            "the final chunk token count."
+                                        )
+                                    # The state page list covers the whole
+                                    # radix-free sequence, unlike this last KV
+                                    # chunk. index_slice counts preceding
+                                    # physical pages, so it reconstructs the
+                                    # full sequence length without inferring it
+                                    # from the shorter destination shard list.
+                                    dcp_state_num_tokens = (
+                                        (kv_chunk.index_slice.start or 0)
+                                        * self.kv_args.page_size
+                                        + kv_chunk.num_kv_tokens
+                                    )
                                 state_rc = self.maybe_send_extra(
                                     req,
                                     kv_chunk.state_indices,
                                     executor,
                                     target_rank_registration_info,
+                                    dcp_state_num_tokens,
                                 )
                                 if state_rc != 0:
                                     with self.session_lock:

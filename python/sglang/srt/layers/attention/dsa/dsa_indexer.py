@@ -36,6 +36,7 @@ from sglang.srt.layers.attention.dsa.utils import (
     is_dsa_prefill_cp_in_seq_split,
     is_graph_dsa_split_op_surface,
 )
+from sglang.srt.layers.dcp.layout import translate_dcp_cache_write
 from sglang.srt.layers.layernorm import LayerNorm, RMSNorm
 from sglang.srt.model_executor.runner_backend_utils.breakable_cuda_graph.context import (
     is_in_breakable_cuda_graph,
@@ -466,11 +467,21 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
         weights: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
         hadamard_scale = self.head_dim**-0.5
+        parallel = get_parallel()
+        dcp_write = parallel.dcp_enabled
+        # LightOp's fused operation owns both Q quantization (needed for every
+        # query row on every DCP rank) and the Index-K write (needed only by the
+        # owner rank).  A logical DCP location cannot be passed to the physical
+        # Index-K buffer. Run its Q side against the reserved padding slot, then
+        # issue a fixed-shape K-only write: owner rows use their local slots and
+        # non-owner rows stay on padding slot 0. This keeps the Q scale contract
+        # byte-for-byte identical without graph-unsafe boolean compaction.
+        fused_loc = torch.zeros_like(out_cache_loc) if dcp_write else out_cache_loc
         result = lightop_kvcache.fuse_qk_quant_and_store_index_k_cache(
             query,
             key,
             pool.get_index_k_with_scale_write_buffer(layer_id=layer_id),
-            out_cache_loc.contiguous(),
+            fused_loc.contiguous(),
             pool.page_size,
             weights,
             hadamard_scale * self.softmax_scale,
@@ -479,9 +490,27 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
             False,
             not _is_fp8_fnuz,
         )
-        commit_write = getattr(pool, "commit_index_k_with_scale_write_buffer", None)
-        if commit_write is not None:
-            commit_write(layer_id, out_cache_loc)
+        if dcp_write:
+            local_loc, (local_key,) = translate_dcp_cache_write(out_cache_loc, key)
+            if local_loc.numel() > 0:
+                lightop_kvcache.fuse_act_quant_and_store_index_k_cache(
+                    local_key,
+                    pool.get_index_k_with_scale_write_buffer(layer_id=layer_id),
+                    local_loc.contiguous(),
+                    pool.page_size,
+                    1e-5,
+                    False,
+                    not _is_fp8_fnuz,
+                )
+                commit_write = getattr(
+                    pool, "commit_index_k_with_scale_write_buffer", None
+                )
+                if commit_write is not None:
+                    commit_write(layer_id, local_loc)
+        else:
+            commit_write = getattr(pool, "commit_index_k_with_scale_write_buffer", None)
+            if commit_write is not None:
+                commit_write(layer_id, out_cache_loc)
         return result
 
     @contextlib.contextmanager
@@ -1003,8 +1032,39 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
         logits: torch.Tensor,
         lengths: torch.Tensor,
         row_starts: Optional[torch.Tensor] = None,
+        global_lengths: Optional[torch.Tensor] = None,
     ):
         if self.num_init_tokens == 0 and self.num_local_tokens == 0:
+            return logits
+        parallel = get_parallel()
+        if parallel.dcp_enabled:
+            if global_lengths is None:
+                raise RuntimeError(
+                    "DCP Index-K masking requires the unsharded sequence lengths."
+                )
+            if row_starts is not None:
+                raise RuntimeError(
+                    "DCP Index-K only supports the paged TopK mask contract."
+                )
+            global_lengths = global_lengths[: logits.shape[0]]
+            # Local score column j represents global sequence position
+            # j * dcp_size + rank.  Pinning init/recent tokens must use those
+            # global positions; applying the legacy local-column offsets on
+            # every rank would force unrelated tokens into the global TopK.
+            positions = (
+                torch.arange(logits.shape[1], device=logits.device)
+                * parallel.attn_dcp_size
+                + parallel.attn_dcp_rank
+            )
+            forced = torch.zeros_like(logits, dtype=torch.bool)
+            if self.num_init_tokens > 0:
+                forced |= positions.unsqueeze(0) < self.num_init_tokens
+            if self.num_local_tokens > 0:
+                local_start = (global_lengths - self.num_local_tokens).clamp_min(0)
+                forced |= (positions.unsqueeze(0) >= local_start.unsqueeze(1)) & (
+                    positions.unsqueeze(0) < global_lengths.unsqueeze(1)
+                )
+            logits.masked_fill_(forced, float("inf"))
             return logits
         if row_starts is None:
             row_starts = lengths.new_zeros(lengths.shape[0])
@@ -1133,7 +1193,14 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
             else:
                 active_weights = weights[:q_offset]
             active_q = q_fp8[:q_offset].unsqueeze(1)
-            use_mask_topk = envs.SGLANG_DSA_HCU_LIGHTOP_MASK_TOPK.get()
+            # The LightOp sparse route fuses a rank-local transform and returns
+            # final slots directly. DCP instead needs score candidates for the
+            # cross-rank deterministic TopK below, so retain the dense score
+            # surface whenever the Index-K cache is physically sharded.
+            use_mask_topk = (
+                envs.SGLANG_DSA_HCU_LIGHTOP_MASK_TOPK.get()
+                and not get_parallel().dcp_enabled
+            )
             sparse_route = select_lightop_sparse_mqa_route(
                 enabled=(
                     use_mask_topk
@@ -1280,7 +1347,15 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
 
         if sparse_mask is None:
             # NOTE(dark): logits should be cleaned in topk_transform.
-            self._mask_init_and_local_tokens(logits, seqlens_32)
+            self._mask_init_and_local_tokens(
+                logits,
+                seqlens_32,
+                global_lengths=(
+                    metadata.attn_metadata.dsa_seqlens_expanded
+                    if get_parallel().dcp_enabled
+                    else None
+                ),
+            )
             topk_result = metadata.topk_transform(logits, self.index_topk)
         else:
             topk_result = metadata.topk_transform_sparse_mask(
@@ -1962,6 +2037,9 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
                 )
                 return
 
+            out_cache_loc, (key,) = translate_dcp_cache_write(out_cache_loc, key)
+            if out_cache_loc.numel() == 0:
+                return
             write_buffer = pool.get_index_k_with_scale_write_buffer(layer_id=layer_id)
             lightop_kvcache.fuse_act_quant_and_store_index_k_cache(
                 key,
@@ -2105,6 +2183,10 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
             skip_logits_computation = self._should_skip_logits_computation(
                 forward_batch
             )
+        if get_parallel().dcp_enabled:
+            # DCP TopK has an all-gather on the finalized local candidates.
+            # Do not let a per-rank reuse heuristic suppress that collective.
+            skip_logits_computation = False
 
         # Optimization: fast path when skipping topk computation
         if skip_logits_computation and (not self.dsa_enable_prefill_cp):

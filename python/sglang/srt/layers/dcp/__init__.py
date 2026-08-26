@@ -49,6 +49,8 @@ from sglang.srt.layers.dcp.comm import (
 from sglang.srt.layers.dcp.layout import (
     filter_dcp_local_kv_indices,
     get_dcp_lens,
+    remap_dsa_topk_indices_for_dcp,
+    translate_dcp_cache_write,
     update_local_kv_lens_for_dcp,
 )
 from sglang.srt.layers.dcp.metadata import DecodeContextParallelMetadata
@@ -78,5 +80,7 @@ __all__ = [
     "get_attention_dcp_rank",
     "get_attention_dcp_world_size",
     "get_dcp_lens",
+    "remap_dsa_topk_indices_for_dcp",
+    "translate_dcp_cache_write",
     "update_local_kv_lens_for_dcp",
 ]
