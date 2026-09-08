@@ -1431,6 +1431,47 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
         Detect whether we need to chunk the MQA logits computation to avoid OOM
         Return: (need_chunk, logits_budget_bytes)
         """
+        # An explicitly configured legacy budget takes precedence over the
+        # fraction-based policy, including its cached/static headroom limit.
+        budget_gb = envs.SGLANG_NSA_MQA_LOGITS_MEMORY_BUDGET_GB.get()
+        if budget_gb is not None:
+            budget_gb = float(budget_gb)
+            if not 0 < budget_gb < float("inf"):
+                raise ValueError(
+                    "SGLANG_NSA_MQA_LOGITS_MEMORY_BUDGET_GB must be a positive "
+                    f"finite number, got {budget_gb}"
+                )
+            configured_budget_bytes = int(budget_gb * (1024**3))
+            if configured_budget_bytes <= 0:
+                raise ValueError("SGLANG_NSA_MQA_LOGITS_MEMORY_BUDGET_GB is too small")
+            logits_bytes = num_q * num_k * self._MQA_LOGITS_BYTES_PER_ELEM
+            if (
+                num_q * num_k < self._MQA_LOGITS_STATIC_SKIP_ELEMS
+                and logits_bytes <= configured_budget_bytes
+            ):
+                return False, configured_budget_bytes
+            free_mem, total_mem = torch.cuda.mem_get_info(device_index)
+            try:
+                stats = torch.cuda.memory_stats(device_index)
+                reusable_mem = max(
+                    0,
+                    int(stats["reserved_bytes.all.current"])
+                    - int(stats["active_bytes.all.current"])
+                    - int(stats["inactive_split_bytes.all.current"]),
+                )
+                free_mem = min(int(total_mem), int(free_mem) + reusable_mem)
+            except (KeyError, RuntimeError, TypeError, ValueError):
+                pass
+            logits_budget_bytes = max(
+                1,
+                min(
+                    configured_budget_bytes,
+                    int(free_mem) // 2,
+                    int(total_mem * self._MQA_LOGITS_TOTAL_MEM_FRACTION),
+                ),
+            )
+            return logits_bytes > logits_budget_bytes, logits_budget_bytes
+
         # Quick static check for normal batches
         if num_q * num_k < self._MQA_LOGITS_STATIC_SKIP_ELEMS:
             return False, 0
