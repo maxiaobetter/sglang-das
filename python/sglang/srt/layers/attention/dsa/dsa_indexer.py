@@ -1402,10 +1402,22 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
         if get_is_capture_mode():
             return static_budget
 
-        # Match the original free-memory guard: logits_bytes * 2 > free_mem.
-        # torch.cuda.mem_get_info synchronizes the host, so cache the result,
-        # capped by the workload-independent serving-memory headroom.
-        free_mem, _ = torch.cuda.mem_get_info(device_index)
+        # Include reusable allocator cache that mem_get_info omits. Exclude
+        # active allocations and inactive split blocks, as in the legacy indexer.
+        # Cache the result to avoid repeated host synchronization, while retaining
+        # the workload-independent serving-memory headroom cap.
+        free_mem, device_total_mem = torch.cuda.mem_get_info(device_index)
+        try:
+            stats = torch.cuda.memory_stats(device_index)
+            reusable_mem = max(
+                0,
+                int(stats["reserved_bytes.all.current"])
+                - int(stats["active_bytes.all.current"])
+                - int(stats["inactive_split_bytes.all.current"]),
+            )
+            free_mem = min(int(device_total_mem), int(free_mem) + reusable_mem)
+        except (KeyError, RuntimeError, TypeError, ValueError):
+            pass
         budget_bytes = min(int(free_mem * free_mem_fraction), static_budget)
 
         budget_bytes = max(1, budget_bytes)
