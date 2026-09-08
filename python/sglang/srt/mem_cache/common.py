@@ -123,6 +123,14 @@ def maybe_cache_unfinished_req(req: Req, tree_cache: BasePrefixCache, **kwargs):
         if getattr(req, "allow_radix_cache_insert_once", False):
             req.allow_radix_cache_insert_once = False
         else:
+            if kwargs.get("chunked", False):
+                # Skipping radix insertion must not discard in-flight chunk
+                # progress. Keep request-owned KV locations for the next chunk,
+                # matching ChunkCache without inserting or locking radix nodes.
+                kv_indices = tree_cache.req_to_token_pool.req_to_token[
+                    req.req_pool_idx, : req.extend_range.end
+                ]
+                req.prefix_indices = kv_indices.to(dtype=torch.int64, copy=True)
             return
 
     tree_cache.cache_unfinished_req(req, **kwargs)
