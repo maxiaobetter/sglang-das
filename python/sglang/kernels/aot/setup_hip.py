@@ -57,11 +57,13 @@ sources = [
     "csrc/moe/moe_topk_sigmoid_kernels.cu",
     "csrc/moe/moe_topk_softmax_kernels.cu",
     "csrc/speculative/eagle_utils.cu",
+    "csrc/speculative/renorm_rocm.cu",
+    "csrc/speculative/speculative_sampling_rocm.cu",
     "csrc/kvcacheio/transfer.cu",
     "csrc/attention/merge_attn_states.cu",
     "csrc/memory/weak_ref_tensor.cpp",
     "csrc/elementwise/pos_enc.cu",
-    #"csrc/sgl_diffusion/elementwise/timestep_embedding.cu",
+    # "csrc/sgl_diffusion/elementwise/timestep_embedding.cu",
 ]
 
 cxx_flags = ["-O3", "-w"]

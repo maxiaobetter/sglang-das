@@ -53,7 +53,11 @@ def top_k_renorm_probs(
     This combination of ``top_k_renorm_probs`` and ``sampling_from_probs`` should be equivalent to
     ``top_k_sampling_from_probs``.
     """
-    if probs.device.type == "musa" or not _has_flashinfer:
+    if (
+        torch.version.hip is not None
+        or probs.device.type == "musa"
+        or not _has_flashinfer
+    ):
         return _top_k_renorm_probs_internal(probs, *_to_tensor_scalar_tuple(top_k))
     else:
         return _flashinfer_sampling.top_k_renorm_probs(probs, top_k)
@@ -106,7 +110,11 @@ def top_p_renorm_probs(
     ``top_p_sampling_from_probs``.
 
     """
-    if probs.device.type == "musa" or not _has_flashinfer:
+    if (
+        torch.version.hip is not None
+        or probs.device.type == "musa"
+        or not _has_flashinfer
+    ):
         return _top_p_renorm_probs_internal(probs, *_to_tensor_scalar_tuple(top_p))
     else:
         return _flashinfer_sampling.top_p_renorm_probs(probs, top_p)
