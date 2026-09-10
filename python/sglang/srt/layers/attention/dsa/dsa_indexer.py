@@ -1285,9 +1285,7 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
             if use_int8_index_cache and not hasattr(
                 self, "_hcu_int8_indexer_path_logged"
             ):
-                logger.info(
-                    "DSA INT8 index-K consumer=LightOp dense INT8 Paged MQA"
-                )
+                logger.info("DSA INT8 index-K consumer=LightOp dense INT8 Paged MQA")
                 self._hcu_int8_indexer_path_logged = True
         else:
             kv_cache_fp8 = self._get_index_k_read_buffer(pool, layer_id)
