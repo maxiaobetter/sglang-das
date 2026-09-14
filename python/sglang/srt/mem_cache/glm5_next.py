@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import weakref
 from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any, List, Optional
@@ -33,6 +34,7 @@ from sglang.srt.utils import is_hcu, is_hcu_native_fp8_supported, is_hip
 if TYPE_CHECKING:
     from sglang.srt.managers.cache_controller import LayerDoneCounter
 
+logger = logging.getLogger(__name__)
 _is_hcu = is_hcu()
 _is_hip = is_hip()
 
@@ -92,6 +94,7 @@ class Glm5NextMLATokenToKVPool(DSATokenToKVPool):
                 and 0 <= layer_shard_rank_offset < layer_shard_size
             ):
                 raise ValueError("Invalid LayerSplit rank or rank offset")
+            self._log_layer_shard_plan()
             self.layer_shard_start = self._owned_local_layer_range()[0]
 
         self.kv_lora_rank = kv_lora_rank
@@ -171,6 +174,13 @@ class Glm5NextMLATokenToKVPool(DSATokenToKVPool):
                         ]
                     else:
                         self.remote_kv_buffers = shared_buffers
+                        logger.info(
+                            "Reusing LayerSplit Main-KV scratch buffers: "
+                            "rank=%s, ring_size=%s, bytes_per_buffer=%s",
+                            self.layer_shard_rank,
+                            self.mla_kv_prefetch_ring_size,
+                            self.remote_kv_buffers[0].nbytes,
+                        )
                     self.remote_kv_layer_ids: List[Optional[int]] = [
                         None
                     ] * self.mla_kv_prefetch_ring_size
@@ -911,6 +921,36 @@ class Glm5NextMLATokenToKVPool(DSATokenToKVPool):
             logical_rank, self.layer_shard_size, self.layer_num
         )
 
+    def _log_layer_shard_plan(self) -> None:
+        partitions = []
+        for logical_rank in range(self.layer_shard_size):
+            start, end = _get_layer_shard_range(
+                logical_rank, self.layer_shard_size, self.layer_num
+            )
+            physical_rank = (
+                logical_rank + self.layer_shard_rank_offset
+            ) % self.layer_shard_size
+            partitions.append(f"r{physical_rank}:[{start},{end})")
+        owned_start, owned_end = self._owned_local_layer_range()
+        logical_rank = (
+            self.layer_shard_rank - self.layer_shard_rank_offset
+        ) % self.layer_shard_size
+        logger.info(
+            "Layer shard plan (continuous): layer_num=%s, shard_size=%s, "
+            "rank=%s, logical_rank=%s, rank_offset=%s, local=[%s,%s), "
+            "global=[%s,%s), partitions=%s",
+            self.layer_num,
+            self.layer_shard_size,
+            self.layer_shard_rank,
+            logical_rank,
+            self.layer_shard_rank_offset,
+            owned_start,
+            owned_end,
+            self.start_layer + owned_start,
+            self.start_layer + owned_end,
+            "; ".join(partitions),
+        )
+
     def _is_layer_owned(self, layer_id: int) -> bool:
         if not self.layer_shard_enabled:
             return True
@@ -939,6 +979,10 @@ class Glm5NextMLATokenToKVPool(DSATokenToKVPool):
         self.layer_broadcast_comm = PyNcclCommunicator(
             group=cp_group.cpu_group,
             device=cp_group.device,
+        )
+        logger.info(
+            "Initialized dedicated layer-shard broadcast NCCL communicator: "
+            f"rank={cp_group.rank_in_group}, world_size={cp_group.world_size}"
         )
 
     def _broadcast_tensor_from_owner(
