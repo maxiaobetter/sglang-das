@@ -22,6 +22,7 @@ from sglang.kernels.ops.attention.fla.fused_recurrent import (
 from sglang.kernels.ops.attention.fla.index import (
     prepare_chunk_indices,
 )
+from sglang.srt.utils import is_hcu
 from sglang.kernels.ops.attention.fla.l2norm import l2norm_fwd
 from sglang.kernels.ops.attention.fla.op import exp, exp2, log
 from sglang.kernels.ops.attention.fla.utils import (
@@ -1143,7 +1144,10 @@ def chunk_kda_fwd(
     )
     _H_pr = q.shape[-2]
     _B = q.shape[0]
-    _small_grid = _B * _NT_pr * _H_pr <= 256
+    # The fused diagonal/recompute path loses GLM KDA precision on HCU. Keep the
+    # upstream launch-count optimization on other platforms, but use the
+    # separate kernels as in the validated DCU GLM-5 fix (30a5b3e3704).
+    _small_grid = not is_hcu() and _B * _NT_pr * _H_pr <= 256
     w, u, _, kg, Aqk, _ = chunk_kda_fwd_intra(
         q=q,
         k=k,
