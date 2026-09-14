@@ -19,14 +19,14 @@ paths used in the gfx938 decode measurements:
 
 ## Components required to reproduce the measured configuration
 
-The node-local draft LM-head VP and static LP dispatch changes are separate
-follow-up changes. Installing SGLang alone does not provide the native operator
-optimizations or BLAS tuning artifacts.
+The node-local draft LM-head VP and static LP dispatch changes are included in
+`feature/glm52-forward-port-v0.5.18`. Installing SGLang alone does not provide
+the native operator optimizations or BLAS tuning artifacts.
 
 | Component | Measured dependency |
 | --- | --- |
 | Platform | gfx938, 64 physical CUs, Python 3.10, Torch 2.10, C++ ABI1, DTK2604 |
-| LightOp | `8773c85` base plus the native FP8 group6 MQA row-reuse extension and its Python wrapper |
+| LightOp | `c17922f` integrates native FP8 group6 MQA row reuse and the BS5 dispatch into the normal package |
 | FlashMLA | The measured page64-capable build, sparse decode split count 32 |
 | DeepGEMM | Base `g2b4d4e` package plus the opt-in M32 masked FP8 library and dispatch adapter |
 | hipBLASLt | `hipblaslt.config` for the measured library version |
@@ -49,13 +49,20 @@ The final native libraries can be identified by SHA256:
 | Library | SHA256 |
 | --- | --- |
 | FlashMLA extension | `969241119b0a9a265a15c845447fceaf548b4949f42b7c85d224c80cdcabf483` |
-| LightOp MQA extension | `acb369ebddb001752a676a5265b916ea94b09d4b9c050548b0335326ab8f7e2c` |
+| LightOp full extension, including MQA row reuse | `d1bbc29cce6675e28c5dd63b7b7e8eb90ab22125d26ac3dc1f52d03f830376ce` |
 | DeepGEMM M32 extension | `9b529c15521069b48a881c59513a6a75424e565a7fbaba01df27ec911e94c0be` |
 
 The M32 source is commit `ee428b4efc9f174f1d1958d06cdba85cd7a8fddf` in the
 separate DeepGEMM repository. Its source API requires an explicit M32 config;
 the default remains the previous kernel. The measured adapter selects M32
 for verify gate/up and down projections and retains the previous draft path.
+
+The LightOp source is available on
+[`feature/topk-dev-native-fp8-mtp516`](https://github.com/maxiaobetter/lightop/tree/feature/topk-dev-native-fp8-mtp516).
+Set `LIGHTOP_SPARSE_MQA_GROUP6_ROWS_PER_CTA=3` for the measured row reuse.
+The normal package uses 128 persistent CTAs for native FP8 group6 at 30 rows
+when the caller supplies no explicit CTA count. The persistent scheduler is
+retained, and no separate MQA Python extension is needed.
 
 ## Measurement scope
 
