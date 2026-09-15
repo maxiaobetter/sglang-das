@@ -2251,7 +2251,8 @@ class DeepseekSparseAttnBackend(
                 page_table_1=page_table_1,
                 sm_scale=layer.scaling,
                 v_head_dim=layer.v_head_dim,
-                topk_length=metadata.dsa_cache_seqlens_int32,
+                # HCU legacy wrapper sorts indices only without topk_length.
+                topk_length=None if _is_hcu else metadata.dsa_cache_seqlens_int32,
                 indices_are_sorted=skip_reused_topk_sort,
             )
         elif dsa_impl == "flashinfer_sparse_mla":
