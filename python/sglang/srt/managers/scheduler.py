@@ -4317,7 +4317,18 @@ class Scheduler(
             if self.enable_overlap:
                 # Self-gates on batch.spec_info.future_indices; non-spec_v2
                 # no-ops (ForwardBatch.init_new lazily computes the sum).
-                self.future_map.resolve_seq_lens_cpu(batch)
+                defer_cpu = (
+                    envs.SGLANG_HCU_SPEC_ASYNC_SCHEDULING.get()
+                    and batch.forward_mode.is_decode()
+                    and not batch.is_extend_in_batch
+                    and self._confidence_budget_prepare is None
+                    and getattr(
+                        self.model_worker, "supports_deferred_cpu_seq_lens", False
+                    )
+                )
+                finish_cpu_seq_lens = self.future_map.resolve_seq_lens_cpu(
+                    batch, defer_cpu=defer_cpu
+                )
                 if self._confidence_budget_prepare is not None:
                     self._confidence_budget_prepare(batch, self.future_map)
 
@@ -4336,6 +4347,8 @@ class Scheduler(
                         # draft_extend) so schedule prep can overlap with draft_extend.
                         # Non-spec has no later work — scheduler publishes after return.
                         fwd_kwargs = {}
+                        if finish_cpu_seq_lens is not None:
+                            fwd_kwargs["finish_cpu_seq_lens"] = finish_cpu_seq_lens
                         if not batch.spec_algorithm.is_none():
                             fwd_kwargs["on_publish"] = partial(
                                 self.future_map.publish, future_indices

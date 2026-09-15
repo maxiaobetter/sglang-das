@@ -549,7 +549,7 @@ class FutureMap:
             int(x) for x in fresh_cpu.tolist()
         ]
 
-    def resolve_seq_lens_cpu(self, batch: ScheduleBatch) -> None:
+    def resolve_seq_lens_cpu(self, batch: ScheduleBatch, *, defer_cpu=False):
         # Lazy pull from new_seq_lens_buf for spec_v2 (accept_lens not known to
         # schedule). The CPU mirror is gated by needs_cpu_seq_lens; backends that
         # opt out take the GPU-only path below. A private D2H stream overlaps the copy.
@@ -566,7 +566,7 @@ class FutureMap:
                 # forward publish; a stale consume means a publish went missing.
                 assert self._publish_fresh, "resolve without a fresh forward publish"
                 self._publish_fresh = False
-            if _is_hip:
+            if _is_hip and not (defer_cpu and _is_hcu):
                 # Temporary workaround: Event.wait() regresses TPOT on AMD MI355.
                 self.publish_ready.synchronize()
             else:
@@ -597,15 +597,31 @@ class FutureMap:
         self.fwd_prepare_d2h_stream.wait_event(self.publish_ready)
         with torch.get_device_module(self.device).stream(self.fwd_prepare_d2h_stream):
             self.new_seq_lens_cpu_pinned.copy_(self.new_seq_lens_buf, non_blocking=True)
-        self.fwd_prepare_d2h_stream.synchronize()
 
-        # FIXME: fi == batch.req_pool_indices; unify future_indices and req_pool_indices.
-        batch.seq_lens_cpu = self.new_seq_lens_cpu_pinned[batch.req_pool_indices_cpu]
-        batch.seq_lens_sum = int(batch.seq_lens_cpu.sum())
-        if _DEBUG_ASSERT:
-            # After the D2H copy completed (synchronize above), so the pinned
-            # mirror is not poisoned.
-            _assert_nonneg_and_invalidate(batch.seq_lens, self.new_seq_lens_buf, fi)
+        cpu_copy_finished = False
+
+        def finish_cpu_copy():
+            nonlocal cpu_copy_finished
+            if cpu_copy_finished:
+                return
+            self.fwd_prepare_d2h_stream.synchronize()
+            # Select rows only after the asynchronous copy has completed.
+            batch.seq_lens_cpu = self.new_seq_lens_cpu_pinned[
+                batch.req_pool_indices_cpu
+            ]
+            batch.seq_lens_sum = int(batch.seq_lens_cpu.sum())
+            if _DEBUG_ASSERT:
+                _assert_nonneg_and_invalidate(batch.seq_lens, self.new_seq_lens_buf, fi)
+
+            cpu_copy_finished = True
+
+        if defer_cpu and _is_hcu:
+            # Draft graph metadata consumes GPU lengths. Resolve the CPU mirror
+            # after draft submission, before verify or an eager draft fallback.
+            batch.seq_lens_cpu = None
+            batch.seq_lens_sum = None
+            return finish_cpu_copy
+        finish_cpu_copy()
 
     def publish(
         self,
