@@ -1911,15 +1911,11 @@ class DeepEPMoE(FusedMoE):
             expected_m,
         )
 
-        # The FP8 masked kernel has no limit argument.  Apply the model's
-        # SwiGLU clamp before quantization so low-latency decode has the same
-        # activation semantics as the normal FP8 and INT8 paths.
-        _apply_swiglu_limit_inplace(
-            gateup_output, self.moe_runner_config.swiglu_limit
-        )
         q_a2_all, q_a2_scale = fuse_silu_mul_fp8_quant_ep(
-            input=gateup_output, fp8type=0, tokens_per_expert=masked_m
-        )
+            input = gateup_output,
+            fp8type = 0,
+            tokens_per_expert = masked_m,
+            limit = self.moe_runner_config.swiglu_limit)
         # The first-stage BF16 activation is no longer needed after quantization.
         # Releasing it here lowers peak memory during low-latency graph capture.
         del gateup_output
