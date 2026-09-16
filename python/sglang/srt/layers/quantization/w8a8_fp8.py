@@ -378,6 +378,12 @@ class W8A8FP8MoEMethod(FusedMoEMethodBase):
                 layer.register_buffer(
                     "w2_weight_deepgemm", w2_deepgemm, persistent=False
                 )
+            # The low-latency/contiguous DeepGEMM kernels consume only the
+            # packed buffers. Drop the source tensors to avoid retaining two
+            # full copies of every expert weight.
+            del layer.w13_weight
+            del layer.w2_weight
+            torch.cuda.empty_cache()
             layer._dsv4_channel_fp8_deepgemm_repacked = True
             return
 

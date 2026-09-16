@@ -228,8 +228,15 @@ class ModelNextLinearAttention(nn.Module):
         projection_size = self.head_dim * self.num_heads
         self.conv_size = config.linear_attn_config["short_conv_kernel_size"]
         self.allow_neg_eigval = config.linear_allow_neg_eigval
-        self.safe_gate = (
-            config.linear_attn_config.get("gate_lower_bound", None) is not None
+        _cfg_lower_bound = config.linear_attn_config.get("gate_lower_bound", None)
+        _cfg_safe_gate = config.linear_attn_config.get("safe_gate", False)
+        self.safe_gate = _cfg_lower_bound is not None or _cfg_safe_gate
+        self._resolved_gate_lower_bound = (
+            _cfg_lower_bound
+            if _cfg_lower_bound is not None
+            else KDA_SAFE_GATE_LOWER_BOUND
+            if _cfg_safe_gate
+            else None
         )
 
         # Optional experimental fusion for the KDA projections.
@@ -397,9 +404,7 @@ class ModelNextLinearAttention(nn.Module):
         )
         self.attn.safe_gate = self.safe_gate
         self.attn.safe_gate_lower_bound = KDA_SAFE_GATE_LOWER_BOUND
-        self.attn.lower_bound = config.linear_attn_config.get(
-            "gate_lower_bound", None
-        )
+        self.attn.lower_bound = self._resolved_gate_lower_bound
 
         self._cp_fuse_symm_mem = envs.SGLANG_DSA_CP_FUSE_SYMM_MEM.get()
 
@@ -1366,6 +1371,8 @@ class ModelNextForCausalLM(nn.Module):
         self.pp_group = get_pp_group()
         self.config = config
         self.tp_size = get_tensor_model_parallel_world_size()
+        if quant_config is not None:
+            quant_config.update_packed_modules_mapping(self.packed_modules_mapping)
         self.quant_config = quant_config
         self.determine_num_fused_shared_experts()
         self.use_dsa = is_deepseek_dsa(config)
@@ -1747,6 +1754,8 @@ class Glm5NextForConditionalGeneration(GlmVisualEncoderMixin, ModelNextForCausal
             self.pp_group = get_pp_group()
             self.config = config
             self.tp_size = get_tensor_model_parallel_world_size()
+            if quant_config is not None:
+                quant_config.update_packed_modules_mapping(self.packed_modules_mapping)
             self.quant_config = quant_config
             self.num_fused_shared_experts = 0
             self.use_dsa = is_deepseek_dsa(config)

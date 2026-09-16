@@ -895,7 +895,7 @@ class DeepEPMoE(FusedMoE):
             elif (
                 deep_gemm_wrapper.ENABLE_JIT_DEEPGEMM
                 and self.use_fp8_w8a8
-                and self.use_block_quant
+                and (self.use_block_quant or not _is_hcu)
             ):
                 # forward_deepgemm_contiguous uses grouped_gemm_nt_f8f8bf16_contig,
                 # which consumes 128-block group scales. Channel-FP8 weights (used
