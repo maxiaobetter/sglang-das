@@ -31,12 +31,11 @@ from sglang.srt.layers.quantization.fp8_utils import (
     validate_fp8_block_shape,
 )
 from sglang.srt.layers.quantization.utils import requantize_with_max_scale
-from sglang.srt.utils import get_bool_env_var, is_hcu, is_hip
+from sglang.srt.utils import get_bool_env_var, is_hip
 
 __all__ = ["CompressedTensorsW8A8Fp8"]
 
 _is_hip = is_hip()
-_is_hcu = is_hcu()
 _use_aiter = get_bool_env_var("SGLANG_USE_AITER") and _is_hip
 if _use_aiter:
     from aiter.ops.shuffle import shuffle_weight
@@ -50,10 +49,6 @@ strategy_to_parameter_type = {
 
 
 class CompressedTensorsW8A8Fp8(CompressedTensorsLinearScheme):
-    # HCU DeepGEMM accepts an already-quantized (fp8, per-token-scale) pair.
-    # This lets callers fuse activation, clamp, multiply, and quantization.
-    supports_fp8_prequantized_input = _is_hcu
-
     def __init__(self, weight_quant: QuantizationArgs, is_static_input_scheme: bool):
         self.weight_quant = weight_quant
         self.strategy = self.weight_quant.strategy
@@ -241,26 +236,7 @@ class CompressedTensorsW8A8Fp8(CompressedTensorsLinearScheme):
         input_quant_args: Optional[list[torch.Tensor]] = None,
         silu_quant_args: Optional[list[torch.Tensor]] = None,
     ) -> torch.Tensor:
-        if input_quant_args is not None:
-            if not _is_hcu:
-                raise RuntimeError(
-                    "Pre-quantized channelwise FP8 input is only supported on HCU"
-                )
-            return apply_fp8_linear(
-                input=(input_quant_args[0], input_quant_args[1]),
-                weight=layer.weight,
-                weight_scale=layer.weight_scale,
-                bias=bias,
-            )
-
         if isinstance(x, tuple):
-            if _is_hcu:
-                return apply_fp8_linear(
-                    input=(x[0], x[1]),
-                    weight=layer.weight,
-                    weight_scale=layer.weight_scale,
-                    bias=bias,
-                )
             # Pre-quantized activation from a fused RMSNorm+FP8 quant kernel:
             # x = (fp8_input, per_tensor_input_scale[, orig_dtype]).
             # apply_fp8_linear detects the fp8 dtype and skips re-quantizing;
