@@ -58,6 +58,9 @@ _disable_hip_linear_quant = _is_hip and get_bool_env_var(
 )
 _use_fused_rms_quant = get_bool_env_var("SGLANG_USE_LEGACY_FUSED_RMS_QUANT")
 _use_fused_silu_mul_quant = get_bool_env_var("SGLANG_USE_FUSED_SILU_MUL_QUANT")
+_use_fused_silu_mul_fp8_quant = get_bool_env_var(
+    "SGLANG_USE_FUSED_SILU_MUL_FP8_QUANT"
+)
 _use_fused_bailing_silu_mul_fp8_quant = get_bool_env_var(
     "SGLANG_USE_FUSED_BAILING_SILU_MUL_FP8_QUANT"
 )
@@ -87,14 +90,22 @@ if _use_fused_silu_mul_quant:
     except ImportError:
         pass
 
-if _use_fused_bailing_silu_mul_fp8_quant or _use_fused_dpskv4_silu_mul_fp8_quant:
+if (
+    _use_fused_silu_mul_fp8_quant
+    or _use_fused_bailing_silu_mul_fp8_quant
+    or _use_fused_dpskv4_silu_mul_fp8_quant
+):
     try:
         from lightop.activation import fuse_silu_mul_fp8_quant
     except ImportError:
         # Current HCU wheels export this operator from the package root.
         from lightop import fuse_silu_mul_fp8_quant
 
-if _use_fused_bailing_silu_mul_fp8_quant or _use_fused_dpskv4_silu_mul_fp8_quant:
+if (
+    _use_fused_silu_mul_fp8_quant
+    or _use_fused_bailing_silu_mul_fp8_quant
+    or _use_fused_dpskv4_silu_mul_fp8_quant
+):
     import deepgemm
 
 logger = logging.getLogger(__name__)
@@ -1777,17 +1788,23 @@ class RowParallelLinear(LinearBase):
                 param.load_row_parallel_weight(loaded_weight)
 
     def supports_fused_silu_mul_quant_input(self) -> bool:
-        scheme = getattr(self, "scheme", None)
         return bool(
             _use_fused_silu_mul_quant
             and _lightop_fuse_silu_mul_clamp_quant is not None
-            and (
-                getattr(
-                    self.quant_method,
-                    "supports_prequantized_input",
-                    False,
-                )
-                or getattr(scheme, "supports_prequantized_input", False)
+            and getattr(
+                self.quant_method,
+                "supports_prequantized_input",
+                False,
+            )
+        )
+
+    def supports_fused_silu_mul_fp8_quant_input(self) -> bool:
+        return bool(
+            _use_fused_silu_mul_fp8_quant
+            and getattr(
+                getattr(self, "scheme", None),
+                "supports_fp8_prequantized_input",
+                False,
             )
         )
 
@@ -1860,7 +1877,11 @@ class RowParallelLinear(LinearBase):
                     sm.tag(output_parallel)
         elif use_fused_silu_mul_fp8_quant:
             output_shape = [*input_.shape[:-1], self.weight.shape[1]]
-            input_x, x_scale = fuse_silu_mul_fp8_quant(input_parallel, fp8type=0)
+            input_x, x_scale = fuse_silu_mul_fp8_quant(
+                input_parallel,
+                fp8type=0,
+                limit=swiglu_limit,
+            )
 
             with symm_ctx as sm:
                 output = torch.empty(

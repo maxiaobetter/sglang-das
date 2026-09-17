@@ -381,6 +381,19 @@ class DeepseekV2MLP(nn.Module):
             self.swiglu_limit is not None
             and gate_up.dim() == 2
             and gate_up.is_contiguous()
+            and self.down_proj.supports_fused_silu_mul_fp8_quant_input()
+        ):
+            output, _ = self.down_proj(
+                gate_up,
+                use_fused_silu_mul_fp8_quant=True,
+                swiglu_limit=float(self.swiglu_limit),
+            )
+            return output
+
+        if (
+            self.swiglu_limit is not None
+            and gate_up.dim() == 2
+            and gate_up.is_contiguous()
             and self.down_proj.supports_fused_silu_mul_quant_input()
         ):
             output, _ = self.down_proj(

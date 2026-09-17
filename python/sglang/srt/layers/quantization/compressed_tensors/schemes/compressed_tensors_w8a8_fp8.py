@@ -52,7 +52,7 @@ strategy_to_parameter_type = {
 class CompressedTensorsW8A8Fp8(CompressedTensorsLinearScheme):
     # HCU DeepGEMM accepts an already-quantized (fp8, per-token-scale) pair.
     # This lets callers fuse activation, clamp, multiply, and quantization.
-    supports_prequantized_input = _is_hcu
+    supports_fp8_prequantized_input = _is_hcu
 
     def __init__(self, weight_quant: QuantizationArgs, is_static_input_scheme: bool):
         self.weight_quant = weight_quant
