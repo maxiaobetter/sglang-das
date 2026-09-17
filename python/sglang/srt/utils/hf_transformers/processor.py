@@ -13,7 +13,9 @@
 # ==============================================================================
 """Processor loading utilities."""
 
+import inspect
 import json
+from functools import wraps
 from pathlib import Path
 from typing import Optional
 
@@ -251,6 +253,33 @@ def _escape_processor_special_tokens(processor) -> None:
             logger.warning("Failed to escape glm_image_placeholder_token: %s", exc)
 
 
+def adapt_glm5next_image_processor(processor):
+    """Keep checkpoint fast preprocessing compatible with HF's resample API."""
+    image_processor = getattr(processor, "image_processor", processor)
+    if type(image_processor).__name__ != "Glm5nextImageProcessorFast":
+        return
+    cls = type(image_processor)
+    original = cls._preprocess
+    if getattr(original, "_sglang_resample_compat", False):
+        return
+    if "interpolation" not in inspect.signature(original).parameters:
+        return
+
+    @wraps(original)
+    def preprocess(self, *args, **kwargs):
+        if "interpolation" not in kwargs:
+            from transformers.image_utils import pil_torch_interpolation_mapping
+
+            resample = kwargs.get("resample", self.resample)
+            kwargs["interpolation"] = pil_torch_interpolation_mapping.get(
+                resample, resample
+            )
+        return original(self, *args, **kwargs)
+
+    preprocess._sglang_resample_compat = True
+    cls._preprocess = preprocess
+
+
 def get_processor(
     tokenizer_name: str,
     *args,
@@ -394,6 +423,7 @@ def get_processor(
     ):
         processor = wrap_as_pixtral(processor, config)
 
+    adapt_glm5next_image_processor(processor)
     tokenizer = get_tokenizer_from_processor(processor)
 
     # AutoProcessor may internally create a TokenizersBackend tokenizer

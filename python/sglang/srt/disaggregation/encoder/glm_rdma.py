@@ -194,11 +194,8 @@ class RdmaBufferPool:
 
         try:
             buffer = torch.empty(class_bytes, dtype=torch.uint8)
-            ret = self._engine.register(buffer.data_ptr(), buffer.nbytes)
-            if ret != 0:
-                raise RuntimeError(
-                    f"mooncake register_memory failed (ret={ret}, bytes={class_bytes})"
-                )
+            # The transfer-engine wrapper raises on failure and returns None.
+            self._engine.register(buffer.data_ptr(), buffer.nbytes)
         except BaseException:
             # Roll back the reservation so a failed allocation does not leak
             # budget (which would wedge every future acquire).
@@ -275,12 +272,8 @@ class RdmaRegRefcount:
         with self._lock:
             refcount = self._refcounts.get(addr, 0)
             if refcount == 0:
-                ret = self._engine.register(addr, tensor.nbytes)
-                if ret != 0:
-                    raise RuntimeError(
-                        f"mooncake register_memory failed (ret={ret}, "
-                        f"bytes={tensor.nbytes})"
-                    )
+                # The wrapper already checks the native registration status.
+                self._engine.register(addr, tensor.nbytes)
                 self._pinned_tensors[addr] = tensor
             self._refcounts[addr] = refcount + 1
         return addr
