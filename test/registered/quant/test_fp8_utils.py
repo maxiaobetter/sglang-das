@@ -299,6 +299,24 @@ class TestApplyFp8LinearScaleDispatch(CustomTestCase):
                 input.dtype,
             )
 
+        with (
+            patch.object(compressed_fp8, "_is_hcu", True),
+            patch.object(compressed_fp8, "apply_fp8_linear") as compressed_apply,
+        ):
+            compressed_apply.return_value = torch.empty(
+                (qinput.shape[0], weight.shape[1]), dtype=input.dtype
+            )
+            compressed_method.apply_weights(
+                layer,
+                input,
+                input_quant_args=(qinput, input_scale),
+            )
+            self.assertEqual(
+                compressed_apply.call_args.kwargs["input"],
+                (qinput, input_scale),
+            )
+            self.assertNotIn("input_scale", compressed_apply.call_args.kwargs)
+
 
 class TestApplyFp8LinearPrequantOutputDtype(CustomTestCase):
     """apply_fp8_linear with a pre-quantized fp8 activation must emit the

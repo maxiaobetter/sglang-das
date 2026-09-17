@@ -1777,13 +1777,17 @@ class RowParallelLinear(LinearBase):
                 param.load_row_parallel_weight(loaded_weight)
 
     def supports_fused_silu_mul_quant_input(self) -> bool:
+        scheme = getattr(self, "scheme", None)
         return bool(
             _use_fused_silu_mul_quant
             and _lightop_fuse_silu_mul_clamp_quant is not None
-            and getattr(
-                self.quant_method,
-                "supports_prequantized_input",
-                False,
+            and (
+                getattr(
+                    self.quant_method,
+                    "supports_prequantized_input",
+                    False,
+                )
+                or getattr(scheme, "supports_prequantized_input", False)
             )
         )
 
