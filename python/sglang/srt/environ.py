@@ -1311,6 +1311,8 @@ class Envs:
     SGLANG_SPEC_SKIP_ZERO_STEP_DRAFT_EXTEND = EnvBool(False)
     # Opt-in HCU GLM-Next draft submission before the CPU sequence-length wait.
     SGLANG_HCU_SPEC_ASYNC_SCHEDULING = EnvBool(False)
+    # Opt-in HCU input preparation and data-movement fast paths.
+    SGLANG_ENABLE_RUNTIME_FAST_PATH = EnvBool(False)
     # Which speculative decisions rank 0 broadcasts to its TP group; narrowing
     # it under live traffic isolates where ranks actually diverge. Comma
     # separated presets ("all", "rng", "init", "off"), or SpecTpSyncSite slugs

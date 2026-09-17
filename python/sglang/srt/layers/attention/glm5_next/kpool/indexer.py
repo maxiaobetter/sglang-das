@@ -280,9 +280,36 @@ class IndexerKPool(Indexer):
 
     @torch.compile(dynamic=True) if not is_hip() else lambda f: f
     def _get_logits_head_gate(self, x: torch.Tensor, q_scale: torch.Tensor):
-        # Override so the GLM head broadcast in _project_and_scale_head_gates
-        # is picked up here too (parent inlines the projection instead of
-        # delegating).
+        # Preserve the minimum-head expansion here because the parent inlines
+        # the projection instead of delegating to the helper above.
+        if (
+            envs.SGLANG_ENABLE_RUNTIME_FAST_PATH.get()
+            and is_hcu()
+            and isinstance(x, torch.Tensor)
+            and x.shape[0] <= 64
+            and q_scale.dtype == torch.float32
+            and q_scale.ndim == 3
+            and q_scale.shape[-1] == 1
+            and q_scale.is_contiguous()
+        ):
+            weights = self._weights_proj_bf16_in_fp32_out(x)
+            if (
+                weights.dtype == torch.bfloat16
+                and weights.ndim == 2
+                and weights.shape[1] in (1, 2, 4, 8, 16, 32, 64)
+                and q_scale.shape[:2] == (weights.shape[0], max(8, weights.shape[1]))
+                and weights.is_contiguous()
+            ):
+                from sglang.srt.layers.attention.glm5_next.gate_scale import (
+                    nsa_gate_scale,
+                )
+
+                return nsa_gate_scale(
+                    weights, q_scale, self.n_heads, self.softmax_scale
+                )
+            # Reuse the projection if an unsupported layout needs eager scaling.
+            weights = _ensure_min_heads(weights) * self.n_heads**-0.5
+            return weights.unsqueeze(-1) * q_scale * self.softmax_scale
         weights = self._project_and_scale_head_gates(x)
         weights = weights.unsqueeze(-1) * q_scale * self.softmax_scale
         return weights

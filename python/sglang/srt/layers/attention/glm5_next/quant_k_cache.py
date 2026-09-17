@@ -55,6 +55,77 @@ def quantize_k_cache_separate(
     )
 
 
+def can_quantize_k_cache_direct_store(
+    kv_buffer: torch.Tensor,
+    loc: torch.Tensor,
+    k_nope: torch.Tensor,
+    k_rope: torch.Tensor,
+) -> bool:
+    """Check the exact no-RoPE NSA FP8 cache layout used by the direct store."""
+    if k_nope.ndim == 3:
+        if k_nope.shape[1] != 1:
+            return False
+        k_nope = k_nope.squeeze(1)
+    if k_rope.ndim == 3:
+        if k_rope.shape[1] != 1:
+            return False
+        k_rope = k_rope.squeeze(1)
+    return bool(
+        kv_buffer.is_cuda
+        and k_nope.is_cuda
+        and k_rope.is_cuda
+        and loc.is_cuda
+        and kv_buffer.device == k_nope.device == k_rope.device == loc.device
+        and kv_buffer.dtype == torch.uint8
+        and kv_buffer.ndim == 3
+        and kv_buffer.shape[1] == 1
+        and kv_buffer.shape[2] == 528
+        and kv_buffer.stride(2) == 1
+        and kv_buffer.storage_offset() % 4 == 0
+        and all(stride % 4 == 0 for stride in kv_buffer.stride()[:-1])
+        and k_nope.dtype == torch.bfloat16
+        and k_nope.ndim == 2
+        and k_nope.shape[1] == 512
+        and k_nope.stride(1) == 1
+        and k_rope.dtype == torch.bfloat16
+        and k_rope.ndim == 2
+        and k_rope.shape == (k_nope.shape[0], 0)
+        and loc.dtype in (torch.int32, torch.int64)
+        and loc.ndim == 1
+        and loc.is_contiguous()
+        and loc.numel() == k_nope.shape[0]
+    )
+
+
+def quantize_k_cache_direct_store(
+    kv_buffer: torch.Tensor,
+    loc: torch.Tensor,
+    k_nope: torch.Tensor,
+    k_rope: torch.Tensor,
+) -> None:
+    """Quantize no-RoPE NSA K and write its final paged-cache bytes directly."""
+    if not can_quantize_k_cache_direct_store(kv_buffer, loc, k_nope, k_rope):
+        raise ValueError("unsupported NSA K-cache layout for direct FP8 store")
+    if loc.numel() == 0:
+        return
+    k_nope_2d = k_nope.squeeze(1) if k_nope.ndim == 3 else k_nope
+    kv_buffer_fp8 = kv_buffer.view(torch.float8_e4m3fn)
+    kv_buffer_scale = kv_buffer.view(torch.float32)
+    _quantize_k_cache_direct_store_kernel[(loc.numel(), 4)](
+        kv_buffer_fp8,
+        kv_buffer_scale,
+        k_nope_2d,
+        loc,
+        kv_buffer_fp8.stride(0),
+        kv_buffer_scale.stride(0),
+        k_nope_2d.stride(0),
+        FP8_MIN=torch.finfo(torch.float8_e4m3fn).min,
+        FP8_MAX=torch.finfo(torch.float8_e4m3fn).max,
+        GROUP_SIZE=128,
+        num_warps=4,
+    )
+
+
 # Copied from original
 def _quantize_k_cache_ref(
     input_k_cache: torch.Tensor,  # (num_blocks, block_size, h_k, d)
@@ -333,6 +404,43 @@ def _quantize_k_cache_fast_kernel(
 
         data = tl.load(src_ptr, mask=mask)
         tl.store(dst_ptr, data, mask=mask)
+
+
+@triton.jit
+def _quantize_k_cache_direct_store_kernel(
+    kv_buffer_fp8_ptr,
+    kv_buffer_scale_ptr,
+    k_nope_ptr,
+    loc_ptr,
+    kv_buffer_fp8_stride_0: tl.constexpr,
+    kv_buffer_scale_stride_0: tl.constexpr,
+    k_nope_stride_0: tl.constexpr,
+    FP8_MIN: tl.constexpr,
+    FP8_MAX: tl.constexpr,
+    GROUP_SIZE: tl.constexpr,
+):
+    """Match ``_quantize_k_cache_fast_kernel`` and scatter its final bytes."""
+    token_id = tl.program_id(0)
+    group_id = tl.program_id(1)
+    offs = group_id * GROUP_SIZE + tl.arange(0, GROUP_SIZE)
+    y = tl.load(k_nope_ptr + token_id * k_nope_stride_0 + offs).to(tl.float32)
+
+    # Keep the existing no-RoPE scale and conversion sequence exactly. In
+    # particular, this path intentionally has no epsilon floor.
+    y_s = tl.max(tl.abs(y)) / FP8_MAX
+    y_s_inv = 1.0 / y_s
+    y_q = tl.clamp(y * y_s_inv, FP8_MIN, FP8_MAX).to(kv_buffer_fp8_ptr.dtype.element_ty)
+
+    loc = tl.load(loc_ptr + token_id).to(tl.int64)
+    tl.store(
+        kv_buffer_fp8_ptr + loc * kv_buffer_fp8_stride_0 + offs,
+        y_q,
+    )
+    # The physical row is [512 FP8 bytes | 4 FP32 scales].
+    tl.store(
+        kv_buffer_scale_ptr + loc * kv_buffer_scale_stride_0 + 128 + group_id,
+        y_s,
+    )
 
 
 if __name__ == "__main__":
