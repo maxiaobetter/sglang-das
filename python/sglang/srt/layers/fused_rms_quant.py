@@ -24,32 +24,10 @@ def is_lightop_sglang_rms_quant_available() -> bool:
     )
 
 
-@lru_cache(maxsize=1)
-def is_lightop_fp8_rms_quant_available() -> bool:
-    """Return whether LightOp exposes per-token FP8 RMSNorm quantization."""
-
-    if torch.version.hip is None:
-        return False
-    try:
-        import lightop
-    except Exception:
-        return False
-    return hasattr(lightop, "rms_norm_per_token_fp8_quant")
-
-
-def is_lightop_rms_quant_available(quant_dtype: torch.dtype) -> bool:
-    if quant_dtype == torch.int8:
-        return is_lightop_sglang_rms_quant_available()
-    if quant_dtype in (torch.float8_e4m3fn, torch.float8_e4m3fnuz):
-        return is_lightop_fp8_rms_quant_available()
-    return False
-
-
 def supports_fused_rms_quant_input(
     input: torch.Tensor,
     weight: torch.Tensor,
     residual: Optional[torch.Tensor] = None,
-    quant_dtype: torch.dtype = torch.int8,
 ) -> bool:
     """Return whether the LightOp fast path can preserve the current semantics.
 
@@ -63,7 +41,7 @@ def supports_fused_rms_quant_input(
         input.numel() == 0
         or input.dim() != 2
         or not input.is_cuda
-        or not is_lightop_rms_quant_available(quant_dtype)
+        or not is_lightop_sglang_rms_quant_available()
     ):
         return False
     if input.dtype not in (torch.float16, torch.bfloat16):
@@ -103,7 +81,7 @@ def fused_rms_norm_per_token_quant(
     residual: Optional[torch.Tensor] = None,
     update_input: bool = True,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    """Run LightOp RMSNorm + dynamic per-token INT8 or FP8 quantization.
+    """Run LightOp RMSNorm + dynamic per-token INT8 quantization.
 
     ``update_input=True`` is required when the normalized BF16/FP16 value has
     consumers in addition to the quantized GEMM (for example GLM5 KDA and its
@@ -111,36 +89,18 @@ def fused_rms_norm_per_token_quant(
     supplied, matching the fused-add RMSNorm contract.
     """
 
-    if quant_dtype not in (
-        torch.int8,
-        torch.float8_e4m3fn,
-        torch.float8_e4m3fnuz,
-    ):
-        raise ValueError(f"Unsupported quantization dtype: {quant_dtype}")
+    if quant_dtype != torch.int8:
+        raise ValueError(f"Only torch.int8 is supported, got {quant_dtype}")
     if not math.isfinite(epsilon) or epsilon <= 0:
         raise ValueError(f"epsilon must be finite and positive, got {epsilon}")
-    if not supports_fused_rms_quant_input(
-        input, rms_weight, residual, quant_dtype=quant_dtype
-    ):
+    if not supports_fused_rms_quant_input(input, rms_weight, residual):
         raise ValueError(
-            "LightOp fused RMS+quant requires an aligned, contiguous 2D "
+            "LightOp fused RMS+INT8 quant requires an aligned, contiguous 2D "
             "FP16/BF16 input and weight, with hidden size divisible by 16 and <= 8192"
         )
 
     # Import lazily so the environment switch remains optional and CPU-only
     # tooling can import SGLang without loading the HIP extension.
-    if quant_dtype in (torch.float8_e4m3fn, torch.float8_e4m3fnuz):
-        from lightop import rms_norm_per_token_fp8_quant
-
-        return rms_norm_per_token_fp8_quant(
-            input=input,
-            weight=rms_weight,
-            epsilon=epsilon,
-            fp8type=0,
-            residual=residual,
-            update_input=update_input,
-        )
-
     from lightop import rms_norm_dynamic_per_token_quant_sglang
 
     return rms_norm_dynamic_per_token_quant_sglang(
