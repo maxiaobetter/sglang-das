@@ -293,11 +293,20 @@ class TestApplyFp8LinearScaleDispatch(CustomTestCase):
                 (qinput.shape[0], weight.shape[1]), dtype=input.dtype
             )
             compressed_method.apply_weights(layer, fused_input)
-            self.assertIs(compressed_apply.call_args.kwargs["input_scale"], input_scale)
-            self.assertEqual(
-                compressed_apply.call_args.kwargs["pre_quant_output_dtype"],
-                input.dtype,
-            )
+            if compressed_fp8._is_hcu:
+                self.assertEqual(
+                    compressed_apply.call_args.kwargs["input"],
+                    (qinput, input_scale),
+                )
+                self.assertNotIn("input_scale", compressed_apply.call_args.kwargs)
+            else:
+                self.assertIs(
+                    compressed_apply.call_args.kwargs["input_scale"], input_scale
+                )
+                self.assertEqual(
+                    compressed_apply.call_args.kwargs["pre_quant_output_dtype"],
+                    input.dtype,
+                )
 
         with (
             patch.object(compressed_fp8, "_is_hcu", True),
