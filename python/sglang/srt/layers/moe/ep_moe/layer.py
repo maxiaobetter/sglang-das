@@ -872,7 +872,38 @@ class DeepEPMoE(FusedMoE):
 
         if DispatchOutputChecker.format_is_deepep_normal(dispatch_output):
             # assert deep_gemm_wrapper.ENABLE_JIT_DEEPGEMM and self.use_fp8_w8a8
-            if deep_gemm_wrapper.ENABLE_JIT_DEEPGEMM and self.use_fp8_w8a8:
+            if (
+                _is_hcu
+                and _use_deepgemm_moe
+                and (
+                    not hasattr(self, "w13_weight_deepgemm")
+                    or not hasattr(self, "w2_weight_deepgemm")
+                )
+                and self.use_fp8_w8a8
+                and not self.use_block_quant
+            ):
+                # Channel-wise FP8 weights require the HCU DeepGEMM-packed
+                # aliases.  Falling back to forward_deepgemm_contiguous here
+                # is incorrect: that kernel interprets scales as 128-element
+                # block scales, while this checkpoint stores per-output-channel
+                # scales.  Fail early instead of silently corrupting MoE output.
+                raise RuntimeError(
+                    "Channel-wise FP8 DeepEP MoE requires w13_weight_deepgemm "
+                    "and w2_weight_deepgemm; the packed aliases were not "
+                    "materialized after loading"
+                )
+            elif (
+                deep_gemm_wrapper.ENABLE_JIT_DEEPGEMM
+                and self.use_fp8_w8a8
+                and (self.use_block_quant or not _is_hcu)
+            ):
+                # forward_deepgemm_contiguous uses grouped_gemm_nt_f8f8bf16_contig,
+                # which consumes 128-block group scales. Channel-FP8 weights (used
+                # by the GLM-5.3-Flash w8a8_fp8 recipe) carry per-output-channel
+                # scales, so they must go through forward_groupgemm_w8a8_fp8_contiguous
+                # (m_grouped_fp8_gemm_nt_contiguous) instead. Sending channel-scale
+                # weights to the block-quant kernel silently degrades to numerical
+                # garbage (logits collapse to argmax=0).
                 output = self.forward_deepgemm_contiguous(dispatch_output)
             elif self.use_w4a8_marlin:
                 output = self.forward_deepgemm_w4a8_marlin_contiguous(dispatch_output)
@@ -1881,8 +1912,10 @@ class DeepEPMoE(FusedMoE):
         )
 
         q_a2_all, q_a2_scale = fuse_silu_mul_fp8_quant_ep(
-            input=gateup_output, fp8type=0, tokens_per_expert=masked_m
-        )
+            input = gateup_output,
+            fp8type = 0,
+            tokens_per_expert = masked_m,
+            limit = self.moe_runner_config.swiglu_limit)
         # The first-stage BF16 activation is no longer needed after quantization.
         # Releasing it here lowers peak memory during low-latency graph capture.
         del gateup_output

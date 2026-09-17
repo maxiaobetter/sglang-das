@@ -228,7 +228,16 @@ class ModelNextLinearAttention(nn.Module):
         projection_size = self.head_dim * self.num_heads
         self.conv_size = config.linear_attn_config["short_conv_kernel_size"]
         self.allow_neg_eigval = config.linear_allow_neg_eigval
-        self.safe_gate = config.linear_attn_config.get("safe_gate", False)
+        _cfg_lower_bound = config.linear_attn_config.get("gate_lower_bound", None)
+        _cfg_safe_gate = config.linear_attn_config.get("safe_gate", False)
+        self.safe_gate = _cfg_lower_bound is not None or _cfg_safe_gate
+        self._resolved_gate_lower_bound = (
+            _cfg_lower_bound
+            if _cfg_lower_bound is not None
+            else KDA_SAFE_GATE_LOWER_BOUND
+            if _cfg_safe_gate
+            else None
+        )
 
         # Optional experimental fusion for the KDA projections.
         self.do_fuse_qkvbfg = envs.SGLANG_GLM5_NEXT_FUSE_QKVBFG.get()
@@ -395,7 +404,7 @@ class ModelNextLinearAttention(nn.Module):
         )
         self.attn.safe_gate = self.safe_gate
         self.attn.safe_gate_lower_bound = KDA_SAFE_GATE_LOWER_BOUND
-        self.attn.lower_bound = KDA_SAFE_GATE_LOWER_BOUND if self.safe_gate else None
+        self.attn.lower_bound = self._resolved_gate_lower_bound
 
         self._cp_fuse_symm_mem = envs.SGLANG_DSA_CP_FUSE_SYMM_MEM.get()
 
@@ -1302,7 +1311,18 @@ class ModelNextModel(nn.Module):
 
 class ModelNextForCausalLM(nn.Module):
     fall_back_to_pt_during_load = False
-    packed_modules_mapping = {}
+    # Fused module -> checkpoint shard names.  The compressed-tensors ignore
+    # routing (should_ignore_layer) uses this to expand a fused name such as
+    # qkv_proj back to q_proj/k_proj/v_proj before matching the checkpoint's
+    # ignore rules.  Without these entries, the KDA QKV projections and the
+    # dense MLP gate/up fusion are never recognized as ignored, so the loader
+    # wrongly materializes FP8 weights and a finfo(min) scale for layers the
+    # checkpoint keeps in BF16.
+    packed_modules_mapping = {
+        "qkv_proj": ["q_proj", "k_proj", "v_proj"],
+        "qkv_conv1d": ["q_conv1d", "k_conv1d", "v_conv1d"],
+        "gate_up_proj": ["gate_proj", "up_proj"],
+    }
 
     _STACKED_PARAMS_MAPPING = [
         # Fused KDA "a" projections (used when do_fuse_qkvbfg=True).
@@ -1351,6 +1371,8 @@ class ModelNextForCausalLM(nn.Module):
         self.pp_group = get_pp_group()
         self.config = config
         self.tp_size = get_tensor_model_parallel_world_size()
+        if quant_config is not None:
+            quant_config.update_packed_modules_mapping(self.packed_modules_mapping)
         self.quant_config = quant_config
         self.determine_num_fused_shared_experts()
         self.use_dsa = is_deepseek_dsa(config)
@@ -1732,6 +1754,8 @@ class Glm5NextForConditionalGeneration(GlmVisualEncoderMixin, ModelNextForCausal
             self.pp_group = get_pp_group()
             self.config = config
             self.tp_size = get_tensor_model_parallel_world_size()
+            if quant_config is not None:
+                quant_config.update_packed_modules_mapping(self.packed_modules_mapping)
             self.quant_config = quant_config
             self.num_fused_shared_experts = 0
             self.use_dsa = is_deepseek_dsa(config)
