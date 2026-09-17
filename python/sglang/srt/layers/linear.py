@@ -122,6 +122,22 @@ WEIGHT_LOADER_V2_SUPPORTED = [
     "QuarkLinearMethod",
 ]
 
+
+def _supports_prequantized_input(layer: torch.nn.Module) -> bool:
+    return bool(
+        getattr(
+            getattr(layer, "quant_method", None),
+            "supports_prequantized_input",
+            False,
+        )
+        or getattr(
+            getattr(layer, "scheme", None),
+            "supports_prequantized_input",
+            False,
+        )
+    )
+
+
 _is_cpu = is_cpu()
 _is_npu = is_npu()
 
@@ -349,7 +365,7 @@ class ReplicatedLinear(LinearBase):
         bias = self.bias if not self.skip_bias_add else None
         assert self.quant_method is not None
         if input_quant_args is not None:
-            if not getattr(self.quant_method, "supports_prequantized_input", False):
+            if not _supports_prequantized_input(self):
                 raise TypeError(
                     f"{type(self.quant_method).__name__} does not support prequantized input"
                 )
@@ -592,7 +608,7 @@ class ColumnParallelLinear(LinearBase):
 
             bias = self.bias if not self.skip_bias_add else None
             assert self.quant_method is not None
-            if not getattr(self.quant_method, "supports_prequantized_input", False):
+            if not _supports_prequantized_input(self):
                 raise TypeError(
                     f"{type(self.quant_method).__name__} does not support prequantized input"
                 )
@@ -1095,7 +1111,7 @@ class MergedColumnParallelLinear(ColumnParallelLinear):
 
             bias = self.bias if not self.skip_bias_add else None
             assert self.quant_method is not None
-            if not getattr(self.quant_method, "supports_prequantized_input", False):
+            if not _supports_prequantized_input(self):
                 raise TypeError(
                     f"{type(self.quant_method).__name__} does not support prequantized input"
                 )
@@ -1780,11 +1796,7 @@ class RowParallelLinear(LinearBase):
         return bool(
             _use_fused_silu_mul_quant
             and _lightop_fuse_silu_mul_clamp_quant is not None
-            and getattr(
-                self.quant_method,
-                "supports_prequantized_input",
-                False,
-            )
+            and _supports_prequantized_input(self)
         )
 
     def forward(
