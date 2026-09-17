@@ -799,6 +799,10 @@ class ModelNextDecoderLayer(nn.Module):
             and mlp_gate_up_proj is not None
             and self._mlp_rms_quant_dtype is not None
             and is_lightop_rms_quant_available(self._mlp_rms_quant_dtype)
+            # The FP8 pair cannot yet be reused by the MoE/shared-expert path
+            # during decode graph capture. Keep that path on native RMSNorm +
+            # quantization while independently enabling attention FP8 fusion.
+            and self._mlp_rms_quant_dtype == torch.int8
         )
 
     def hc_attn_pre(self, hidden_states, out_norm_weight, out_norm_eps):
