@@ -81,6 +81,7 @@ class MHCLayerCommunicator(LayerCommunicator):
         quant_format: str = "",
         post_residual_addition: Optional[torch.Tensor] = None,
         fuse_rms_quant: bool = False,
+        rms_quant_dtype: torch.dtype = torch.int8,
     ):
         del residual, quant_format, post_residual_addition
         self._attn_input_quant_args = None
@@ -108,14 +109,16 @@ class MHCLayerCommunicator(LayerCommunicator):
                     for state in (residual, self._h_res, self._h_post)
                 )
                 can_fuse = not aliases_mhc_state and supports_fused_rms_quant_input(
-                    hidden_states, self.input_layernorm.weight
+                    hidden_states,
+                    self.input_layernorm.weight,
+                    quant_dtype=rms_quant_dtype,
                 )
                 if can_fuse:
                     self._attn_input_quant_args = fused_rms_norm_per_token_quant(
                         input=hidden_states,
                         rms_weight=self.input_layernorm.weight,
                         epsilon=self.input_layernorm.variance_epsilon,
-                        quant_dtype=torch.int8,
+                        quant_dtype=rms_quant_dtype,
                         residual=None,
                         update_input=True,
                     )
@@ -155,6 +158,7 @@ class MHCLayerCommunicator(LayerCommunicator):
         forward_batch: ForwardBatch,
         cache=None,
         fuse_rms_quant: bool = False,
+        rms_quant_dtype: torch.dtype = torch.int8,
     ):
         del cache
         if fuse_rms_quant:
@@ -196,14 +200,16 @@ class MHCLayerCommunicator(LayerCommunicator):
                 for state in (residual, self._h_res, self._h_post)
             )
             can_fuse = not aliases_mhc_state and supports_fused_rms_quant_input(
-                hidden_states, self.post_attention_layernorm.weight
+                hidden_states,
+                self.post_attention_layernorm.weight,
+                quant_dtype=rms_quant_dtype,
             )
             if can_fuse:
                 self._mlp_input_quant_args = fused_rms_norm_per_token_quant(
                     input=hidden_states,
                     rms_weight=self.post_attention_layernorm.weight,
                     epsilon=self.post_attention_layernorm.variance_epsilon,
-                    quant_dtype=torch.int8,
+                    quant_dtype=rms_quant_dtype,
                     residual=None,
                     update_input=True,
                 )

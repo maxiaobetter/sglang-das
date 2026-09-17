@@ -59,6 +59,7 @@ from sglang.srt.layers.communicator_glm5_next_mhc_cp import (
 )
 from sglang.srt.layers.dp_attention import is_dp_attention_enabled
 from sglang.srt.layers.fused_rms_quant import (
+    is_lightop_rms_quant_available,
     is_lightop_sglang_rms_quant_available,
 )
 from sglang.srt.layers.layernorm import RMSNorm
@@ -165,7 +166,18 @@ def _linear_supports_prequantized_input(linear: nn.Module) -> bool:
             "supports_prequantized_input",
             False,
         )
+        or getattr(getattr(linear, "scheme", None), "supports_prequantized_input", False)
     )
+
+
+def _linear_prequantized_input_dtype(linear: nn.Module) -> Optional[torch.dtype]:
+    if getattr(
+        getattr(linear, "quant_method", None), "supports_prequantized_input", False
+    ):
+        return torch.int8
+    if getattr(getattr(linear, "scheme", None), "supports_prequantized_input", False):
+        return torch.float8_e4m3fn
+    return None
 
 
 def _apply_linear_with_optional_quant(linear, x, input_quant_args):
@@ -754,16 +766,20 @@ class ModelNextDecoderLayer(nn.Module):
                 None,
             )
 
-        use_mhc_rms_quant = (
-            envs.SGLANG_USE_FUSED_RMS_QUANT.get()
-            and is_lightop_sglang_rms_quant_available()
-            and isinstance(self.layer_communicator, MHCLayerCommunicator)
+        use_mhc_rms_quant = envs.SGLANG_USE_FUSED_RMS_QUANT.get() and isinstance(
+            self.layer_communicator, MHCLayerCommunicator
+        )
+        self._attn_rms_quant_dtype = (
+            _linear_prequantized_input_dtype(attn_prequantized_projection)
+            if attn_prequantized_projection is not None
+            else None
         )
         self._can_fuse_attn_rms_quant = (
             use_mhc_rms_quant
             and (not self.is_linear_attn or not self.self_attn.do_fuse_qkvbfg)
             and attn_prequantized_projection is not None
-            and _linear_supports_prequantized_input(attn_prequantized_projection)
+            and self._attn_rms_quant_dtype is not None
+            and is_lightop_rms_quant_available(self._attn_rms_quant_dtype)
         )
         mlp_with_gate_up = (
             self.mlp.shared_experts
@@ -773,10 +789,16 @@ class ModelNextDecoderLayer(nn.Module):
             else self.mlp
         )
         mlp_gate_up_proj = getattr(mlp_with_gate_up, "gate_up_proj", None)
+        self._mlp_rms_quant_dtype = (
+            _linear_prequantized_input_dtype(mlp_gate_up_proj)
+            if mlp_gate_up_proj is not None
+            else None
+        )
         self._can_fuse_mlp_rms_quant = (
             use_mhc_rms_quant
             and mlp_gate_up_proj is not None
-            and _linear_supports_prequantized_input(mlp_gate_up_proj)
+            and self._mlp_rms_quant_dtype is not None
+            and is_lightop_rms_quant_available(self._mlp_rms_quant_dtype)
         )
 
     def hc_attn_pre(self, hidden_states, out_norm_weight, out_norm_eps):
@@ -874,7 +896,14 @@ class ModelNextDecoderLayer(nn.Module):
         fuse_attn_rms_quant = self._can_fuse_attn_rms_quant and not dsa_use_prefill_cp(
             forward_batch, self.nsa_enable_prefill_cp
         )
-        prepare_attn_kwargs = {"fuse_rms_quant": True} if fuse_attn_rms_quant else {}
+        prepare_attn_kwargs = (
+            {
+                "fuse_rms_quant": True,
+                "rms_quant_dtype": self._attn_rms_quant_dtype,
+            }
+            if fuse_attn_rms_quant
+            else {}
+        )
         hidden_states, residual = self.layer_communicator.prepare_attn(
             hidden_states,
             residual,
@@ -935,7 +964,12 @@ class ModelNextDecoderLayer(nn.Module):
             maybe_prefetch(forward_batch, next_full_attention_layer_id)
 
         prepare_mlp_kwargs = (
-            {"fuse_rms_quant": True} if self._can_fuse_mlp_rms_quant else {}
+            {
+                "fuse_rms_quant": True,
+                "rms_quant_dtype": self._mlp_rms_quant_dtype,
+            }
+            if self._can_fuse_mlp_rms_quant
+            else {}
         )
         hidden_states, residual = self.layer_communicator.prepare_mlp(
             hidden_states,
