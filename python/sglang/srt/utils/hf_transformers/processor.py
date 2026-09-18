@@ -260,24 +260,48 @@ def adapt_glm5next_image_processor(processor):
         return
     cls = type(image_processor)
     original = cls._preprocess
-    if getattr(original, "_sglang_resample_compat", False):
-        return
-    if "interpolation" not in inspect.signature(original).parameters:
-        return
+    if not getattr(original, "_sglang_resample_compat", False) and (
+        "interpolation" in inspect.signature(original).parameters
+    ):
 
-    @wraps(original)
-    def preprocess(self, *args, **kwargs):
-        if "interpolation" not in kwargs:
-            from transformers.image_utils import pil_torch_interpolation_mapping
+        @wraps(original)
+        def preprocess(self, *args, **kwargs):
+            if "interpolation" not in kwargs:
+                from transformers.image_utils import pil_torch_interpolation_mapping
 
-            resample = kwargs.get("resample", self.resample)
-            kwargs["interpolation"] = pil_torch_interpolation_mapping.get(
-                resample, resample
-            )
-        return original(self, *args, **kwargs)
+                resample = kwargs.get("resample", self.resample)
+                kwargs["interpolation"] = pil_torch_interpolation_mapping.get(
+                    resample, resample
+                )
+            return original(self, *args, **kwargs)
 
-    preprocess._sglang_resample_compat = True
-    cls._preprocess = preprocess
+        preprocess._sglang_resample_compat = True
+        cls._preprocess = preprocess
+
+    # Glm5nextImageProcessorFast was written against the old HF fast backend,
+    # whose resize keyword is ``interpolation``. Transformers 5.12's
+    # TorchvisionBackend renamed that keyword to ``resample``. Without this
+    # shim the keyword is swallowed by **kwargs and resize silently falls back
+    # to bilinear interpolation, changing the image tensor while remaining on
+    # the fast path.
+    resize = getattr(cls, "resize", None)
+    if resize is not None:
+        resize_signature = inspect.signature(resize)
+        if (
+            "resample" in resize_signature.parameters
+            and "interpolation" not in resize_signature.parameters
+            and not getattr(resize, "_sglang_resize_compat", False)
+        ):
+            resize_method = resize
+
+            @wraps(resize_method)
+            def resize_compat(self, *args, **kwargs):
+                if "interpolation" in kwargs and "resample" not in kwargs:
+                    kwargs["resample"] = kwargs.pop("interpolation")
+                return resize_method(self, *args, **kwargs)
+
+            resize_compat._sglang_resize_compat = True
+            cls.resize = resize_compat
 
 
 def get_processor(
