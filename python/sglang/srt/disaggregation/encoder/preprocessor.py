@@ -55,6 +55,7 @@ from sglang.srt.utils import (
     load_image,
     load_video,
 )
+from sglang.srt.utils.hf_transformers.processor import adapt_glm5next_image_processor
 from sglang.srt.utils.hf_transformers_utils import resolve_image_processor_backend
 
 logger = logging.getLogger(__name__)
@@ -202,6 +203,7 @@ class EncoderPreprocessor:
                 revision=get_model().revision,
                 **image_processor_kwargs,
             )
+            adapt_glm5next_image_processor(self.image_processor)
         except Exception as e:
             logger.warning(f"Failed to load image processor: {e}")
             self.image_processor = None

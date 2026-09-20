@@ -1790,9 +1790,21 @@ class Glm5NextForConditionalGeneration(GlmVisualEncoderMixin, ModelNextForCausal
             and isinstance(vision_config, Glm4vVisionConfig)
         ):
             vision_utils.update_vit_attn_dummy_heads_config(self.config)
+            vision_quant_config = quant_config
+            if (
+                quant_config is not None
+                and quant_config.get_name() == "w8a8_int8"
+                and any(
+                    name in quant_config.ignore for name in ("visual", "model.visual")
+                )
+            ):
+                # GLM checkpoints can exclude the complete vision subtree.
+                # Leaf-name matching misses packed qkv/gate-up projections and
+                # would cast their floating-point weights into INT8 parameters.
+                vision_quant_config = None
             self.visual = Glm5NextVisionModel(
                 vision_config,
-                quant_config=quant_config,
+                quant_config=vision_quant_config,
                 prefix=add_prefix("visual", prefix),
                 use_data_parallel=self.use_data_parallel,
                 text_config=getattr(config, "text_config", None),

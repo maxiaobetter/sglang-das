@@ -126,6 +126,7 @@ from sglang.srt.utils.common import (
     get_available_gpu_memory,
     is_cpu,
     is_cuda,
+    is_hcu,
     is_hip,
     is_musa,
     is_npu,
@@ -576,7 +577,7 @@ class EagleDraftWorker(EagleDraftWorkerBase):
                 f"avail mem={after_mem:.2f} GB.",
             )
 
-    def draft(self, batch: ScheduleBatch):
+    def draft(self, batch: ScheduleBatch, finish_cpu_seq_lens=None):
         draft_input: EagleDraftInput = batch.spec_info
         forward_batch, can_run_decode_cuda_graph = prepare_for_draft(
             draft_input,
@@ -612,6 +613,10 @@ class EagleDraftWorker(EagleDraftWorkerBase):
                     self.cuda_graph_runner.execute(forward_batch)
                 )
             else:
+                if finish_cpu_seq_lens is not None:
+                    finish_cpu_seq_lens()
+                    forward_batch.seq_lens_cpu = batch.seq_lens_cpu
+                    forward_batch.seq_lens_sum = batch.seq_lens_sum
                 if (
                     not forward_batch.forward_mode.is_idle()
                     and self.speculative_num_steps > 1
@@ -1211,6 +1216,20 @@ class EAGLEWorkerV2(BaseSpecWorker):
         self.plan_stream, self.plan_stream_ctx = get_plan_stream(self.device)
 
     @property
+    def supports_deferred_cpu_seq_lens(self):
+        from sglang.srt.layers.attention.glm5_next import is_glm5_next_hcu
+
+        return (
+            type(self) is EAGLEWorkerV2
+            and type(self._draft_worker) is EagleDraftWorker
+            and is_hcu()
+            and is_glm5_next_hcu(self.target_worker.model_config.hf_config)
+            and not get_exec().overlap.enable_two_batch_overlap
+            and self.topk == 1
+            and self._draft_worker is not None
+        )
+
+    @property
     def last_shared_read_runner(self):
         # Per the base contract: the step's last shared-buffer-reading phase is
         # draft_extend, which runs on the draft runner.
@@ -1264,6 +1283,7 @@ class EAGLEWorkerV2(BaseSpecWorker):
         on_publish=None,
         grammar_barrier=None,
         pp_proxy_tensors=None,
+        finish_cpu_seq_lens=None,
     ):
         if batch.forward_mode.is_extend() or batch.is_extend_in_batch:
             # Target prefill
@@ -1342,7 +1362,14 @@ class EAGLEWorkerV2(BaseSpecWorker):
                     speculative_moe_a2a_backend_context(),
                     spec_stage_span("draft"),
                 ):
-                    verify_input: EagleVerifyInput = self.draft_worker.draft(batch)
+                    if finish_cpu_seq_lens is None:
+                        verify_input: EagleVerifyInput = self.draft_worker.draft(batch)
+                    else:
+                        verify_input = self.draft_worker.draft(
+                            batch, finish_cpu_seq_lens=finish_cpu_seq_lens
+                        )
+            if finish_cpu_seq_lens is not None:
+                finish_cpu_seq_lens()
             assert verify_input.is_verify_input()
             batch.spec_info = verify_input
             batch_output = self.verify(batch, grammar_barrier=grammar_barrier)

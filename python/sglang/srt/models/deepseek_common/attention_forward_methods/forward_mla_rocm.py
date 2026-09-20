@@ -50,7 +50,10 @@ from sglang.srt.lora.deepseek_mla_correction import (
     is_kv_b_lora_active,
 )
 from sglang.srt.model_executor.forward_batch_info import ForwardBatch
-from sglang.srt.model_executor.forward_context import get_token_to_kv_pool
+from sglang.srt.model_executor.forward_context import (
+    get_attn_backend,
+    get_token_to_kv_pool,
+)
 from sglang.srt.model_executor.runner_backend_utils.tc_piecewise_cuda_graph import (
     is_in_tc_piecewise_cuda_graph,
 )
@@ -72,7 +75,7 @@ from sglang.srt.runtime_context import get_exec, get_parallel
 from sglang.srt.state_capturer.indexer_topk import (
     maybe_capture_indexer_topk,
 )
-from sglang.srt.utils import BumpAllocator, get_bool_env_var
+from sglang.srt.utils import BumpAllocator, get_bool_env_var, is_hcu
 
 logger = logging.getLogger(__name__)
 _SGLANG_EXPERIMENTAL_LORA_OPTI = envs.SGLANG_EXPERIMENTAL_LORA_OPTI.get()
@@ -164,6 +167,7 @@ def rocm_absorb_q_bmm(
     q_nope: torch.Tensor,
     *,
     is_capture_mode: bool,
+    token_major_output: bool = False,
 ) -> torch.Tensor:
     """Absorb ``q_nope @ w_kc`` on HIP/AITER (pre-transpose layout)."""
     # TODO(haishaw): add bmm_fp8 to ROCm
@@ -202,10 +206,23 @@ def rocm_absorb_q_bmm(
                 )
             )
         else:
-            q_nope_out = torch.bmm(
-                q_nope.to(torch.bfloat16).transpose(0, 1),
-                _absorb_weight_bf16(attn.w_kc, attn.w_scale),
-            )
+            if token_major_output and not is_in_tc_piecewise_cuda_graph():
+                output = torch.empty(
+                    (q_nope.shape[0], attn.num_local_heads, attn.kv_lora_rank),
+                    dtype=torch.bfloat16,
+                    device=q_nope.device,
+                )
+                q_nope_out = output.transpose(0, 1)
+                torch.bmm(
+                    q_nope.to(torch.bfloat16).transpose(0, 1),
+                    _absorb_weight_bf16(attn.w_kc, attn.w_scale),
+                    out=q_nope_out,
+                )
+            else:
+                q_nope_out = torch.bmm(
+                    q_nope.to(torch.bfloat16).transpose(0, 1),
+                    _absorb_weight_bf16(attn.w_kc, attn.w_scale),
+                )
     return q_nope_out
 
 
@@ -598,8 +615,28 @@ class DeepseekMLARocmForwardMixin:
                 )
                 q_nope_out = q_nope_out[:, :expected_m, :]
             else:
+                backend = get_attn_backend()
+                backend = getattr(backend, "full_attn_backend", backend)
+                mode = forward_batch.forward_mode
+                token_major_output = (
+                    is_hcu()
+                    and envs.SGLANG_ENABLE_RUNTIME_FAST_PATH.get()
+                    and self.use_dsa
+                    and self.qk_rope_head_dim == 0
+                    and self.kv_lora_rank == 512
+                    and (
+                        mode.is_decode_or_idle()
+                        or mode.is_target_verify()
+                        or mode.is_draft_extend_v2()
+                    )
+                    and getattr(backend, "dsa_decode_impl", None) == "flashmla_kv"
+                    and getattr(backend, "dsa_kv_cache_store_fp8", False)
+                )
                 q_nope_out = rocm_absorb_q_bmm(
-                    self, q_nope, is_capture_mode=get_is_capture_mode()
+                    self,
+                    q_nope,
+                    is_capture_mode=get_is_capture_mode(),
+                    token_major_output=token_major_output,
                 )
 
             q_nope_out = q_nope_out.transpose(0, 1)

@@ -107,7 +107,10 @@ from sglang.srt.layers.moe import (
     get_moe_runner_backend,
     is_moe_input_scattered_across_dp_ranks,
 )
-from sglang.srt.layers.moe.utils import has_per_rank_fused_shared_slots
+from sglang.srt.layers.moe.utils import (
+    get_moe_a2a_backend,
+    has_per_rank_fused_shared_slots,
+)
 from sglang.srt.state_capturer.routed_experts import get_global_experts_capturer
 from sglang.srt.utils import (
     cpu_has_amx_support,
@@ -230,6 +233,27 @@ if _is_musa:
 if _use_lightop:
     from lightop import moe as op
 
+_lightop_supports_int64_ids = False
+if _use_lightop and _is_hcu:
+    import inspect
+
+    try:
+        _lightop_supports_int64_ids = (
+            "output_indices_int64" in inspect.signature(op.moe_fused_gate).parameters
+        )
+    except (TypeError, ValueError):
+        pass
+
+
+def _lightop_needs_int64_topk_ids() -> bool:
+    return (
+        _is_hcu
+        and _lightop_supports_int64_ids
+        and envs.SGLANG_ENABLE_RUNTIME_FAST_PATH.get()
+        and get_moe_a2a_backend().is_deepep()
+    )
+
+
 _use_lightop_sqrtsoftplus_gate = (
     _use_lightop and _is_hcu and hasattr(op, "moe_fused_gate_sqrtsoftplus")
 )
@@ -245,6 +269,18 @@ def moe_fused_gate_hcu(
     routed_scaling_factor: float,
     apply_routed_scaling_factor_on_output: bool = False,
 ) -> tuple[torch.Tensor, torch.Tensor]:
+    if _lightop_needs_int64_topk_ids():
+        return op.moe_fused_gate(
+            gating_output,
+            correction_bias,
+            num_expert_group,
+            topk_group,
+            topk,
+            num_fused_shared_experts,
+            routed_scaling_factor,
+            apply_routed_scaling_factor_on_output,
+            True,
+        )
     topk_weights, topk_ids = op.moe_fused_gate(
         gating_output,
         correction_bias,
@@ -274,7 +310,7 @@ def moe_fused_gate_fake(
         device=gating_output.device,
     ), torch.empty(
         (gating_output.size(0), topk),
-        dtype=torch.int32,
+        dtype=torch.int64 if _lightop_needs_int64_topk_ids() else torch.int32,
         device=gating_output.device,
     )
 

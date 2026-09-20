@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import IntEnum, auto
 from functools import lru_cache
 from typing import TYPE_CHECKING, Dict, List, Literal, Optional, Tuple, TypeAlias
@@ -21,6 +21,10 @@ from sglang.srt.configs.model_config import (
 )
 from sglang.srt.environ import envs
 from sglang.srt.layers.attention.base_attn_backend import AttentionBackend
+from sglang.srt.layers.attention.glm5_next.decode_input import (
+    can_copy_q_and_pad_indices,
+    copy_q_and_pad_indices,
+)
 from sglang.srt.layers.attention.glm5_next.dequant_k_cache import (
     dequantize_k_cache_paged,
 )
@@ -1916,6 +1920,19 @@ class NativeSparseAttnBackend(
                 flashmla_metadata = metadata.flashmla_metadata.slice(slice(0, size + 1))
                 flashmla_metadata.copy_(precomputed.flashmla_metadata)
 
+        self._finish_precomputed_replay(
+            bs, precomputed, forward_mode, skip_kpool_write_plan_update
+        )
+
+    def _finish_precomputed_replay(
+        self,
+        bs: int,
+        precomputed: PrecomputedMetadata,
+        forward_mode: ForwardMode,
+        skip_kpool_write_plan_update: bool = False,
+    ):
+        """Refresh backend-local state after the dense metadata is ready."""
+        metadata = self.decode_cuda_graph_metadata[bs]
         # Refresh DeepGEMM paged MQA schedule metadata for the actual seqlens of
         # this replay (the captured graph holds stale data otherwise, which can
         # deadlock the kernel when the runtime work decomposition diverges from
@@ -2104,7 +2121,20 @@ class NativeSparseAttnBackend(
             )
             q_all = None
         else:
-            q_all = q.contiguous().view(-1, layer.tp_q_head_num, layer.head_dim)
+            defer_q_contiguous = (
+                envs.SGLANG_ENABLE_RUNTIME_FAST_PATH.get()
+                and _is_hcu
+                and dsa_impl == "flashmla_kv"
+                and self.dsa_index_kpool > 1
+                and q.ndim == 3
+                and q.shape[1] == layer.tp_q_head_num
+                and q.shape[2] == layer.head_dim
+            )
+            q_all = (
+                q
+                if defer_q_contiguous
+                else q.contiguous().view(-1, layer.tp_q_head_num, layer.head_dim)
+            )
             q_nope = q_all[:, :, : layer.v_head_dim]
             q_rope = (
                 None
@@ -2339,7 +2369,20 @@ class NativeSparseAttnBackend(
             # Caller passed already-concatenated q (q_all = q). Reuse it directly
             # via a zero-copy view; the impl-specific blocks below will skip the
             # otherwise redundant concat_mla_absorb_q_general call.
-            q_all = q.contiguous().view(-1, layer.tp_q_head_num, layer.head_dim)
+            defer_q_contiguous = (
+                envs.SGLANG_ENABLE_RUNTIME_FAST_PATH.get()
+                and _is_hcu
+                and self.dsa_decode_impl == "flashmla_kv"
+                and self.dsa_index_kpool > 1
+                and q.ndim == 3
+                and q.shape[1] == layer.tp_q_head_num
+                and q.shape[2] == layer.head_dim
+            )
+            q_all = (
+                q
+                if defer_q_contiguous
+                else q.contiguous().view(-1, layer.tp_q_head_num, layer.head_dim)
+            )
             q_nope = q_all[:, :, : layer.v_head_dim]
             q_rope = (
                 None
@@ -2628,6 +2671,33 @@ class NativeSparseAttnBackend(
         cache_seqlens = metadata.dsa_cache_seqlens_int32
         assert metadata.flashmla_metadata is not None
 
+        logical_page_table_width = (
+            page_table_1.shape[-1] if page_table_1.ndim == 2 else None
+        )
+        fused_decode_input_copy = False
+        if (
+            envs.SGLANG_ENABLE_RUNTIME_FAST_PATH.get()
+            and _is_hcu
+            and self.dsa_index_kpool > 1
+            and page_table_1.ndim == 2
+        ):
+            logical_width = page_table_1.shape[-1]
+            topk_block_size = 64
+            padded_width = (
+                (logical_width + topk_block_size - 1) // topk_block_size
+            ) * topk_block_size
+            if can_copy_q_and_pad_indices(q_all, page_table_1, padded_width):
+                q_all, page_table_1 = copy_q_and_pad_indices(
+                    q_all, page_table_1, padded_width
+                )
+                fused_decode_input_copy = True
+
+        # The optimized caller may defer a non-contiguous Q copy so it can be
+        # combined with index padding above. Unsupported layouts retain the
+        # original standalone contiguous conversion.
+        if not q_all.is_contiguous():
+            q_all = q_all.contiguous()
+
         original_q_shape = tuple(q_all.shape)
         original_kv_shape = tuple(kv_cache.shape)
 
@@ -2664,7 +2734,13 @@ class NativeSparseAttnBackend(
             and page_table_1.dtype == torch.int32
             and page_table_1.is_contiguous()
             and page_table_1.shape[0] == q_all.shape[0]
-            and page_table_1.shape[-1] == self._lightop_decode_gather_logical_width
+            and logical_page_table_width == self._lightop_decode_gather_logical_width
+            and page_table_1.shape[-1]
+            == (
+                self._lightop_decode_gather_width
+                if fused_decode_input_copy
+                else self._lightop_decode_gather_logical_width
+            )
             and cache_seqlens.dim() == 1
             and cache_seqlens.dtype == torch.int32
             and cache_seqlens.is_contiguous()
@@ -2729,7 +2805,7 @@ class NativeSparseAttnBackend(
         kv_cache = kv_cache.view(-1, self.real_page_size, 1, self.kv_cache_dim)
         assert self.real_page_size == 64, "only page size 64 is supported"
 
-        if _is_hcu and self.dsa_index_kpool > 1:
+        if _is_hcu and self.dsa_index_kpool > 1 and not fused_decode_input_copy:
             # KPool appends up to kpool-1 uncompressed tail tokens after the
             # selected history tokens. HCU FlashMLA sparse decode additionally
             # requires the indices width to be a TOPK_BLOCK_SIZE multiple; pad
@@ -3618,6 +3694,12 @@ class NativeSparseAttnMultiStepBackend:
                 )
             )
         self.dsa_index_kpool = self.attn_backends[0].dsa_index_kpool
+        # Capture and replay must agree about buffer ownership for the lifetime
+        # of the graphs. Unsupported top-k trees keep their existing layout.
+        self._runtime_fast_path = (
+            _is_hcu and envs.SGLANG_ENABLE_RUNTIME_FAST_PATH.get() and self.topk == 1
+        )
+        self._shared_decode_metadata: Dict[int, DSAMetadata] = {}
 
     def init_forward_metadata(self, forward_batch: ForwardBatch):
         for i in range(self.speculative_num_steps - 1):
@@ -3626,6 +3708,12 @@ class NativeSparseAttnMultiStepBackend:
     def init_cuda_graph_state(self, max_bs: int, max_num_tokens: int):
         for i in range(self.speculative_num_steps - 1):
             self.attn_backends[i].init_cuda_graph_state(max_bs, max_num_tokens)
+            if self._runtime_fast_path and i > 0:
+                # Dense decode metadata is identical in every draft iteration.
+                # Establish ownership before any graph records the addresses.
+                self.attn_backends[i].decode_cuda_graph_metadata["page_table"] = (
+                    self.attn_backends[0].decode_cuda_graph_metadata["page_table"]
+                )
 
     def get_cuda_graph_seq_len_fill_value(self):
         return self.attn_backends[0].get_cuda_graph_seq_len_fill_value()
@@ -3643,6 +3731,8 @@ class NativeSparseAttnMultiStepBackend:
             )
             for backend in self.attn_backends:
                 backend.init_forward_metadata_out_graph(inner_fb, in_capture=True)
+            if self._runtime_fast_path:
+                self._share_decode_metadata(forward_batch.batch_size)
         else:
             self._init_decode_replay_cuda_graph(forward_batch, forward_batch.batch_size)
 
@@ -3650,7 +3740,111 @@ class NativeSparseAttnMultiStepBackend:
         for backend in self.attn_backends:
             backend.init_forward_metadata_in_graph(forward_batch)
 
+    def _share_decode_metadata(self, bs: int) -> None:
+        """Share read-only draft inputs, while retaining each backend's plans.
+
+        This runs before capture. Draft iterations consume the same dense NSA
+        metadata; only their KV writes, KPool plans and attention workspaces are
+        backend-local. Replay writes the shared inputs once before the graph.
+        """
+        owner = self.attn_backends[0].decode_cuda_graph_metadata[bs]
+        fields = (
+            "cache_seqlens_int32",
+            "cu_seqlens_k",
+            "page_table_1",
+            "real_page_table",
+            "dsa_cache_seqlens_int32",
+            "dsa_cu_seqlens_k",
+            "dsa_seqlens_expanded",
+        )
+        shared = {name: getattr(owner, name) for name in fields}
+        for backend in self.attn_backends[1:]:
+            metadata = backend.decode_cuda_graph_metadata[bs]
+            for name, value in shared.items():
+                other = getattr(metadata, name)
+                assert other.shape == value.shape and other.dtype == value.dtype
+            metadata = replace(metadata, **shared)
+            backend.decode_cuda_graph_metadata[bs] = metadata
+            backend.forward_metadata = metadata
+        self._shared_decode_metadata[bs] = owner
+
+    def _init_shared_decode_replay(self, forward_batch: ForwardBatch, bs: int):
+        from sglang.srt.layers.attention.glm5_next.replay_metadata import (
+            prepare_decode_metadata,
+        )
+
+        owner_backend = self.attn_backends[0]
+        metadata = self._shared_decode_metadata[bs]
+        req_indices = forward_batch.req_pool_indices[:bs]
+        real_page_table = (
+            metadata.real_page_table if owner_backend.real_page_size > 1 else None
+        )
+        prepare_decode_metadata(
+            owner_backend.req_to_token,
+            req_indices,
+            forward_batch.seq_lens[:bs],
+            cache_lens=metadata.cache_seqlens_int32,
+            cu_lens=metadata.cu_seqlens_k,
+            nsa_lens=metadata.dsa_cache_seqlens_int32,
+            nsa_cu_lens=metadata.dsa_cu_seqlens_k,
+            expanded_lens=metadata.dsa_seqlens_expanded,
+            page_table=metadata.page_table_1,
+            real_page_table=real_page_table,
+            nsa_topk=owner_backend.dsa_index_topk,
+            kpool=owner_backend.dsa_index_kpool,
+            page_size=owner_backend.real_page_size,
+        )
+        flashmla_metadata = None
+        if owner_backend.dsa_decode_impl == "flashmla_kv":
+            flashmla_metadata = owner_backend._compute_flashmla_metadata(
+                cache_seqlens=metadata.dsa_cache_seqlens_int32, seq_len_q=1
+            )
+        precomputed = PrecomputedMetadata(
+            cache_seqlens=metadata.cache_seqlens_int32,
+            cu_seqlens_k=metadata.cu_seqlens_k,
+            page_indices=metadata.page_table_1,
+            real_page_table=real_page_table,
+            seqlens_expanded=metadata.dsa_seqlens_expanded,
+            dsa_cache_seqlens=metadata.dsa_cache_seqlens_int32,
+            dsa_cu_seqlens_k=metadata.dsa_cu_seqlens_k,
+            seqlens_expanded_size=bs,
+            max_len=metadata.page_table_1.shape[1],
+            max_seqlen_k=metadata.page_table_1.shape[1],
+            flashmla_metadata=flashmla_metadata,
+            req_pool_indices=req_indices,
+        )
+        # Preserve the existing multi-backend KPool planner. Those buffers may
+        # be changed by a draft iteration and must not alias between backends.
+        kpool_multi_updated = self.dsa_index_kpool > 1 and len(self.attn_backends) >= 3
+        if kpool_multi_updated:
+            metadatas = [b.decode_cuda_graph_metadata[bs] for b in self.attn_backends]
+            _update_kpool_write_plan_multi_decode_impl(
+                metadatas[0],
+                metadatas[1],
+                metadatas[2],
+                metadatas[3] if len(metadatas) > 3 else None,
+                write_start=metadata.cache_seqlens_int32[:bs] - 1,
+                req_pool_indices=req_indices,
+                real_page_table=metadata.real_page_table,
+                pool_size=self.dsa_index_kpool,
+                real_page_size=owner_backend.real_page_size,
+            )
+        for i, backend in enumerate(self.attn_backends):
+            backend.set_dsa_prefill_impl(forward_batch=None)
+            if flashmla_metadata is not None:
+                backend.decode_cuda_graph_metadata[bs].flashmla_metadata.slice(
+                    slice(0, bs + 1)
+                ).copy_(flashmla_metadata)
+            backend._finish_precomputed_replay(
+                bs,
+                precomputed,
+                ForwardMode.DECODE,
+                skip_kpool_write_plan_update=kpool_multi_updated and i < 4,
+            )
+
     def _init_decode_replay_cuda_graph(self, forward_batch: ForwardBatch, bs: int):
+        if bs in self._shared_decode_metadata:
+            return self._init_shared_decode_replay(forward_batch, bs)
         if envs.SGLANG_DSA_ENABLE_MTP_PRECOMPUTE_METADATA.get():
             # Precompute metadata once (shared across all backends)
             precomputed = self.attn_backends[0]._precompute_replay_metadata(

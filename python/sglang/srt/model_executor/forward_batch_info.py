@@ -715,7 +715,11 @@ class ForwardBatch(ForwardBatchDeepSeekMHAMixin):
             self.mark_forward_metadata_ready()
 
     def init_mlp_sync_metadata(
-        self, batch: ScheduleBatch, device: Union[str, torch.device]
+        self,
+        batch: ScheduleBatch,
+        device: Union[str, torch.device],
+        *,
+        pack_input_metadata: bool = False,
     ) -> None:
         """Populate per-rank token counts for DP-attention MLP synchronization."""
         if batch.global_num_tokens is None:
@@ -738,6 +742,26 @@ class ForwardBatch(ForwardBatchDeepSeekMHAMixin):
 
         self.original_global_num_tokens_cpu = batch.global_num_tokens
         self.global_num_tokens_cpu = global_num_tokens
+        self.global_num_tokens_for_logprob_cpu = global_num_tokens_for_logprob
+        if pack_input_metadata:
+            from sglang.srt.model_executor.input_prepare import (
+                copy_input_metadata_to_device,
+            )
+
+            (
+                self.global_num_token_non_padded,
+                self.global_num_tokens_gpu,
+                self.global_num_tokens_for_logprob_gpu,
+            ) = copy_input_metadata_to_device(
+                self.global_num_token_non_padded_cpu
+                if enable_num_token_non_padded()
+                else None,
+                global_num_tokens,
+                global_num_tokens_for_logprob,
+                device,
+            )
+            self.can_run_decode_cuda_graph = batch.can_run_decode_cuda_graph
+            return
         pin_memory = is_pin_memory_available(device)
         self.global_num_tokens_gpu = torch.tensor(
             global_num_tokens, dtype=torch.int64, pin_memory=pin_memory
@@ -886,7 +910,13 @@ class ForwardBatch(ForwardBatchDeepSeekMHAMixin):
             )
 
         num_tokens = len(batch.input_ids) if batch.input_ids is not None else 0
-        if enable_num_token_non_padded():
+        pack_input_metadata = (
+            _is_hcu
+            and envs.SGLANG_ENABLE_RUNTIME_FAST_PATH.get()
+            and batch.global_num_tokens is not None
+            and torch.device(device).type == "cuda"
+        )
+        if enable_num_token_non_padded() and not pack_input_metadata:
             ret.global_num_token_non_padded = torch.tensor(
                 num_tokens,
                 dtype=torch.int32,
@@ -894,7 +924,9 @@ class ForwardBatch(ForwardBatchDeepSeekMHAMixin):
             ).to(device, non_blocking=True)
         ret.global_num_token_non_padded_cpu = num_tokens
 
-        ret.init_mlp_sync_metadata(batch, device)
+        ret.init_mlp_sync_metadata(
+            batch, device, pack_input_metadata=pack_input_metadata
+        )
 
         if ret.forward_mode.is_idle():
             ret.positions = torch.empty((0,), dtype=torch.int64, device=device)

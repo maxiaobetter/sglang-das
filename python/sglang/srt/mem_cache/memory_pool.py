@@ -4687,7 +4687,23 @@ class MLATokenToKVPool(KVCache):
                 fp8_dtype,
             )
         elif self.dsa_kv_cache_store_fp8:
-            if _is_hcu:
+            from sglang.srt.layers.attention.glm5_next.quant_k_cache import (
+                can_quantize_k_cache_direct_store,
+                quantize_k_cache_direct_store,
+            )
+
+            if (
+                _is_hcu
+                and envs.SGLANG_ENABLE_RUNTIME_FAST_PATH.get()
+                and self.qk_rope_head_dim == 0
+                and can_quantize_k_cache_direct_store(
+                    dst_buffer, loc, cache_k_nope, cache_k_rope
+                )
+            ):
+                quantize_k_cache_direct_store(
+                    dst_buffer, loc, cache_k_nope, cache_k_rope
+                )
+            elif _is_hcu:
                 from lightop import kvcache as op
 
                 op.fused_quantize_and_store_mla_kv_cache(

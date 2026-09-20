@@ -321,7 +321,7 @@ class Glm5NextVisionModel(nn.Module):
             self.post_conv_layernorm = Glm4vRMSNorm(
                 vision_config.hidden_size, eps=vision_config.rms_norm_eps
             )
-        self.dowdsample = nn.Conv2d(
+        self.downsample = nn.Conv2d(
             in_channels=vision_config.hidden_size,
             out_channels=vision_config.out_hidden_size,
             kernel_size=vision_config.spatial_merge_size,
@@ -431,7 +431,7 @@ class Glm5NextVisionModel(nn.Module):
         x = self.post_layernorm(x)
         x = x.view(-1, self.spatial_merge_size, self.spatial_merge_size, x.shape[-1])
         x = x.permute(0, 3, 1, 2)
-        x = self.dowdsample(x).view(-1, self.out_hidden_size)
+        x = self.downsample(x).view(-1, self.out_hidden_size)
         x = self.merger(x)
 
         return x
