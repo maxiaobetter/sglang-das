@@ -1541,6 +1541,10 @@ class Envs:
     # Optional legacy fixed GiB budget; unset retains the fraction policy.
     SGLANG_NSA_MQA_LOGITS_MEMORY_BUDGET_GB = EnvFloat(None)
     SGLANG_DSA_MQA_LOGITS_FREE_MEM_FRACTION = EnvFloat(0.2)
+    # HCU ragged prefill: split requests when avoided K-prefix work pays off.
+    SGLANG_DSA_MQA_SPLIT_BY_SEQ = EnvBool(True)
+    # Minimum avoided logits cells per additional request-level kernel launch.
+    SGLANG_DSA_MQA_SPLIT_MIN_SAVED_CELLS = EnvInt(2_000_000)
     # Paired gfx938 LightOp sparse Page-MQA and mask-aware paged TopK.
     SGLANG_DSA_HCU_LIGHTOP_MASK_TOPK = EnvBoolWithAlias(
         False, deprecated_name="SGLANG_USE_LIGHTOP_MASK_TOPK"
