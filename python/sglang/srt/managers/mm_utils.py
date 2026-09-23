@@ -691,11 +691,12 @@ def general_mm_embed_routine(
                         use_deepstack=use_deepstack,
                     )
                 else:
-                    input_embeds, other_info = embed_mm_inputs(
+                    input_embeds, other_info = _embed_mm_inputs_with_split(
                         mm_inputs_list=mm_inputs_list,
                         extend_prefix_lens=extend_prefix_lens,
                         extend_seq_lens=extend_seq_lens,
                         input_ids=input_ids,
+                        forward_batch=forward_batch,
                         input_embedding=embed_tokens,
                         multimodal_model=multimodal_model,
                         data_embedding_func_mapping=data_embedding_funcs,
