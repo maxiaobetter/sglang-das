@@ -27,6 +27,7 @@ from sglang.srt.layers.attention.dsa.forward_batch_utils import (
     effective_forward_mode,
 )
 from sglang.srt.layers.attention.dsa.hcu_int8_index_k_cache import IndexKCacheMode
+from sglang.srt.layers.attention.dsa.mqa_request_split import iter_mqa_chunks
 from sglang.srt.layers.attention.dsa.paged_mqa_logits_backend import (
     DSAPagedMQALogitsBackend,
 )
@@ -1589,7 +1590,17 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
             q_offset, k_offset, device_index
         )
 
-        if not need_chunk:
+        request_slices = ()
+        if (
+            _is_hcu
+            and envs.SGLANG_DSA_MQA_SPLIT_BY_SEQ.get()
+            and metadata.topk_backend.is_sgl_kernel()
+        ):
+            request_slices = metadata.mqa_request_slices
+            if request_slices:
+                assert request_slices[-1][1] == q_offset
+
+        if not need_chunk and not request_slices:
             assert q_fp8[:q_offset].shape[0] != 0
             with self._with_real_sm_count():
                 if use_bf16_index_cache:
@@ -1648,10 +1659,6 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
             topk_result[:q_offset] = raw_topk_result
             return topk_result
 
-        bytes_per_row = k_offset * self._MQA_LOGITS_BYTES_PER_ELEM
-        max_rows = max(1, int(logits_budget_bytes // max(bytes_per_row, 1)))
-        max_rows = min(max_rows, q_offset)
-
         global_topk_offset = metadata.attn_metadata.topk_indices_offset
         cu_seqlens_q_full = None
         if global_topk_offset is None:
@@ -1665,28 +1672,38 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
                 global_topk_offset.shape[0] >= q_offset
             ), f"topk_indices_offset too short: {global_topk_offset.shape[0]} < {q_offset}"
 
-        start = 0
-        while start < q_offset:
-            end = min(start + max_rows, q_offset)
+        slices = request_slices or ((0, q_offset, 0, k_offset),)
+        for start, end, k_start, k_end in iter_mqa_chunks(
+            slices, logits_budget_bytes, self._MQA_LOGITS_BYTES_PER_ELEM
+        ):
+            # Logits columns become request-local; output offsets stay global.
+            chunk_ks = ks[start:end] - k_start if request_slices else ks[start:end]
+            chunk_ke = ke[start:end] - k_start if request_slices else ke[start:end]
 
             with self._with_real_sm_count():
                 if use_bf16_index_cache:
                     logits_chunk = _hcu_mqa_logits(
                         q_fp8[start:end],
-                        kv_bf16,
+                        kv_bf16[k_start:k_end],
                         weights[start:end].to(torch.float32),
-                        ks[start:end],
-                        ke[start:end],
+                        chunk_ks,
+                        chunk_ke,
                         kv_scale=None,
                     )
                 elif _is_hcu:
                     kv, scale = kv_fp8
+                    kv = kv[k_start:k_end]
+                    scale = scale[k_start:k_end]
+                    # LightOp vector-loads FP32 scales from a 16-byte aligned base.
+                    # A contiguous request slice can still have an unaligned offset.
+                    if scale.data_ptr() % 16:
+                        scale = scale.clone()
                     logits_chunk = _hcu_mqa_logits(
                         q_fp8[start:end],
                         kv,
                         weights[start:end],
-                        ks[start:end],
-                        ke[start:end],
+                        chunk_ks,
+                        chunk_ke,
                         kv_scale=scale,
                     )
                 elif _is_hip:
@@ -1699,8 +1716,8 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
                         kv,
                         scale,
                         weights[start:end],
-                        ks[start:end],
-                        ke[start:end],
+                        chunk_ks,
+                        chunk_ke,
                         clean_logits=False,
                     )
                 else:
@@ -1711,13 +1728,13 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
                         q_padded,
                         kv_fp8,
                         w_padded,
-                        ks[start:end],
-                        ke[start:end],
+                        chunk_ks,
+                        chunk_ke,
                         clean_logits=False,
                     )
 
             lengths_chunk = seq_lens_expanded[start:end]
-            self._mask_init_and_local_tokens(logits_chunk, lengths_chunk, ks[start:end])
+            self._mask_init_and_local_tokens(logits_chunk, lengths_chunk, chunk_ks)
 
             # RAGGED: use global offset; PAGED: construct local cu_seqlens_q per chunk
             if global_topk_offset is not None:
@@ -1734,14 +1751,14 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
             raw_topk_chunk = metadata.topk_transform(
                 logits_chunk,
                 self.index_topk,
-                ks=ks[start:end],
+                ks=chunk_ks,
                 cu_seqlens_q=cu_seqlens_q_chunk,
                 ke_offset=lengths_chunk,
                 batch_idx_list=batch_idx_chunk,
                 topk_indices_offset_override=topk_offset_chunk,
             )
             topk_result[start:end] = raw_topk_chunk
-            start = end
+            del logits_chunk
 
         return topk_result
 
