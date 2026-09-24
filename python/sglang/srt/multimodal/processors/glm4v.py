@@ -478,6 +478,9 @@ def _passthrough_video_metadata(video, video_config):
 
 class Glm4vImageProcessor(SGLangBaseProcessor):
     tokenizes_input_text = True
+    # EPD must reuse the request tokenizer output. Re-encoding the escaped GLM
+    # image markers can split them into ordinary tokens with newer tokenizers.
+    prefer_tokenized_input = True
     smart_rgb_conversion = True
     video_preprocessing_device = "cpu"
     models = [
