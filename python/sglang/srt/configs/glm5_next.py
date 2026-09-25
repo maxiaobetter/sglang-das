@@ -415,6 +415,7 @@ for _model_type, _config_cls in (
     ("glm5next_vision", Glm5NextVisionConfig),
     ("glm5v_next", Glm5VNextConfig),
     ("glm5v_next_vision", Glm5VNextVisionConfig),
+    ("glm5_next_vision", Glm5NextVisionConfig),
 ):
     try:
         CONFIG_MAPPING.register(_model_type, _config_cls)
