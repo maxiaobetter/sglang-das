@@ -237,16 +237,47 @@ def _validate_draft_lm_head_vp(server_args: ServerArgs) -> None:
 
 def _handle_dflash(server_args: ServerArgs) -> None:
     from sglang.srt.arg_groups.overrides import resolved_view
+    from sglang.srt.utils import is_hcu
 
-    if not (server_args.device.startswith("cuda") or server_args.device == "npu"):
-        raise ValueError(
-            "DFLASH speculative decoding only supports CUDA and NPU devices."
-        )
+    view = resolved_view(server_args)
+    hcu = is_hcu()
+    if not (
+        server_args.device.startswith("cuda") or server_args.device == "npu" or hcu
+    ):
+        raise ValueError("DFLASH requires CUDA, HCU or NPU")
 
-    if resolved_view(server_args).enable_dp_attention:
+    if view.enable_dp_attention and not hcu:
         raise ValueError(
-            "Currently DFLASH speculative decoding does not support dp attention."
+            "DFLASH DP attention in this branch is implemented for HCU only"
         )
+    if hcu and (view.enable_dp_attention or view.attn_cp_size > 1):
+        attn_dp_size = view.dp_size if view.enable_dp_attention else 1
+        if view.tp_size != attn_dp_size * view.attn_cp_size:
+            raise ValueError("HCU DFlash CP/DP requires attention TP=1")
+        # DSA prefill CP also enables DP attention with dp_size=1. Only
+        # independent request DP groups require the decode worker and DP head.
+        if attn_dp_size > 1 and view.disaggregation_mode != "decode":
+            raise ValueError("HCU DFlash DP currently requires a P/D decode worker")
+        if attn_dp_size > 1 and not view.enable_dp_lm_head:
+            raise ValueError("HCU DFlash DP attention requires --enable-dp-lm-head")
+        if view.attn_cp_size > 1 and (
+            view.disaggregation_mode != "prefill" or view.cp_strategy != "interleave"
+        ):
+            raise ValueError("HCU DFlash CP requires interleave P/D prefill")
+        if (
+            view.disaggregation_mode != "null"
+            and view.disaggregation_transfer_backend != "mooncake"
+        ):
+            raise ValueError(
+                "HCU DFlash P/D requires real Mooncake transfer on both sides"
+            )
+        if view.speculative_draft_lm_head_vp_size != 1:
+            raise ValueError(
+                "DFlash does not use EAGLE draft LM-head VP; remove its VP flag"
+            )
+        # Establish an eager correctness baseline for independently scheduled
+        # drafts. The target retains its decode CUDA graphs.
+        declare_resolution(server_args, "_handle_dflash", disable_overlap_schedule=True)
 
     if server_args.pp_size != 1:
         raise ValueError(

@@ -39,6 +39,8 @@ from sglang.srt.disaggregation.common.staging_buffer import (
 )
 from sglang.srt.disaggregation.hidden_state import (
     get_pd_hidden_capture_layer_ids,
+)
+from sglang.srt.disaggregation.hidden_state import (
     get_pd_hidden_req_state as pd_hidden_state,
 )
 from sglang.srt.disaggregation.utils import (
@@ -165,9 +167,7 @@ def maybe_release_pd_hidden_rows(req: Req, pd_hidden_pool) -> None:
         clear_pd_hidden_request_state(req)
 
 
-def maybe_release_pd_hidden_rows_on_hidden_done(
-    req: Req, pd_hidden_pool
-) -> bool:
+def maybe_release_pd_hidden_rows_on_hidden_done(req: Req, pd_hidden_pool) -> bool:
     """Release source hidden rows after PD_HIDDEN finishes, before KV success."""
     indices = pd_hidden_state(req).src_indices
     if not indices or pd_hidden_pool is None:
@@ -351,20 +351,24 @@ class PrefillBootstrapQueue:
         kv_args.kv_cache_dtype_str = (
             self.scheduler.tp_worker.model_runner.kv_cache_dtype_str
         )
-        kv_args.kv_cache_layout = getattr(self.token_to_kv_pool, "kv_cache_layout", None)
+        kv_args.kv_cache_layout = getattr(
+            self.token_to_kv_pool, "kv_cache_layout", None
+        )
         layer_shard_enabled = getattr(
             self.token_to_kv_pool, "layer_shard_enabled", False
         )
         layer_shard_rank = getattr(self.token_to_kv_pool, "layer_shard_rank", None)
         layer_shard_size = getattr(self.token_to_kv_pool, "layer_shard_size", 1)
-        cp_cache_layer_split = getattr(self.token_to_kv_pool, "requires_descriptor_matched_transfer", False)
+        cp_cache_layer_split = getattr(
+            self.token_to_kv_pool, "requires_descriptor_matched_transfer", False
+        )
         transfer_draft_cache = (
             (self.pp_size <= 1 or self.pp_rank == self.pp_size - 1)
+            and (not layer_shard_enabled or layer_shard_rank == layer_shard_size - 1)
             and (
-                not layer_shard_enabled
-                or layer_shard_rank == layer_shard_size - 1
+                not cp_cache_layer_split
+                or self.token_to_kv_pool.cp_rank == self.token_to_kv_pool.cp_size - 1
             )
-            and (not cp_cache_layer_split or self.token_to_kv_pool.cp_rank == self.token_to_kv_pool.cp_size - 1)
         )
         kv_args.prefill_start_layer = (
             getattr(
@@ -385,9 +389,7 @@ class PrefillBootstrapQueue:
             else getattr(self.token_to_kv_pool, "end_layer", None)
         )
 
-        draft_kv_pool = (
-            self.draft_token_to_kv_pool if transfer_draft_cache else None
-        )
+        draft_kv_pool = self.draft_token_to_kv_pool if transfer_draft_cache else None
         num_draft_entries = 0
         num_main_kv_layers = len(kv_data_ptrs) // 2
         if draft_kv_pool is not None:
@@ -405,6 +407,7 @@ class PrefillBootstrapQueue:
                 # MHA transfer: keep half-split on K/V boundary by folding
                 # draft into each half, matching decode's normalization.
                 from sglang.srt.disaggregation.utils import normalize_mha_mtp_kv_infos
+
                 kv_data_ptrs = normalize_mha_mtp_kv_infos(
                     kv_data_ptrs, draft_kv_data_ptrs
                 )
@@ -429,6 +432,7 @@ class PrefillBootstrapQueue:
             # build_kv_layer_ids appends draft ids; mirror pointer normalization
             # so ids stay aligned entry-wise.
             from sglang.srt.disaggregation.utils import normalize_mha_mtp_kv_infos
+
             kv_layer_ids = normalize_mha_mtp_kv_infos(
                 kv_layer_ids[:-num_draft_entries],
                 kv_layer_ids[-num_draft_entries:],
@@ -475,7 +479,9 @@ class PrefillBootstrapQueue:
         )
 
         if isinstance(self.token_to_kv_pool, DeepSeekV4TokenToKVPool):
-            from sglang.srt.mem_cache.cp_cache_layer_split.transfer import configure_v4_transfer
+            from sglang.srt.mem_cache.cp_cache_layer_split.transfer import (
+                configure_v4_transfer,
+            )
 
             configure_v4_transfer(kv_args, self.token_to_kv_pool, draft_kv_pool)
             # V4's KVCache is organized by compression-ratio
@@ -484,6 +490,10 @@ class PrefillBootstrapQueue:
                 self.token_to_kv_pool.compression_ratios
             )
 
+        from sglang.srt.disaggregation.dflash_contract import configure_dflash_transfer
+
+        configure_dflash_transfer(kv_args, self.scheduler)
+
         kv_manager_class = get_kv_class(self.transfer_backend, KVClassType.MANAGER)
         kv_manager = kv_manager_class(
             kv_args,
@@ -491,7 +501,9 @@ class PrefillBootstrapQueue:
             self.scheduler.server_args,
             self.is_mla_backend,
         )
-        kv_manager.pd_hidden_pool = getattr(self.metadata_buffers, "pd_hidden_pool", None)
+        kv_manager.pd_hidden_pool = getattr(
+            self.metadata_buffers, "pd_hidden_pool", None
+        )
         # Pass KV pool tensor refs to the manager for GPU gather (staging mode)
         if (
             envs.SGLANG_DISAGG_STAGING_BUFFER.get()
@@ -718,12 +730,8 @@ class PrefillBootstrapQueue:
         only the common FIFO prefix before performing any allocation.
         """
         ready = [True] * len(self.queue)
-        metadata_credits = (
-            self.req_to_metadata_buffer_idx_allocator.available_size()
-        )
-        pool = getattr(
-            getattr(self, "metadata_buffers", None), "pd_hidden_pool", None
-        )
+        metadata_credits = self.req_to_metadata_buffer_idx_allocator.available_size()
+        pool = getattr(getattr(self, "metadata_buffers", None), "pd_hidden_pool", None)
         hidden_row_credits = pool.available_size() if pool is not None else 0
 
         resource_blocked = False
@@ -775,9 +783,7 @@ class PrefillBootstrapQueue:
         prefix_tensor = torch.tensor(
             [
                 int(
-                    self.kv_manager.req_to_decode_prefix_len.get(
-                        req.bootstrap_room, 0
-                    )
+                    self.kv_manager.req_to_decode_prefix_len.get(req.bootstrap_room, 0)
                     or 0
                 )
                 for req in self.queue
@@ -854,9 +860,7 @@ class PrefillBootstrapQueue:
             return True
 
         src_indices = (
-            None
-            if plan.streaming_hidden
-            else plan.pool.alloc(plan.source_window_rows)
+            None if plan.streaming_hidden else plan.pool.alloc(plan.source_window_rows)
         )
         if src_indices is None and not plan.streaming_hidden:
             # A request that fits in the pool can still lose a local allocation
@@ -1023,12 +1027,8 @@ class PrefillBootstrapQueue:
             self.scheduler.attn_tp_cpu_group,
         )
 
-        metadata_credits = (
-            self.req_to_metadata_buffer_idx_allocator.available_size()
-        )
-        pool = getattr(
-            getattr(self, "metadata_buffers", None), "pd_hidden_pool", None
-        )
+        metadata_credits = self.req_to_metadata_buffer_idx_allocator.available_size()
+        pool = getattr(getattr(self, "metadata_buffers", None), "pd_hidden_pool", None)
         hidden_row_credits = pool.available_size() if pool is not None else 0
         admission_blocked = False
 
@@ -1266,9 +1266,7 @@ class SchedulerDisaggregationPrefillMixin:
         if hidden_states is None and result.pp_hidden_states_proxy_tensors is not None:
             proxy_tensors = result.pp_hidden_states_proxy_tensors.tensors
             aux_keys = sorted(
-                key
-                for key in proxy_tensors
-                if key.startswith("pd_aux_hidden_states_")
+                key for key in proxy_tensors if key.startswith("pd_aux_hidden_states_")
             )
             if aux_keys:
                 hidden_states = (
@@ -1285,9 +1283,7 @@ class SchedulerDisaggregationPrefillMixin:
         if current_indices is None:
             return None
 
-        state_types = (
-            self.disagg_prefill_bootstrap_queue.kv_manager.kv_args.state_types
-        )
+        state_types = self.disagg_prefill_bootstrap_queue.kv_manager.kv_args.state_types
         state_indices = []
         for st in state_types:
             if st == StateType.PD_HIDDEN:
@@ -1318,7 +1314,11 @@ class SchedulerDisaggregationPrefillMixin:
                 int(current_start),
                 int(current_rows),
                 bool(pd_hidden_state(req).current_is_last),
-                current_indices if streaming_hidden else pd_hidden_state(req).src_indices,
+                (
+                    current_indices
+                    if streaming_hidden
+                    else pd_hidden_state(req).src_indices
+                ),
             )
 
         req.disagg_kv_sender.send(np.asarray([], dtype=np.int32), state_indices)
@@ -1348,10 +1348,7 @@ class SchedulerDisaggregationPrefillMixin:
                     pd_hidden_state(req).src_indices
                     or pd_hidden_state(req).capture_layer_ids
                 )
-                and (
-                    send_owner_direct
-                    or not pd_hidden_state(req).owner_direct_sent
-                )
+                and (send_owner_direct or not pd_hidden_state(req).owner_direct_sent)
             )
         ]
         if pool is not None and needs_pd_hidden_reqs and hidden_states is None:
@@ -1416,9 +1413,7 @@ class SchedulerDisaggregationPrefillMixin:
             )
             if local_slice_len > 0 and req_hidden_to_write.shape[-1] != local_slice_len:
                 local_slice_start = (
-                    int(local_pp_slice.get("slice_start", 0))
-                    if local_pp_slice
-                    else 0
+                    int(local_pp_slice.get("slice_start", 0)) if local_pp_slice else 0
                 )
                 local_slice_end = local_slice_start + local_slice_len
                 if req_hidden_to_write.shape[-1] < local_slice_end:
@@ -1476,7 +1471,9 @@ class SchedulerDisaggregationPrefillMixin:
             pd_hidden_state(req).current_start = write_start
             pd_hidden_state(req).current_row_len = rows
             pd_hidden_state(req).current_src_indices = write_indices
-            pd_hidden_state(req).current_is_last = write_end >= hidden_start + hidden_len
+            pd_hidden_state(req).current_is_last = (
+                write_end >= hidden_start + hidden_len
+            )
             written = pd_hidden_state(req).written
             if written is not None:
                 written[local_start:local_end] = [True] * rows
@@ -1489,24 +1486,18 @@ class SchedulerDisaggregationPrefillMixin:
         result: GenerationBatchResult,
     ) -> bool:
         capture_reqs = [
-            req
-            for req in batch.reqs
-            if pd_hidden_state(req).capture_layer_ids
+            req for req in batch.reqs if pd_hidden_state(req).capture_layer_ids
         ]
         if not capture_reqs:
             return False
         if any(req.pending_bootstrap for req in capture_reqs):
             return False
         if not all(
-            bool(
-                (pd_hidden_state(req).meta or {}).get("streaming_hidden", False)
-            )
+            bool((pd_hidden_state(req).meta or {}).get("streaming_hidden", False))
             for req in capture_reqs
         ):
             return False
-        self._write_pd_hidden_rows_for_batch(
-            batch, result, send_owner_direct=True
-        )
+        self._write_pd_hidden_rows_for_batch(batch, result, send_owner_direct=True)
         return True
 
     def process_batch_result_disagg_prefill(
@@ -1901,9 +1892,7 @@ class SchedulerDisaggregationPrefillMixin:
 
         success_rids: List[str] = []
         failed_rids: List[str] = []
-        pd_hidden_pool = getattr(
-            self.disagg_metadata_buffers, "pd_hidden_pool", None
-        )
+        pd_hidden_pool = getattr(self.disagg_metadata_buffers, "pd_hidden_pool", None)
 
         for req, poll in zip(self.disagg_prefill_inflight_queue, polls):
             maybe_release_pd_hidden_rows_on_hidden_done(req, pd_hidden_pool)
@@ -2124,16 +2113,13 @@ class SchedulerDisaggregationPrefillMixin:
         current_pd_hidden_start = pd_hidden_state(req).current_start
         current_pd_hidden_row_len = int(pd_hidden_state(req).current_row_len or 0)
         has_current_pd_hidden = (
-            current_pd_hidden_src_indices is not None
-            and current_pd_hidden_row_len > 0
+            current_pd_hidden_src_indices is not None and current_pd_hidden_row_len > 0
         )
         streaming_pd_hidden = bool(
             (pd_hidden_state(req).meta or {}).get("streaming_hidden", False)
         )
 
-        state_types = (
-            self.disagg_prefill_bootstrap_queue.kv_manager.kv_args.state_types
-        )
+        state_types = self.disagg_prefill_bootstrap_queue.kv_manager.kv_args.state_types
         state_indices: Optional[List] = None
         if last_chunk or (streaming_pd_hidden and has_current_pd_hidden):
             if last_chunk:
@@ -2240,9 +2226,13 @@ class SchedulerDisaggregationPrefillMixin:
                         StateType.BLOCK_SCALE_SWA: _swa_payload,
                     }
                 )
-            if last_chunk and _is_npu and isinstance(
-                self.token_to_kv_pool_allocator.get_kvcache(),
-                DeepSeekV4TokenToKVPool,
+            if (
+                last_chunk
+                and _is_npu
+                and isinstance(
+                    self.token_to_kv_pool_allocator.get_kvcache(),
+                    DeepSeekV4TokenToKVPool,
+                )
             ):
                 from sglang.srt.hardware_backend.npu.dsv4.dsv4_common_hooks import (
                     dsv4_state_payloads,
@@ -2304,9 +2294,11 @@ class SchedulerDisaggregationPrefillMixin:
                     int(current_pd_hidden_start),
                     int(current_pd_hidden_row_len),
                     bool(pd_hidden_state(req).current_is_last),
-                    current_pd_hidden_src_indices
-                    if streaming_pd_hidden
-                    else pd_hidden_state(req).src_indices,
+                    (
+                        current_pd_hidden_src_indices
+                        if streaming_pd_hidden
+                        else pd_hidden_state(req).src_indices
+                    ),
                 )
             elif getattr(req.disagg_kv_sender, "_source_event", None) is None:
                 # PP + chunked prefill (overlap off) sends intermediate chunks

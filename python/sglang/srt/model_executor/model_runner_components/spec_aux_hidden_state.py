@@ -7,10 +7,13 @@ import msgspec
 
 from sglang.srt.configs.model_config import ModelConfig
 from sglang.srt.runtime_context import (
+    configured_attn_cp_size,
     configured_tp_size,
     get_model,
+    get_parallel,
     get_spec,
 )
+from sglang.srt.utils import is_hcu
 
 if TYPE_CHECKING:
     from sglang.srt.server_args import ServerArgs
@@ -148,6 +151,27 @@ def _resolve_dflash_aux_hidden_state(
         )
         draft_num_layers = dflash_draft_config.require_num_layers()
         trained_target_layers = dflash_draft_config.num_target_layers
+        if (
+            is_hcu()
+            and spec_algorithm.is_dflash()
+            and (get_parallel().enable_dp_attention or configured_attn_cp_size() > 1)
+        ):
+            target_config = model_config.hf_text_config
+            draft_config = draft_model_config.hf_config
+            if "GlmMoeDsaForCausalLM" not in model_config.hf_config.architectures:
+                raise ValueError("HCU DFlash CP/DP currently supports GLM DSA targets")
+            if "DFlash2DraftModel" not in draft_config.architectures:
+                raise ValueError("HCU DFlash CP/DP requires a DFlash2 draft checkpoint")
+            for field in ("hidden_size", "vocab_size"):
+                if getattr(target_config, field) != getattr(draft_config, field):
+                    raise ValueError(f"HCU DFlash target/draft {field} mismatch")
+            if (
+                trained_target_layers is not None
+                and trained_target_layers != target_config.num_hidden_layers
+            ):
+                raise ValueError(
+                    "HCU DFlash draft was trained for a different target layer count"
+                )
 
         target_num_layers = getattr(
             model_config.hf_text_config, "num_hidden_layers", None
@@ -242,9 +266,23 @@ def _resolve_dflash_draft_cell_size(
             draft_model_config=draft_model_config,
             draft_num_layers=draft_num_layers,
             draft_kv_cache_dtype=draft_kv_cache_dtype,
-            tp_size=configured_tp_size(),
+            tp_size=(
+                1  # Replicated draft; resolved before distributed initialization.
+                if is_hcu()
+                and get_spec().speculative_algorithm == "DFLASH"
+                and (
+                    get_parallel().enable_dp_attention or configured_attn_cp_size() > 1
+                )
+                else configured_tp_size()
+            ),
         )
     except Exception as e:  # noqa: BLE001
+        if (
+            is_hcu()
+            and get_spec().speculative_algorithm == "DFLASH"
+            and (get_parallel().enable_dp_attention or configured_attn_cp_size() > 1)
+        ):
+            raise ValueError("Cannot size the replicated HCU DFlash KV pool") from e
         logger.warning(
             "Could not resolve DFLASH draft KV bytes/token (%s); falling back to "
             "layer-count scaling for the KV pool budget.",

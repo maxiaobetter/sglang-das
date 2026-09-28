@@ -12,6 +12,7 @@ from sglang.srt.model_executor.forward_batch_info import (
     ForwardBatch,
     ForwardMode,
 )
+from sglang.srt.runtime_context import get_parallel
 from sglang.srt.speculative.spec_info import SpecInput, SpecInputType
 from sglang.srt.utils import is_npu
 
@@ -101,13 +102,22 @@ class DFlashVerifyInput(SpecInput):
             return_hidden_states_before_norm=False,
         )
 
+        if get_parallel().enable_dp_attention and (
+            batch.is_extend_in_batch
+            or (
+                verify_forward_batch.original_global_num_tokens_cpu is not None
+                and min(verify_forward_batch.original_global_num_tokens_cpu) == 0
+            )
+        ):
+            verify_forward_batch.can_run_dp_cuda_graph = False
+
         can_run_cuda_graph = bool(
             target_worker.model_runner.decode_cuda_graph_runner
             and target_worker.model_runner.decode_cuda_graph_runner.can_run_graph(
                 verify_forward_batch
             )
         )
-        if _is_npu:
+        if _is_npu or get_parallel().enable_dp_attention:
             # Do not pre-plan target verify on NPU. DP/EP padding can change
             # the compressor's logical batch without changing ForwardBatch's
             # stale-plan shape fields. Let ModelRunner select graph/eager and

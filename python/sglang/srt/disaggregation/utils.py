@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-import random
 import logging
+import random
 import threading
 from collections import deque
 from contextlib import nullcontext
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
-    Iterable,
     Any,
     Dict,
+    Iterable,
     List,
     Literal,
     Optional,
@@ -19,8 +19,8 @@ from typing import (
     overload,
 )
 
-import numpy as np
 import msgspec
+import numpy as np
 import torch
 import torch.distributed as dist
 
@@ -410,17 +410,13 @@ class PDHiddenRowPool:
 
             merged = []
             existing_idx = freed_idx = 0
-            while (
-                existing_idx < len(self._free_intervals)
-                or freed_idx < len(freed_intervals)
+            while existing_idx < len(self._free_intervals) or freed_idx < len(
+                freed_intervals
             ):
-                if (
-                    freed_idx == len(freed_intervals)
-                    or (
-                        existing_idx < len(self._free_intervals)
-                        and self._free_intervals[existing_idx][0]
-                        < freed_intervals[freed_idx][0]
-                    )
+                if freed_idx == len(freed_intervals) or (
+                    existing_idx < len(self._free_intervals)
+                    and self._free_intervals[existing_idx][0]
+                    < freed_intervals[freed_idx][0]
                 ):
                     interval = self._free_intervals[existing_idx]
                     existing_idx += 1
@@ -494,7 +490,7 @@ class PDHiddenTransferPlan(msgspec.Struct):
     row_chunks: List[Dict[str, Any]]
 
     @classmethod
-    def build(cls, row_count: int, item_len: int) -> "PDHiddenTransferPlan":
+    def build(cls, row_count: int, item_len: int) -> PDHiddenTransferPlan:
         row_count = int(row_count)
         item_len = int(item_len)
         if row_count <= 0:
@@ -556,7 +552,9 @@ class PDHiddenTransferPlan(msgspec.Struct):
             return new_dynamic_dst
 
         if item_len > 0:
-            new_dynamic_dst["ptr"] = int(new_dynamic_dst.get("ptr", 0)) + offset * item_len
+            new_dynamic_dst["ptr"] = (
+                int(new_dynamic_dst.get("ptr", 0)) + offset * item_len
+            )
         plan = PDHiddenTransferPlan.build(new_row_count, item_len)
         new_dynamic_dst["row_chunks"] = plan.row_chunks
         return new_dynamic_dst
@@ -1361,13 +1359,20 @@ def build_kv_layer_ids(
     if draft_token_to_kv_pool is None:
         return target_layer_ids
 
+    from sglang.srt.mem_cache.memory_pool import MLATokenToKVPool
+
+    if isinstance(token_to_kv_pool, MLATokenToKVPool):
+        # MLA transfer treats each pointer as a flat entry. Give draft K and
+        # V distinct ids, matching the decode registration (also for MHA drafts).
+        return target_layer_ids + list(
+            range(num_hidden_layers, num_hidden_layers + num_draft_entries)
+        )
+
     draft_ids = _draft_entry_layer_ids(
         pool=draft_token_to_kv_pool, num_entries=num_draft_entries
     )
     band_index = {lid: i for i, lid in enumerate(dict.fromkeys(draft_ids))}
-    return target_layer_ids + [
-        num_hidden_layers + band_index[lid] for lid in draft_ids
-    ]
+    return target_layer_ids + [num_hidden_layers + band_index[lid] for lid in draft_ids]
 
 
 def _draft_entry_layer_ids(*, pool, num_entries: int) -> List[int]:

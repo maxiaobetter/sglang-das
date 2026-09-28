@@ -3021,7 +3021,12 @@ class DeepseekV2Model(nn.Module):
             )
         if len(aux_hidden_states) == 0:
             return hidden_states
-        return hidden_states, aux_hidden_states.finalize()
+        packed_aux = aux_hidden_states.finalize()
+        if self.pp_group.is_last_rank and use_cp_v1:
+            packed_aux = cp_all_gather_rerange_output(
+                packed_aux, self.cp_size, forward_batch, torch.cuda.current_stream()
+            )
+        return hidden_states, packed_aux
 
 
 class DeepseekV2ForCausalLM(nn.Module, DeepseekV2WeightLoaderMixin):

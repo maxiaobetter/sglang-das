@@ -35,6 +35,7 @@ from sglang.srt.model_executor.forward_batch_info import (
 )
 from sglang.srt.runtime_context import (
     get_exec,
+    get_parallel,
     get_schedule,
     get_spec,
     mamba_track_grid,
@@ -43,6 +44,7 @@ from sglang.srt.server_args import ServerArgs
 from sglang.srt.speculative.base_spec_worker import BaseSpecWorker
 from sglang.srt.speculative.dflash_info import DFlashVerifyInput
 from sglang.srt.speculative.dflash_info_v2 import DFlashDraftInputV2
+from sglang.srt.speculative.dflash_parallel import DFlashParallelContext, draft_local
 from sglang.srt.speculative.dflash_utils import (
     apply_dflash_simulated_acceptance,
     apply_dflash_verify_logits_adjustments,
@@ -70,7 +72,7 @@ from sglang.srt.speculative.spec_utils import (
     assign_req_to_token_pool_func,
     build_grammar_vocab_mask,
 )
-from sglang.srt.utils import get_available_gpu_memory, is_cuda, is_hip, is_npu
+from sglang.srt.utils import get_available_gpu_memory, is_cuda, is_hcu, is_hip, is_npu
 
 _is_npu = is_npu()
 
@@ -292,14 +294,24 @@ class DFlashWorkerV2(BaseSpecWorker):
         self._draft_probs_buf = None
         self._logged_first_verify = False
 
-        bundle = build_draft_tp_worker(
-            server_args=server_args,
-            gpu_id=gpu_id,
-            ps=replace(ps, pp_rank=0),
-            nccl_port=nccl_port,
-            target_model_config=target_worker.model_runner.model_config,
-            algo_label="DFLASH",
+        self.target_dp_attention = get_parallel().enable_dp_attention
+        self.draft_parallel = DFlashParallelContext(
+            is_hcu() and (self.target_dp_attention or ps.attn_cp_size > 1)
         )
+        draft_ps = (
+            ParallelState.trivial(gpu_id=gpu_id)
+            if self.draft_parallel.enabled
+            else replace(ps, pp_rank=0)
+        )
+        with self.draft_parallel.scope():
+            bundle = build_draft_tp_worker(
+                server_args=server_args,
+                gpu_id=gpu_id,
+                ps=draft_ps,
+                nccl_port=nccl_port,
+                target_model_config=target_worker.model_runner.model_config,
+                algo_label="DFLASH",
+            )
         self._draft_worker = bundle.draft_worker
         self.draft_model_runner = bundle.draft_model_runner
         self._draft_sampler = None
@@ -319,6 +331,8 @@ class DFlashWorkerV2(BaseSpecWorker):
             if model_block_size is not None and int(model_block_size) != int(
                 self.block_size
             ):
+                if self.draft_parallel.enabled:
+                    raise ValueError("HCU DFlash requires the checkpoint block size")
                 logger.warning(
                     "DFLASH block size mismatch: using speculative_num_draft_tokens=%s but draft config block_size=%s.",
                     self.block_size,
@@ -421,6 +435,7 @@ class DFlashWorkerV2(BaseSpecWorker):
             self.draft_model_runner.attn_backend,
         )
 
+    @draft_local
     def alloc_memory_pool(
         self,
         memory_pool_config=None,
@@ -440,6 +455,7 @@ class DFlashWorkerV2(BaseSpecWorker):
             token_to_kv_pool_allocator=token_to_kv_pool_allocator,
         )
 
+    @draft_local
     def init_attention_backends(self):
         self._draft_worker.init_attention_backends()
         self._need_mamba_verify_commit = mambaish_config(
@@ -449,6 +465,7 @@ class DFlashWorkerV2(BaseSpecWorker):
             "update_mamba_state_after_mtp_verify",
         )
 
+    @draft_local
     def init_cuda_graphs(self):
         capture_decode_cuda_graph = (
             get_exec().graph.cuda_graph_config.decode.backend != Backend.DISABLED
@@ -462,6 +479,10 @@ class DFlashWorkerV2(BaseSpecWorker):
                     "memory is available after target backend initialization.",
                     available_mem,
                 )
+        if self.draft_parallel.enabled:
+            # Keep independent DP drafts eager initially; target verify retains
+            # graph execution. A shared graph capture can wait on idle DP ranks.
+            capture_decode_cuda_graph = False
         if capture_decode_cuda_graph:
             # Must run before capture so the draft graph folds the head in.
             self._draft_sampler = self._maybe_build_draft_sampler()
@@ -473,6 +494,7 @@ class DFlashWorkerV2(BaseSpecWorker):
             capture_decode_cuda_graph=capture_decode_cuda_graph
         )
 
+    @draft_local
     def _maybe_build_draft_sampler(self):
         def _eager(reason):
             if self.ps.tp_rank == 0:
@@ -542,6 +564,7 @@ class DFlashWorkerV2(BaseSpecWorker):
             tp_group=tp_group if tp_group.world_size > 1 else None,
         )
 
+    @draft_local
     def _init_fused_kv_helper(self) -> None:
         """Initialize the fused KV materialization helper with pre-stacked weights."""
         try:
@@ -940,6 +963,7 @@ class DFlashWorkerV2(BaseSpecWorker):
 
         return int(resolved_id)
 
+    @draft_local
     def _propose_selector_block(
         self,
         *,
@@ -1026,6 +1050,7 @@ class DFlashWorkerV2(BaseSpecWorker):
             draft_probs.scatter_(-1, candidate_ids, 0.0)
         return accept_len.to(torch.int32), bonus.to(torch.int64)
 
+    @draft_local
     def _greedy_sample_from_quantized_head(
         self,
         *,
@@ -1062,6 +1087,7 @@ class DFlashWorkerV2(BaseSpecWorker):
             out_tokens[start:end] = torch.argmax(logits, dim=-1).to(torch.long)
         return out_tokens
 
+    @draft_local
     def _greedy_sample_from_vocab_parallel_head(
         self,
         *,
@@ -1279,6 +1305,7 @@ class DFlashWorkerV2(BaseSpecWorker):
 
         return out_tokens
 
+    @draft_local
     def _append_target_hidden_to_draft_kv_by_loc(
         self,
         *,
@@ -1724,6 +1751,22 @@ class DFlashWorkerV2(BaseSpecWorker):
             )
 
         if batch.forward_mode.is_idle():
+            if self.target_dp_attention:
+                idle_verify = DFlashVerifyInput(
+                    draft_token=torch.empty(0, dtype=torch.long, device=self.device),
+                    positions=torch.empty(0, dtype=torch.long, device=self.device),
+                    draft_token_num=int(self.block_size),
+                    capture_hidden_mode=CaptureHiddenMode.FULL,
+                )
+                idle_batch, _ = idle_verify.prepare_for_verify(
+                    batch, self.target_worker
+                )
+                idle_batch.can_run_dp_cuda_graph = False
+                self.target_worker.forward_batch_generation(
+                    batch=None,
+                    forward_batch=idle_batch,
+                    is_verify=True,
+                )
             empty_ids = torch.empty((0,), dtype=torch.int64, device=self.device)
             empty_lens = torch.empty((0,), dtype=torch.int32, device=self.device)
             next_draft_input = self._make_next_draft_input_decode(
@@ -1762,6 +1805,11 @@ class DFlashWorkerV2(BaseSpecWorker):
             raise RuntimeError(
                 "DFLASH requires the target model to expose `lm_head` with either "
                 "`weight` or a `quant_method` that can produce logits."
+            )
+
+        if self.draft_parallel.enabled and getattr(lm_head, "tp_size", 1) != 1:
+            raise RuntimeError(
+                "DFlash DP selector requires a replicated target LM head"
             )
 
         block_size = int(self.block_size)
@@ -1833,6 +1881,8 @@ class DFlashWorkerV2(BaseSpecWorker):
             )
             verify_out_cache_loc_2d.copy_(verify_out_cache_loc.view(bs, block_size))
 
+        if self.draft_parallel.enabled and getattr(embed_module, "tp_size", 1) != 1:
+            raise RuntimeError("DFlash DP draft requires a replicated target embedding")
         noise_embedding = embed_module(block_ids)
         if self._noise_embed_scale != 1.0:
             noise_embedding = noise_embedding * self._noise_embed_scale
@@ -1903,7 +1953,7 @@ class DFlashWorkerV2(BaseSpecWorker):
                     bs=bs, sampling_info=batch.sampling_info
                 )
 
-        with torch.inference_mode():
+        with self.draft_parallel.scope(), torch.inference_mode():
             draft_out = self.draft_model_runner.forward(forward_batch)
         draft_logits_output = draft_out.logits_output
 
@@ -1986,7 +2036,7 @@ class DFlashWorkerV2(BaseSpecWorker):
             batch=None,
             forward_batch=verify_forward_batch,
             is_verify=True,
-            skip_attn_backend_init=True,
+            skip_attn_backend_init=not self.target_dp_attention,
         )
         logits_output = target_out.logits_output
         can_run_cuda_graph = target_out.can_run_cuda_graph
