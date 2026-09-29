@@ -901,21 +901,34 @@ def eagle_sample(
             tp_group.broadcast(accept_index, src=0)
             tp_group.broadcast(num_correct_drafts, src=0)
     else:
-        from sgl_kernel import (
-            top_k_renorm_prob,
-            top_p_renorm_prob,
-            tree_speculative_sampling_target_only,
-        )
+        if use_rejection_sampling:
+            from sglang.kernels.ops.speculative.reject_sampling import (
+                chain_speculative_sampling_triton,
+            )
 
-        from sglang.kernels.ops.speculative.reject_sampling import (
-            chain_speculative_sampling_triton,
-        )
+            sampling_fn = chain_speculative_sampling_triton
+        else:
+            if _is_cuda:
+                from sglang.kernels.ops.speculative.sampling import (
+                    tree_speculative_sampling_target_only,
+                )
+            else:
+                from sgl_kernel import tree_speculative_sampling_target_only
 
-        sampling_fn = (
-            chain_speculative_sampling_triton
-            if use_rejection_sampling
-            else tree_speculative_sampling_target_only
-        )
+            sampling_fn = tree_speculative_sampling_target_only
+
+        if _is_hip and not _is_hcu:
+            from sglang.kernels.ops.sampling.renorm_triton import (
+                top_k_renorm_probs_triton as top_k_renorm_prob,
+            )
+            from sglang.kernels.ops.sampling.renorm_triton import (
+                top_p_renorm_probs_triton as top_p_renorm_prob,
+            )
+        elif _is_cuda:
+            from flashinfer.sampling import top_k_renorm_probs as top_k_renorm_prob
+            from flashinfer.sampling import top_p_renorm_probs as top_p_renorm_prob
+        else:
+            from sgl_kernel import top_k_renorm_prob, top_p_renorm_prob
 
         expanded_temperature = torch.repeat_interleave(
             sampling_info.temperatures, verify_input.draft_token_num, dim=0

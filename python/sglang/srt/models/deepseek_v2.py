@@ -117,10 +117,6 @@ from sglang.srt.layers.moe.utils import (
     is_shared_experts_fusion_disabled,
     is_tbo_enabled,
 )
-from sglang.srt.layers.utils.cp_utils import (
-    cp_all_gather_rerange_output,
-    mla_use_prefill_cp,
-)
 from sglang.srt.layers.quantization.base_config import QuantizationConfig
 from sglang.srt.layers.quantization.fp8 import Fp8Config
 from sglang.srt.layers.quantization.fp8_utils import (
@@ -138,6 +134,10 @@ from sglang.srt.layers.quantization.mxfp4_flashinfer_trtllm_moe import (
 from sglang.srt.layers.radix_attention import RadixAttention
 from sglang.srt.layers.rotary_embedding import get_rope_wrapper
 from sglang.srt.layers.utils import PPMissingLayer
+from sglang.srt.layers.utils.cp_utils import (
+    cp_all_gather_rerange_output,
+    mla_use_prefill_cp,
+)
 from sglang.srt.layers.vocab_parallel_embedding import (
     ParallelLMHead,
     VocabParallelEmbedding,
@@ -930,7 +930,10 @@ class DeepseekV2MoE(nn.Module):
                     down_proj_block_size = getattr(
                         down_proj_quant_config, "weight_block_size", None
                     )
-                    if gate_up_block_size is not None or down_proj_block_size is not None:
+                    if (
+                        gate_up_block_size is not None
+                        or down_proj_block_size is not None
+                    ):
                         assert gate_up_block_size == down_proj_block_size
                         self.shared_experts_weight_block_size = gate_up_block_size
 
@@ -982,7 +985,9 @@ class DeepseekV2MoE(nn.Module):
         )
 
         weights = list(self.experts.named_parameters())
-        if getattr(self.experts, "_w8a8_int8_deepgemm_repacked", False):
+        if getattr(self.experts, "_w8a8_int8_deepgemm_repacked", False) or getattr(
+            self.experts, "_dsv4_channel_fp8_deepgemm_repacked", False
+        ):
             # HCU packing releases the original parameters. EPLB must move
             # every runtime layout together with its expert scales.
             weights.extend(

@@ -60,8 +60,10 @@ from sglang.srt.hardware_backend.npu.utils import (
     use_npu_arch35_mxfp8_wo_a,
 )
 from sglang.srt.layers.attention.dsa.utils import (
+    can_dsa_cp_split,
     dsa_use_prefill_cp,
     is_dsa_enable_prefill_cp,
+    is_dsa_prefill_cp_round_robin_split,
 )
 from sglang.srt.layers.attention.dsv4.compressor import Compressor
 from sglang.srt.layers.attention.dsv4.dsv41_sparse import (
@@ -645,6 +647,7 @@ def _get_fused_qnorm_rope_cos_sin_cache(freqs_cis: torch.Tensor) -> torch.Tensor
         ).contiguous()  # [max_pos, 64], first 32 cos, last 32 sin
         _fused_qnorm_rope_cos_sin_cache[key] = cache
     return cache
+
 
 def _apply_gguf_grouped_wo_a(
     o: torch.Tensor,
