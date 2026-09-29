@@ -17,6 +17,10 @@ def _processor():
     return processor
 
 
+def test_glm4v_epd_prefers_request_token_ids():
+    assert Glm4vImageProcessor.prefer_tokenized_input is True
+
+
 def test_glm4v_partitions_shared_image_and_video_token_offsets():
     processor = _processor()
     mm_tokens = MultimodalSpecialTokens(image_token_id=99, video_token_id=99)
