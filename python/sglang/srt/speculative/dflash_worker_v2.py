@@ -353,6 +353,36 @@ class DFlashWorkerV2(BaseSpecWorker):
             if hasattr(target_model, "get_dflash_noise_embedding_scale")
             else 1.0
         )
+        self._dflash_debug = None
+        self._dflash_debug_context = {}
+        if envs.SGLANG_DFLASH_DEBUG_DIR.get():
+            from sglang.srt.speculative.dflash_debug import get_dflash_debug_recorder
+
+            self._dflash_debug = get_dflash_debug_recorder()
+            self._dflash_debug_context = {
+                "target_model_path": server_args.model_path,
+                "draft_model_path": server_args.speculative_draft_model_path,
+                "target_model_class": type(target_model).__name__,
+                "draft_model_class": type(self.draft_model).__name__,
+                "capture_layer_ids": draft_config.target_layer_ids,
+                "block_size": self.block_size,
+                "page_size": self.page_size,
+                "target_kv_dtype": str(server_args.kv_cache_dtype),
+                "draft_kv_dtype": str(server_args.speculative_draft_kv_cache_dtype),
+                "target_dtype": str(server_args.dtype),
+                "target_quantization_arg": server_args.quantization,
+                "target_prefill_backend": server_args.dsa_prefill_backend,
+                "target_decode_backend": server_args.dsa_decode_backend,
+                "draft_attention_backend": server_args.speculative_draft_attention_backend,
+                "cp_strategy": server_args.cp_strategy,
+                "target_tp_size": ps.tp_size,
+                "target_dp_size": ps.dp_size,
+                "target_cp_size": ps.attn_cp_size,
+                "target_tp_rank": ps.tp_rank,
+                "target_dp_rank": ps.dp_rank,
+                "target_cp_rank": ps.attn_cp_rank,
+                "simulated_accept_length": SIMULATE_ACC_LEN,
+            }
         if self.ps.tp_rank == 0:
             logger.info(
                 "Initialized DFLASH draft runner. attention_backend=%s, model=%s, block_size=%s, draft_window_size=%s, compact_cache=%s",
@@ -1017,6 +1047,7 @@ class DFlashWorkerV2(BaseSpecWorker):
         q_rows: torch.Tensor,
         sampling_info,
         draft_input,
+        debug_observation=None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Scatter the selector's sparse q into a dense one for DSpark's kernel."""
         bs, block = candidates.shape
@@ -1031,6 +1062,28 @@ class DFlashWorkerV2(BaseSpecWorker):
             )
             self._draft_probs_buf = buffer
         draft_probs = buffer[:bs]
+        debug_callback = None
+        if debug_observation is not None:
+
+            def debug_callback(**observed):
+                try:
+                    debug_observation.update(
+                        target_probs=observed["target_probs"],
+                        verify_uniforms=observed["uniform_samples"],
+                        final_uniforms=observed["uniform_samples_final"],
+                        # The dense q buffer is cleared in finally below. Gather
+                        # these values now, before its sparse entries are reset.
+                        actual_q_at_candidates=observed["draft_probs"].gather(
+                            -1, candidate_ids
+                        ),
+                        actual_selected_q=observed["draft_probs"]
+                        .gather(-1, candidates[:, 1:, None])
+                        .squeeze(-1),
+                        actual_q_sum=observed["draft_probs"].sum(-1),
+                    )
+                except Exception as exc:
+                    self._dflash_debug.disable(exc)
+
         try:
             draft_probs.scatter_(-1, candidate_ids, q_rows.float())
             accept_len, bonus, _ = accept_sampling(
@@ -1042,6 +1095,7 @@ class DFlashWorkerV2(BaseSpecWorker):
                 gamma=gamma,
                 verify_num_draft_tokens=block,
                 cutoff_verify_lens=None,
+                debug_callback=debug_callback,
             )
         finally:
             # Here, not before the next write: candidate_ids may be a view of a
@@ -1731,6 +1785,20 @@ class DFlashWorkerV2(BaseSpecWorker):
                 positions=positions,
             )
 
+            if self._dflash_debug is not None:
+                from sglang.srt.speculative.dflash_debug_kv import (
+                    record_dflash_prefill_aux,
+                    record_dflash_prompt_kv,
+                )
+
+                record_dflash_prefill_aux(
+                    self,
+                    batch,
+                    target_hidden=logits_output.hidden_states,
+                    positions=positions,
+                )
+                record_dflash_prompt_kv(self, batch, phase="prefill_kv")
+
             # Avoid copying large hidden-state buffers to CPU in overlap scheduling.
             logits_output.hidden_states = None
 
@@ -1793,6 +1861,13 @@ class DFlashWorkerV2(BaseSpecWorker):
 
         bs = len(batch.seq_lens)
         device = self.device
+
+        if self._dflash_debug is not None:
+            from sglang.srt.speculative.dflash_debug_kv import record_dflash_prompt_kv
+
+            # The first decode sees transferred prompt KV before draft forward
+            # writes speculative slots. The helper skips all subsequent rounds.
+            record_dflash_prompt_kv(self, batch, phase="decode_kv")
 
         # --- 1) Draft a fixed block with the draft model.
         target_model = self.target_worker.model_runner.model
@@ -2067,6 +2142,15 @@ class DFlashWorkerV2(BaseSpecWorker):
         target_predict = None
         if self._selector_sample is not None:
             selector_candidate_ids, selector_q_rows = self._selector_sample
+            debug_observation = (
+                {}
+                if self._dflash_debug is not None
+                and any(
+                    self._dflash_debug.enabled_for(req, "sampling")
+                    for req in batch.reqs
+                )
+                else None
+            )
             accept_len, bonus = self._selector_sampling_accept(
                 candidates=candidates,
                 next_token_logits=logits_output.next_token_logits,
@@ -2074,8 +2158,26 @@ class DFlashWorkerV2(BaseSpecWorker):
                 q_rows=selector_q_rows,
                 sampling_info=sampling_info,
                 draft_input=draft_input,
+                debug_observation=debug_observation,
             )
             out_tokens, commit_lens = _commit_accept(candidates, accept_len, bonus)
+            if debug_observation:
+                self._dflash_debug.record_sampling(
+                    batch=batch,
+                    candidates=candidates,
+                    target_logits=logits_output.next_token_logits,
+                    candidate_ids=selector_candidate_ids,
+                    q_rows=selector_q_rows,
+                    accept_len=accept_len,
+                    bonus=bonus,
+                    prefix_lens=prefix_lens,
+                    draft_input=draft_input,
+                    context={
+                        **self._dflash_debug_context,
+                        "target_cuda_graph": can_run_cuda_graph,
+                    },
+                    **debug_observation,
+                )
         elif (
             not _is_all_greedy(sampling_info) and is_dflash_sampling_verify_available()
         ):
@@ -2194,6 +2296,21 @@ class DFlashWorkerV2(BaseSpecWorker):
             positions=positions,
             commit_lens=commit_lens,
         )
+
+        if self._dflash_debug is not None:
+            from sglang.srt.speculative.dflash_debug_kv import (
+                record_dflash_verify_state,
+            )
+
+            record_dflash_verify_state(
+                self,
+                batch,
+                target_hidden=hidden,
+                positions=positions,
+                cache_locs=verify_out_cache_loc,
+                candidates=candidates,
+                commit_lens=commit_lens,
+            )
 
         # Avoid copying large hidden-state buffers to CPU in overlap scheduling.
         logits_output.hidden_states = None

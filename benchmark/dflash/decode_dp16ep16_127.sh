@@ -71,10 +71,20 @@ export MC_TE_FILTERS="$IB_DEVICES"
 export MC_ALLOWED_IBV_DEVICES="$IB_DEVICES"
 export SGLANG_DISAGGREGATION_BOOTSTRAP_TIMEOUT=1200
 
-# Real acceptance and transfer; EP32 maps/tuning are not defaults for this pair.
+# Real acceptance and transfer; EP32 expert maps are not defaults for this pair.
 unset SGLANG_SIMULATE_ACC_LEN SGLANG_SIMULATE_ACC_METHOD
 unset SGLANG_SCHEDULER_SKIP_ALL_GATHER SGLANG_EXPERIMENTAL_LPLB_STATIC_PROBS
-unset ROCBLAS_TENSILE_LIBPATH HIPBLASLT_TUNING_OVERRIDE_FILE
+# Reuse the node-local GEMM tuning artifacts. Override the directory when moving
+# the launcher; set USE_BLAS_TUNING=0 for an explicit untuned comparison.
+if [[ "${USE_BLAS_TUNING:-1}" == 1 ]]; then
+    BLAS_TUNING_DIR="${BLAS_TUNING_DIR:-$BASE/ep32_optimization/blas_tuning/final}"
+    export HIPBLASLT_TUNING_OVERRIDE_FILE="$BLAS_TUNING_DIR/hipblaslt.config"
+    export ROCBLAS_TENSILE_LIBPATH="$BLAS_TUNING_DIR/library_gpu6"
+    test -s "$HIPBLASLT_TUNING_OVERRIDE_FILE"
+    test -d "$ROCBLAS_TENSILE_LIBPATH"
+else
+    unset ROCBLAS_TENSILE_LIBPATH HIPBLASLT_TUNING_OVERRIDE_FILE
+fi
 
 EXTRA_ARGS=()
 if [[ -n "${DEEPEP_CONFIG:-}" ]]; then

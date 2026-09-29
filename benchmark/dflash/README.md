@@ -83,8 +83,27 @@ BF16 draft KV, FP8 target KV, and Decode BS5 per DP rank (80 total requests).
 DeepEP capacity64 covers the resulting 40 verify tokens per rank. Recalculate
 dispatch capacity when changing the per-rank batch size; extra CLI arguments
 are forwarded unchanged. These scripts clear simulated acceptance, the skipped
-DP synchronization, inherited static-LP probabilities and old BLAS tuning paths.
+DP synchronization and inherited static-LP probabilities.
 The paired mask-aware sparse MQA/TopK optimization is disabled for this baseline.
+
+Both launchers enable the existing GEMM tuning artifacts by default:
+
+```bash
+BLAS_TUNING_DIR=/home/maxiao/GLM53/fp8/ep32_optimization/blas_tuning/final
+export HIPBLASLT_TUNING_OVERRIDE_FILE="$BLAS_TUNING_DIR/hipblaslt.config"
+export ROCBLAS_TENSILE_LIBPATH="$BLAS_TUNING_DIR/library_gpu6"
+```
+
+Override `BLAS_TUNING_DIR` when moving the scripts, or set `USE_BLAS_TUNING=0`
+for an explicit untuned comparison. The launchers check that both artifacts
+exist. The saved manifest binds the tuning to gfx938, 64 CU and specific BLAS
+library hashes; revalidate after changing those libraries. Its original EP32
+fake-prefill validation does not establish real P/D acceptance or accuracy.
+
+`eagle516_prefill_cp8ep8_126.sh` and `eagle516_decode_dp16ep16_127.sh` provide
+the corresponding EAGLE 5/1/6 comparison, with Decode draft LM-head VP16 and
+the same GEMM tuning, model, KV dtype, memory fractions and request limits.
+EAGLE uses its supported overlap scheduler; DFlash currently disables it.
 
 ### Original three-host example: Prefill plus two Decode hosts
 
@@ -137,6 +156,115 @@ Differences from the supplied MTP launchers:
   MTP, and target plus draft weights must fit inside the static budget before
   KV can be allocated. Inspect actual pool capacity and forward workspace before
   restoring the previous concurrency/context.
+
+## 限量 debug 与 CPU 离线分析
+
+Debug 默认关闭。以下步骤供之后重新分配节点时使用，本次修改没有运行节点实测。
+启用后会同步复制小批量张量到 CPU 并写盘，**只能用于正确性诊断，不能用该次运行计性能**。
+文件含请求的 token、隐藏状态和概率，请保存在用于排障的目录中。
+
+启动 P、D 前分别设置独立的输出目录；不要让两侧覆盖同一目录，也不要混放不同实验：
+
+```bash
+# P 进程启动环境
+export SGLANG_DFLASH_DEBUG_DIR=/path/to/debug/run-cp8/prefill
+# D 进程启动环境使用另一个目录：
+# export SGLANG_DFLASH_DEBUG_DIR=/path/to/debug/run-cp8/decode
+
+export SGLANG_DFLASH_DEBUG_RID_PREFIX=dflash-debug-
+export SGLANG_DFLASH_DEBUG_MAX_REQUESTS=2
+export SGLANG_DFLASH_DEBUG_MAX_STEPS=16
+export SGLANG_DFLASH_DEBUG_MAX_TOKENS=9
+```
+
+这些是**每进程**的上限，CP8 的各 rank 都可能生成文件，不能把上限理解为整个服务
+最多两份文件。`MAX_STEPS` 按请求和记录阶段分别计数，`MAX_TOKENS` 限制每次采样的
+位置数；每个已采样位置保留完整的 feature/head 向量。仅匹配 RID 前缀的请求被记录。
+若达到限额，缺失记录不能视为检查通过。关闭时取消 `SGLANG_DFLASH_DEBUG_DIR`。
+
+建议生成一份 `/generate` 请求文件，在 CP8 和 no-CP 对照中复用相同 `input_ids`。
+下面只加载本地 tokenizer，不加载模型权重。`MODEL_PATH` 使用本地 target 模型路径，
+`ROUTER_URL` 指向现有的 P/D router：
+
+```bash
+export MODEL_PATH=/path/to/GLM-5.3-Channel-FP8-w8a8
+export ROUTER_URL=http://<pd-router-host>:<port>
+python - <<'PY' > /tmp/dflash-debug-intro.json
+import json
+import os
+from transformers import AutoTokenizer
+
+tokenizer = AutoTokenizer.from_pretrained(
+    os.environ["MODEL_PATH"], trust_remote_code=True, local_files_only=True
+)
+input_ids = tokenizer.apply_chat_template(
+    [{"role": "user", "content": "请简要介绍你自己。"}],
+    add_generation_prompt=True,
+    tokenize=True,
+    return_dict=False,
+)
+if isinstance(input_ids, dict):
+    input_ids = input_ids["input_ids"]
+print(json.dumps({
+    "rid": "dflash-debug-intro",
+    "input_ids": input_ids,
+    "sampling_params": {"temperature": 1.0, "top_p": 0.95, "max_new_tokens": 128},
+    "stream": False,
+}, ensure_ascii=False))
+PY
+curl --fail-with-body "$ROUTER_URL/generate" \
+    -H 'Content-Type: application/json' \
+    --data-binary @/tmp/dflash-debug-intro.json
+```
+
+请求使用的 RID 必须保留到 worker；若 router 改写了 RID，先确认改写后的前缀是否仍
+匹配。no-CP 对照需要一套能运行相同模型的合法并行配置，不能只删 CP 参数而保留
+不匹配的 TP/EP 参数。两次实验复用同一请求文件、checkpoint 和采样参数。
+
+将 P/D 输出目录复制到本地后，用装有 PyTorch 的 CPU Python 环境分析：
+
+```bash
+# 同一次运行的 P/D KV 和 D 端验收诊断
+python benchmark/dflash/analyze_dflash_debug.py \
+    /local/debug/run-cp8/prefill /local/debug/run-cp8/decode \
+    --json /local/debug/run-cp8/report.json
+
+# 另一次运行保持完全相同的输入 token；比较 CP8/no-CP 的 prefill aux
+python benchmark/dflash/analyze_dflash_debug.py \
+    /local/debug/run-cp8/prefill /local/debug/run-cp8/decode \
+    --compare /local/debug/run-no-cp/prefill \
+    --json /local/debug/cp-comparison.json
+```
+
+CLI 只执行 `torch.load(..., map_location="cpu", weights_only=True)`，不加载 checkpoint、
+tokenizer 或 SGLang runtime。它汇总以下证据：
+
+- **每个请求的 draft 第 1 位**独立显示实际接受次数/到达次数、平均 `alpha`、
+  `Cmass`、`tail_q`；第 2 位及以后只统计前缀接受后真正到达的位置。
+  `alpha = sum(min(p_C, q))`，`Cmass = sum(p_C)`，
+  `tail_q = sum(q[p_C == 0])`。它们分别表示给定该位置分布的理论接受概率、
+  target 在候选集合内的概率质量、draft 落到 target 零概率位置的概率质量。
+- 只有 `p_source=actual_kernel_input` 且 `q_source=actual_kernel_input` 才是实际
+  verifier 输入的证据。若标记 `reconstructed_after_accept`，指标只是重构参考，
+  不能据此断言 kernel 使用了这些概率。实际 uniform 可用时另行报告逐位决定和
+  前缀接受长度的复核差异；截断后的前缀长度会按已记录位置数比较。
+- P/D draft KV 按 `bootstrap_room`/RID、逻辑位置、层名对齐，并检查该位置输入 token
+  与完整原始 `input_ids` 哈希一致，报告 `exact`、`max_abs`、`mean_abs` 与非有限差值数。物理 `cache_locs` 不参与
+  比较；只比较已采样位置，不能证明未采样页正确。
+- `--compare` 的 prefill aux 只按完整原始 `input_ids` 的 SHA-256 和逻辑位置匹配，
+  再检查输入 token 一致，按 `capture_layers` 拆分报告逐层误差。不会仅因形状相同就
+  配对；不同 CP rank 的副本分别列出。FP8 下非零误差仍需结合数值规模判断。
+- 输出会明确列出配对缺失、快照失败、非法文件或张量；不会把无数据当成一致。
+  完整 JSON 保留每个比较的源文件、rank、dtype 和位置，便于追查。
+- 同时显示 `p_sum`/`q_sum` 范围，以及实际 dense q 总质量和候选内 q 总质量的最大差值。
+  重复候选、非有限或负概率行从理论均值中排除，实际接受次数仍保留；若质量不归一化
+  或候选外还有 q 残留，`alpha` 不能解释为完整有效分布的接受概率。
+  文件阶段计数还包含 `verify_state`：它保存已提交的 verify 输入对应 aux/KV，供定位
+  后续计算；默认 P/D 比较只用完整 prefill 与 D 首轮接收快照，不混比不同生成 token。
+
+这是限量观察，不提供统计显著性的结论；16 个 step 的实际接受率与理论均值出现差异，
+本身不能证明实现错误。先看同一批实际 `p/q/uniform` 的验收复核、KV 传输和 aux
+一致性，再决定是否需要增加采样量。切勿用开启 debug 时的延迟和吞吐评价性能。
 
 ## Hardware validation still required
 

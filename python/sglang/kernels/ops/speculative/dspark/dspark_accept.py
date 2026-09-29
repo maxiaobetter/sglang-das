@@ -89,6 +89,7 @@ def _accept_sampling_core(
     gamma: int,
     verify_num_draft_tokens: int,
     cutoff_verify_lens: Optional[torch.Tensor],
+    debug_callback=None,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     bs = candidates.shape[0]
     device = candidates.device
@@ -137,6 +138,16 @@ def _accept_sampling_core(
         threshold_acc=1.0,
         deterministic=True,
     )
+    if debug_callback is not None:
+        # Observe the actual kernel inputs without drawing more random numbers
+        # or changing the acceptance calculation. DFlash bounds the callback to
+        # explicitly selected debug requests outside graph capture.
+        debug_callback(
+            target_probs=target_probs,
+            draft_probs=draft_probs,
+            uniform_samples=uniform_samples,
+            uniform_samples_final=uniform_samples_final,
+        )
     correct_len = accept_token_num
     if cutoff_verify_lens is not None:
         correct_len, cap_trim_lens = CapCorrectLen.execute(
@@ -157,6 +168,7 @@ def accept_sampling(
     gamma: int,
     verify_num_draft_tokens: int,
     cutoff_verify_lens: Optional[torch.Tensor] = None,
+    debug_callback=None,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     bs = candidates.shape[0]
     device = candidates.device
@@ -169,6 +181,7 @@ def accept_sampling(
         gamma=gamma,
         verify_num_draft_tokens=verify_num_draft_tokens,
         cutoff_verify_lens=cutoff_verify_lens,
+        debug_callback=debug_callback,
     )
     row_ids = torch.arange(bs, dtype=torch.long, device=device)
     accept_pos = accept_index[row_ids, correct_len.to(torch.long)].to(torch.long)

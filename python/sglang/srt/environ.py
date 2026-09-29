@@ -481,6 +481,14 @@ class Envs:
     # every callsite migrates.
     SGLANG_INVARIANT_CHECK = EnvInt(InvariantCheckLevel.OFF)
 
+    # Opt-in, bounded DFlash diagnostics. Only explicitly tagged requests are
+    # captured by default; dumps synchronize tensors and are not for timing runs.
+    SGLANG_DFLASH_DEBUG_DIR = EnvStr(None)
+    SGLANG_DFLASH_DEBUG_RID_PREFIX = EnvStr("dflash-debug-")
+    SGLANG_DFLASH_DEBUG_MAX_REQUESTS = EnvInt(2)
+    SGLANG_DFLASH_DEBUG_MAX_STEPS = EnvInt(16)
+    SGLANG_DFLASH_DEBUG_MAX_TOKENS = EnvInt(9)
+
     # ===================================================================
     # Runtime simulations
     # ===================================================================

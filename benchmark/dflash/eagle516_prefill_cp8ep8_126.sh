@@ -5,13 +5,12 @@ set -euo pipefail
 BASE="${BASE:-/home/maxiao/GLM53/fp8}"
 SGLANG_HOME="${SGLANG_HOME:-$BASE/sglang-das}"
 MODEL_PATH="${MODEL_PATH:-/home/models/GLM-5.3-Channel-FP8-w8a8}"
-DRAFT_PATH="${DRAFT_PATH:-/home/models/GLM-5.3-DFlash2}"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 LOCAL_IP=10.41.101.126
 PORT="${PORT:-30033}"
 DIST_PORT="${DIST_PORT:-5033}"
 BOOTSTRAP_PORT="${BOOTSTRAP_PORT:-8998}"
-LOG_DIR="${LOG_DIR:-$BASE/logs/dflash_prefill_cp8ep8}"
+LOG_DIR="${LOG_DIR:-$BASE/logs/eagle516_prefill_cp8ep8}"
 
 export HIP_VISIBLE_DEVICES="${HIP_VISIBLE_DEVICES:-0,1,2,3,4,5,6,7}"
 IB_DEVICES="${IB_DEVICES:-mlx5_0,mlx5_1,mlx5_2,mlx5_3,mlx5_4,mlx5_5,mlx5_6,mlx5_7}"
@@ -21,7 +20,6 @@ export GLOO_SOCKET_IFNAME="${GLOO_SOCKET_IFNAME:-$NCCL_SOCKET_IFNAME}"
 # Import the DFlash branch before the container's installed SGLang.
 test -f "$SGLANG_HOME/python/sglang/srt/speculative/dflash_parallel.py"
 test -f "$MODEL_PATH/config.json"
-test -f "$DRAFT_PATH/config.json"
 export PYTHONPATH="$SGLANG_HOME/python${PYTHONPATH:+:$PYTHONPATH}"
 export GLIBC_TUNABLES=glibc.rtld.optional_static_tls=0x40000
 export SGLANG_USE_MODELSCOPE=1
@@ -117,14 +115,10 @@ CMD=("$PYTHON_BIN" -m sglang.launch_server
     --max-prefill-tokens 32768
     --max-running-requests 96
     --disable-cuda-graph
-    --speculative-algorithm DFLASH
-    --speculative-draft-model-path "$DRAFT_PATH"
-    --speculative-draft-attention-backend triton
-    --speculative-draft-kv-cache-dtype bf16
-    --speculative-num-steps 1
+    --speculative-algorithm EAGLE
+    --speculative-num-steps 5
     --speculative-eagle-topk 1
-    --speculative-num-draft-tokens 8
-    --disable-overlap-schedule
+    --speculative-num-draft-tokens 6
     --disaggregation-mode prefill
     --disaggregation-transfer-backend mooncake
     --disaggregation-bootstrap-port "$BOOTSTRAP_PORT"
