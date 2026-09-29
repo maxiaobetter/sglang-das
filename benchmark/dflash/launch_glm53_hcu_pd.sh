@@ -56,7 +56,7 @@ case "$STAGE" in
             --enable-prefill-cp --cp-strategy interleave
             --enable-dsa-cache-layer-split --deepep-mode normal
             --dsa-prefill-backend flashmla_sparse --dsa-decode-backend flashmla_kv
-            --mem-fraction-static "${MEM_FRACTION_STATIC:-0.85}"
+            --mem-fraction-static "${MEM_FRACTION_STATIC:-0.90}"
             --chunked-prefill-size 32768 --max-prefill-tokens 32768
             --max-running-requests 96 --disable-cuda-graph
             --disaggregation-bootstrap-port "${BOOTSTRAP_PORT:-8998}"

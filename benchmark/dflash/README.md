@@ -41,6 +41,53 @@ The signature checks configuration, not checkpoint file contents.
 
 ## Launch
 
+### Two-host P/D pair: 126 Prefill, 127 Decode
+
+The two standalone scripts below use the paths verified inside each host's
+`sglang_mx_glm53` container. Both default to the DFlash implementation checkout at
+`/home/maxiao/GLM53/fp8/sglang-das` and prepend its `python` to `PYTHONPATH`.
+
+| Host | Script | Worker | Devices | HTTP endpoint |
+| --- | --- | --- | --- | --- |
+| 10.41.101.126 | `prefill_cp8ep8_126.sh` | P: TP8/CP8/EP8 | 0-7 | `http://10.41.101.126:30033` |
+| 10.41.101.127 | `decode_dp16ep16_127.sh` | D: TP16/DP16/EP16 | 0-15 | `http://10.41.101.127:30026` |
+
+This is P/D disaggregation over Mooncake. Each worker has its own distributed
+process group (`--nnodes 1`); P and D are not ranks of one TP group. Prefill's
+bootstrap port is 8998. Point the P/D router at the two HTTP endpoints above and
+that bootstrap port.
+
+Inside the corresponding containers:
+
+```bash
+# 126: Prefill only
+bash /home/maxiao/GLM53/fp8/sglang-das/benchmark/dflash/prefill_cp8ep8_126.sh
+
+# 127: Decode only
+bash /home/maxiao/GLM53/fp8/sglang-das/benchmark/dflash/decode_dp16ep16_127.sh
+```
+
+The scripts also work when copied to `/home/maxiao/GLM53/fp8/scripts/`. Target and
+draft paths default to `/home/models/` on 126 and `/models/` on 127. They are
+overridable through `MODEL_PATH` and `DRAFT_PATH`; use matching checkpoint
+revisions on both sides. Logs go to `$BASE/logs/dflash_prefill_cp8ep8` and
+`$BASE/logs/dflash_decode_dp16ep16`.
+
+Use `DRY_RUN=1 bash <script>` to check file paths and print the command without
+starting a server. The initial memory fractions are 0.90 for P and 0.85 for D.
+P failed KV budgeting at 0.85 after loading target and draft weights on this
+CP8 setup (the logged minimum was about 0.852). These are starting settings;
+validate the resulting KV capacity and forward workspace on the actual workload.
+Both scripts use DFlash block8,
+BF16 draft KV, FP8 target KV, and Decode BS5 per DP rank (80 total requests).
+DeepEP capacity64 covers the resulting 40 verify tokens per rank. Recalculate
+dispatch capacity when changing the per-rank batch size; extra CLI arguments
+are forwarded unchanged. These scripts clear simulated acceptance, the skipped
+DP synchronization, inherited static-LP probabilities and old BLAS tuning paths.
+The paired mask-aware sparse MQA/TopK optimization is disabled for this baseline.
+
+### Original three-host example: Prefill plus two Decode hosts
+
 Use the existing working HCU image and its LightOp, FlashMLA, DeepEP, ROCSHMEM,
 network and tuning environment. Deploy this checkout on every node and set
 `SGLANG_HOME` to it. Do not reuse a PYTHONPATH that puts the frozen delivery ahead
@@ -85,9 +132,11 @@ Differences from the supplied MTP launchers:
 - Use BF16 draft KV while retaining FP8 target KV.
 - Raise DeepEP dispatch capacity from 32 to 64 for 5 x 8 verify tokens per rank.
   Recalculate it when increasing per-rank batch size or block size.
-- Start at memory fraction 0.85 (override with `MEM_FRACTION_STATIC`), since a
-  six-layer complete draft and its workspace replace the old one-layer MTP.
-  Inspect actual pool capacity before restoring the previous concurrency/context.
+- Start at memory fraction 0.90 for P and 0.85 for D (override with
+  `MEM_FRACTION_STATIC`). The six-layer complete draft replaces the old one-layer
+  MTP, and target plus draft weights must fit inside the static budget before
+  KV can be allocated. Inspect actual pool capacity and forward workspace before
+  restoring the previous concurrency/context.
 
 ## Hardware validation still required
 
