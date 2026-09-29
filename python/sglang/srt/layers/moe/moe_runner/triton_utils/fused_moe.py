@@ -32,6 +32,7 @@ from sglang.srt.distributed import get_tp_group
 from sglang.srt.distributed.device_communicators.pynccl_allocator import (
     use_symmetric_memory,
 )
+from sglang.srt.environ import envs
 from sglang.srt.layers.dp_attention import is_allocation_symmetric
 from sglang.srt.layers.moe.hcu_dspark_aiter_moe_fallback import (
     is_triton_forced_for_dspark_aiter_fallback,
@@ -132,6 +133,7 @@ class _CodePathChecker:
 
 
 deepseek_v4_moe_code_path_checker = _CodePathChecker()
+
 
 def _validate_fused_swiglu_interleaved(
     *,
@@ -705,9 +707,9 @@ def fused_experts_impl_aiter(
     force_w4a16_moec = _should_force_aiter_w4a16_moec(quant_type)
     status, moe_cfg = _get_aiter_moe_config_w4a16(config_kwargs, force_w4a16_moec)
     if status:
-        assert (
-            moe_cfg.solution_type is not None
-        ), "status=True but solution_type is None"
+        assert moe_cfg.solution_type is not None, (
+            "status=True but solution_type is None"
+        )
         assert moe_cfg.config is not None, "status=True but config is None"
         assert moe_cfg.solution_type in (
             MoeSolutionType.MOE_C,
@@ -725,9 +727,9 @@ def fused_experts_impl_aiter(
         #     f"config keys={list(moe_cfg.config.keys())}"
         # )
     else:
-        assert (
-            moe_cfg.solution_type is None
-        ), "status=False but solution_type is not None"
+        assert moe_cfg.solution_type is None, (
+            "status=False but solution_type is not None"
+        )
         assert moe_cfg.config is None, "status=False but config is not None"
         print(
             f"[get_config_aiter_moe] M={M}, K={K}, N1={N1}, N2={N2}, E={E}, top_k={topk_ids.shape[1]}, block_size={block_size}, dtype={hidden_states.dtype}, quant_type={quant_type} "
@@ -1101,13 +1103,21 @@ def _fused_moe_kernel_sequence(
             swiglu_limit_for_triton: Optional[float] = None
             swiglu_limit_for_silu_and_mul_clamp: Optional[float] = None
 
-            if filter_expert:
-                swiglu_limit_for_triton = swiglu_limit
+            if envs.SGLANG_OPT_SWIGLU_CLAMP_FUSION.get():
+                if filter_expert:
+                    swiglu_limit_for_triton = swiglu_limit
+                else:
+                    assert _is_cuda or _is_xpu, (
+                        "fused silu_and_mul_clamp kernel is CUDA/XPU only; HIP must disable SWIGLU_CLAMP_FUSION"
+                    )
+                    swiglu_limit_for_silu_and_mul_clamp = swiglu_limit
             else:
-                assert _is_cuda or _is_xpu, (
-                    "fused silu_and_mul_clamp kernel is CUDA/XPU only; HIP must disable SWIGLU_CLAMP_FUSION"
+                # Preserve the asymmetric clamp before the unfused activation.
+                half = N // 2
+                intermediate_cache1[:, :half].clamp_(max=swiglu_limit)
+                intermediate_cache1[:, half:].clamp_(
+                    min=-swiglu_limit, max=swiglu_limit
                 )
-                swiglu_limit_for_silu_and_mul_clamp = swiglu_limit
 
             if not filter_expert:
                 if swiglu_limit_for_silu_and_mul_clamp is not None:
