@@ -62,6 +62,7 @@ logger = logging.getLogger(__name__)
 _INT8_UNIFORM_STD = math.sqrt(127 * 128 / 3)
 _random_weight_simulation_logged = False
 _HCU_USE_INT8_MQA_LOGITS = envs.SGLANG_DSA_HCU_USE_INT8_MQA_LOGITS.get()
+_MQA_SPLIT_BY_SEQ = envs.SGLANG_DSA_MQA_SPLIT_BY_SEQ.get()
 # Splitting a ragged MQA request adds one MQA + topk launch. Benchmarks on BW
 # show that an extra launch breaks even after it avoids roughly two million
 # logits cells of invalid K-prefix work.
@@ -71,6 +72,8 @@ _HCU_MQA_REQUEST_SPLIT_MIN_SAVED_CELLS_PER_LAUNCH = 2_000_000
 def _should_split_hcu_mqa_by_request(
     request_slices: Tuple[Tuple[int, int, int, int], ...],
 ) -> bool:
+    if not _MQA_SPLIT_BY_SEQ:
+        return False
     extra_launches = len(request_slices) - 1
     if extra_launches <= 0:
         return False
