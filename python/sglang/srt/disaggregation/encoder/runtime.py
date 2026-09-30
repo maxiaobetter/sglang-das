@@ -1194,10 +1194,14 @@ def _record_pipeline_result(modality: Modality, status: str) -> None:
         )
 
 
-async def _publish_pipeline_error(req_id: str, error_msg: str) -> bool:
+async def _publish_pipeline_error(
+    req_id: str, error_msg: str, error_code: Optional[int] = None
+) -> bool:
     """Report a request error without letting reporting block cleanup."""
     try:
-        await server_module.meta_registry.publish(req_id, 0, 0, 0, error=error_msg)
+        await server_module.meta_registry.publish(
+            req_id, 0, 0, 0, error=error_msg, error_code=error_code
+        )
         return True
     except Exception:
         logger.exception("Failed to publish encoder error for req_id=%s", req_id)
@@ -1312,8 +1316,11 @@ async def execute_encode_pipeline(
         raise
     except Exception as e:
         error_msg = str(e)
+        error_code = getattr(e, "code", None)
         time_stats.trace_ctx.abort(abort_info={"reason": error_msg})
-        error_published = await _publish_pipeline_error(req_id, error_msg)
+        error_published = await _publish_pipeline_error(
+            req_id, error_msg, error_code
+        )
         await _release_failed_request(
             enc,
             req_id,
@@ -1325,7 +1332,9 @@ async def execute_encode_pipeline(
     nbytes, embedding_len, embedding_dim, error_msg, error_code = result
     if error_msg:
         time_stats.trace_ctx.abort(abort_info={"reason": error_msg})
-        error_published = await _publish_pipeline_error(req_id, error_msg)
+        error_published = await _publish_pipeline_error(
+            req_id, error_msg, error_code
+        )
         if backend == "mooncake":
             await _release_failed_request(
                 enc,
