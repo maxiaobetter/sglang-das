@@ -473,8 +473,16 @@ async def handle_scheduler_receive_meta_data(request: dict):
             )
     if meta is None or meta.get("error") is not None:
         message = meta["error"] if meta else "encode metadata missing"
+        # Preserve the encoder's real status, e.g. 400 for an undecodable
+        # image, instead of collapsing every failure to 500. The prefill
+        # forwards this code to the client, so a client error must not be
+        # reported as a server fault.
+        error_code = (
+            (meta.get("error_code") if meta else None)
+            or int(HTTPStatus.INTERNAL_SERVER_ERROR)
+        )
         return ORJSONResponse(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            status_code=int(error_code),
             content={"status": "error", "message": message, "req_id": req_id},
         )
     return ORJSONResponse(
@@ -592,6 +600,13 @@ async def health_generate():
             "part_idx": 0,
         }
 
+        # If real traffic is already flowing, the encoder is by definition
+        # alive and a dummy forward adds nothing. Check before taking the
+        # dispatch lock: the lock is held for the whole batch (broadcast +
+        # rank-0 forward), so waiting on it would let a busy-but-healthy
+        # encoder look unhealthy to a short client probe and get evicted.
+        if encoder.has_pending_embeddings():
+            return Response(status_code=200)
         # A health encode participates in the same TP collectives as a real
         # request. Serialize its broadcast and rank-0 forward with every other
         # collective dispatch, then recheck whether traffic made the probe

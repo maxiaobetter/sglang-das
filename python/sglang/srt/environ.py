@@ -1414,7 +1414,11 @@ class Envs:
     SGLANG_ENCODER_MM_LOAD_WORKERS = EnvInt(4)
     # EncoderBootstrapServer health-check tuning.  Interval == 0 disables it.
     SGLANG_ENCODER_BOOTSTRAP_HEALTH_CHECK_INTERVAL = EnvFloat(10.0)
-    SGLANG_ENCODER_BOOTSTRAP_HEALTH_CHECK_TIMEOUT = EnvFloat(2.0)
+    # Match the encoder server's HEALTH_CHECK_TIMEOUT (30s): a functional
+    # /health probe drains behind the encode dispatch lock, so a 2s client
+    # timeout evicts a healthy encoder under load and forces the no-encoder
+    # fallback. Busy encoders now answer immediately (see /health fast path).
+    SGLANG_ENCODER_BOOTSTRAP_HEALTH_CHECK_TIMEOUT = EnvFloat(30.0)
     # Seconds before permanently dropping an unhealthy encoder (0 = keep probing).
     SGLANG_ENCODER_BOOTSTRAP_EVICTED_TTL = EnvFloat(600.0)
     # Persistent receiver-side GPU embedding pool size for mooncake EPD transport.
