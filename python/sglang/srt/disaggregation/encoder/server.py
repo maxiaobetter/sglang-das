@@ -225,10 +225,11 @@ class EncoderMetaRegistry:
         embedding_len: int,
         embedding_dim: int,
         error: Optional[str] = None,
+        error_code: Optional[int] = None,
     ) -> None:
         """Publish per-part metadata (or an error), wake waiters, arm the sweep."""
         meta = (
-            {"error": error}
+            {"error": error, "error_code": error_code}
             if error is not None
             else {
                 "embedding_size": nbytes,
