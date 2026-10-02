@@ -2717,11 +2717,15 @@ class DeepseekV2Model(nn.Module):
         else:
             self.embed_tokens = PPMissingLayer()
 
+        # HCU defaults on: shared-expert / DeepEP overlap and DSA indexer CP
+        # gather overlap both need an alt stream. Keep the ROCm env as an
+        # explicit override for non-HCU HIP.
         self.alt_stream = (
             torch.cuda.Stream()
             if (
                 _is_cuda
                 or _is_musa
+                or _is_hcu
                 or envs.SGLANG_NPU_USE_MULTI_STREAM.get()
                 or envs.SGLANG_ROCM_USE_MULTI_STREAM.get()
             )

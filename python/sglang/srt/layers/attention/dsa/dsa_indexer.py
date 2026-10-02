@@ -674,23 +674,51 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
                 None,
                 self.k_norm.variance_epsilon,
             )
-            query = rotate_activation(query, apply_scale=apply_hadamard_scale)
             key = rotate_activation(key, apply_scale=apply_hadamard_scale)
 
-            if is_cp_v2_active(forward_batch):
-                key = get_cp_strategy().materialize_full_indexer_k_cache(
-                    key, forward_batch
-                )
-            elif (
+            need_cp_gather = is_cp_v2_active(forward_batch) or (
                 forward_batch.attn_cp_metadata is not None
                 and self.dsa_enable_prefill_cp
-            ):
-                key = cp_all_gather_rerange_output(
-                    key.contiguous(),
-                    self.cp_size,
-                    forward_batch,
-                    torch.cuda.current_stream(),
+            )
+            # Overlap CP key gather with query Hadamard on alt_stream when
+            # available; otherwise stay fully serial on the current stream.
+            if need_cp_gather and self.alt_stream is not None:
+                current_stream = torch.cuda.current_stream()
+                self.alt_stream.wait_stream(current_stream)
+                with torch.cuda.stream(self.alt_stream):
+                    if is_cp_v2_active(forward_batch):
+                        key = get_cp_strategy().materialize_full_indexer_k_cache(
+                            key, forward_batch
+                        )
+                    else:
+                        key = cp_all_gather_rerange_output(
+                            key.contiguous(),
+                            self.cp_size,
+                            forward_batch,
+                            torch.cuda.current_stream(),
+                        )
+                query = rotate_activation(
+                    query, apply_scale=apply_hadamard_scale
                 )
+                current_stream.wait_stream(self.alt_stream)
+            else:
+                query = rotate_activation(
+                    query, apply_scale=apply_hadamard_scale
+                )
+                if is_cp_v2_active(forward_batch):
+                    key = get_cp_strategy().materialize_full_indexer_k_cache(
+                        key, forward_batch
+                    )
+                elif (
+                    forward_batch.attn_cp_metadata is not None
+                    and self.dsa_enable_prefill_cp
+                ):
+                    key = cp_all_gather_rerange_output(
+                        key.contiguous(),
+                        self.cp_size,
+                        forward_batch,
+                        torch.cuda.current_stream(),
+                    )
             return query, key, weights_raw
 
         if enable_dual_stream:
@@ -2396,17 +2424,20 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
                     False,
                     forward_batch=forward_batch,
                 )
-                self._store_index_k_cache(
-                    forward_batch=forward_batch,
-                    layer_id=layer_id,
-                    key=key,
-                )
+                # Head-gate before Index-K store: store finalizes the async
+                # layer-split broadcast, so doing the gate GEMM first hides
+                # that wait behind useful compute.
                 if weights_proj_lora:
                     weights = (
                         self.weights_proj(x_for_gate)[0].float() * self.n_heads**-0.5
                     ).unsqueeze(-1) * self.softmax_scale
                 else:
                     weights = self._get_bf16_logits_head_gate(x_for_gate)
+                self._store_index_k_cache(
+                    forward_batch=forward_batch,
+                    layer_id=layer_id,
+                    key=key,
+                )
             else:
                 query, key, _ = self._get_q_k_bf16(
                     q_lora,
@@ -2416,19 +2447,51 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
                     forward_batch=forward_batch,
                     apply_hadamard_scale=False,
                 )
-                q_fp8_raw, q_scale, _ = self._hcu_fused_qk_quant_and_store(
-                    query,
-                    key,
-                    pool,
-                    layer_id,
-                    forward_batch.out_cache_loc,
-                )
-                q_fp8 = q_fp8_raw.view(fp8_dtype)
-                if weights_proj_lora:
-                    gate = self.weights_proj(x_for_gate)[0].float() * self.n_heads**-0.5
-                    weights = self._apply_q_scale_and_softmax_scale(gate, q_scale)
+                # Fused quant+store finalizes the async Index-K broadcast. Run
+                # that on alt_stream and overlap the weights_proj GEMM on the
+                # current stream; only the cheap q_scale multiply needs the
+                # store result.
+                if self.alt_stream is not None and not weights_proj_lora:
+                    current_stream = torch.cuda.current_stream()
+                    self.alt_stream.wait_stream(current_stream)
+                    with torch.cuda.stream(self.alt_stream):
+                        q_fp8_raw, q_scale, _ = self._hcu_fused_qk_quant_and_store(
+                            query,
+                            key,
+                            pool,
+                            layer_id,
+                            forward_batch.out_cache_loc,
+                        )
+                        q_fp8_raw.record_stream(self.alt_stream)
+                        q_scale.record_stream(self.alt_stream)
+                    weights_raw = self._weights_proj_bf16_in_fp32_out(x_for_gate)
+                    current_stream.wait_stream(self.alt_stream)
+                    q_fp8 = q_fp8_raw.view(fp8_dtype)
+                    weights = fused_get_logits_head_gate_triton(
+                        weights=weights_raw,
+                        q_scale=q_scale,
+                        n_heads=self.n_heads,
+                        softmax_scale=self.softmax_scale,
+                    )
                 else:
-                    weights = self._get_logits_head_gate(x_for_gate, q_scale)
+                    q_fp8_raw, q_scale, _ = self._hcu_fused_qk_quant_and_store(
+                        query,
+                        key,
+                        pool,
+                        layer_id,
+                        forward_batch.out_cache_loc,
+                    )
+                    q_fp8 = q_fp8_raw.view(fp8_dtype)
+                    if weights_proj_lora:
+                        gate = (
+                            self.weights_proj(x_for_gate)[0].float()
+                            * self.n_heads**-0.5
+                        )
+                        weights = self._apply_q_scale_and_softmax_scale(
+                            gate, q_scale
+                        )
+                    else:
+                        weights = self._get_logits_head_gate(x_for_gate, q_scale)
         elif (
             self.use_dsa_indexer_fusion
             and not in_piecewise_or_breakable_cuda_graph
