@@ -27,6 +27,7 @@ from sglang.srt.layers.attention.dsa.forward_batch_utils import (
     effective_forward_mode,
 )
 from sglang.srt.layers.attention.dsa.hcu_int8_index_k_cache import IndexKCacheMode
+from sglang.srt.layers.attention.dsa.mqa_request_split import iter_mqa_chunks
 from sglang.srt.layers.attention.dsa.paged_mqa_logits_backend import (
     DSAPagedMQALogitsBackend,
 )
@@ -697,14 +698,10 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
                             forward_batch,
                             torch.cuda.current_stream(),
                         )
-                query = rotate_activation(
-                    query, apply_scale=apply_hadamard_scale
-                )
+                query = rotate_activation(query, apply_scale=apply_hadamard_scale)
                 current_stream.wait_stream(self.alt_stream)
             else:
-                query = rotate_activation(
-                    query, apply_scale=apply_hadamard_scale
-                )
+                query = rotate_activation(query, apply_scale=apply_hadamard_scale)
                 if is_cp_v2_active(forward_batch):
                     key = get_cp_strategy().materialize_full_indexer_k_cache(
                         key, forward_batch
@@ -1534,96 +1531,6 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
         need_chunk = logits_bytes > logits_budget_bytes
         return need_chunk, logits_budget_bytes
 
-    def _hcu_request_spans(self, metadata, q_offset: int):
-        """Local Q span and concatenated-K span for each request.
-
-        CP round-robin keeps each request's local rows contiguous. The HCU
-        kernel grids over the whole K tensor, so one kernel per request avoids
-        scanning other requests' K. Returns None when the spans do not cover
-        ``q_offset`` exactly.
-        """
-        cached = getattr(metadata, "_hcu_request_spans", None)
-        if cached is not None and cached[0] == q_offset:
-            return cached[1]
-        extend_lens = list(metadata.get_dsa_extend_len_cpu())
-        seq_lens = metadata.get_indexer_seq_len_cpu()
-        if torch.is_tensor(seq_lens):
-            seq_lens = seq_lens.tolist()
-        if len(extend_lens) != len(seq_lens):
-            return None
-        spans = []
-        q_cursor = 0
-        k_base = 0
-        for q_len, k_len in zip(extend_lens, seq_lens):
-            q_len = int(q_len)
-            k_len = int(k_len)
-            if q_len < 0 or k_len < 0:
-                return None
-            spans.append((q_cursor, q_cursor + q_len, k_base, k_len))
-            q_cursor += q_len
-            k_base += k_len
-        if q_cursor != q_offset or len(spans) <= 1:
-            return None
-        object.__setattr__(metadata, "_hcu_request_spans", (q_offset, spans))
-        return spans
-
-    def _get_topk_ragged_hcu_sliced(
-        self,
-        q_fp8: torch.Tensor,
-        weights: torch.Tensor,
-        metadata: BaseIndexerMetadata,
-        topk_result: torch.Tensor,
-        ke: torch.Tensor,
-        k_fp8: torch.Tensor,
-        k_scale: torch.Tensor,
-    ) -> Optional[torch.Tensor]:
-        q_offset = ke.shape[0]
-        spans = self._hcu_request_spans(metadata, q_offset)
-        if not spans:
-            if not getattr(self, "_hcu_req_mqa_skip_logged", False):
-                logger.info("DSA HCU per-request mqa skipped")
-                self._hcu_req_mqa_skip_logged = True
-            return None
-        budget = self._mqa_logits_budget_bytes.get(ke.device.index, 0)
-        if budget <= 0:
-            budget = 8 * (1024**3)
-        elem = self._MQA_LOGITS_BYTES_PER_ELEM
-        for start, end, _k_base, k_len in spans:
-            if (end - start) * k_len * elem > budget:
-                return None
-        device = q_fp8.device
-        if not getattr(self, "_hcu_req_mqa_logged", False):
-            logger.info("DSA HCU per-request mqa requests=%s", len(spans))
-            self._hcu_req_mqa_logged = True
-        for start, end, k_base, k_len in spans:
-            if end == start or k_len <= 0:
-                continue
-            scale = k_scale[k_base : k_base + k_len]
-            if scale.data_ptr() % 16 != 0:
-                scale = scale.clone()
-            n_rows = end - start
-            rel_ke = (ke[start:end] - k_base).to(torch.int32)
-            local_ks = torch.zeros(n_rows, dtype=torch.int32, device=device)
-            offset = local_ks.new_full((n_rows,), k_base)
-            with self._with_real_sm_count():
-                logits = _hcu_mqa_logits(
-                    q_fp8[start:end],
-                    k_fp8[k_base : k_base + k_len],
-                    weights[start:end],
-                    local_ks,
-                    rel_ke,
-                    kv_scale=scale,
-                )
-            self._mask_init_and_local_tokens(logits, rel_ke)
-            topk_result[start:end] = metadata.topk_transform(
-                logits,
-                self.index_topk,
-                ks=local_ks,
-                ke_offset=rel_ke,
-                topk_indices_offset_override=offset,
-            )
-        return topk_result
-
     def _get_topk_ragged(
         self,
         enable_dual_stream: bool,
@@ -1722,18 +1629,6 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
                 k_fp8 = k_fp8.view(torch.float8_e4m3fn)
 
             k_scale = k_scale.view(torch.float32).squeeze(-1)
-            if _is_hcu:
-                sliced = self._get_topk_ragged_hcu_sliced(
-                    q_fp8=q_fp8,
-                    weights=weights,
-                    metadata=metadata,
-                    topk_result=topk_result,
-                    ke=ke,
-                    k_fp8=k_fp8,
-                    k_scale=k_scale,
-                )
-                if sliced is not None:
-                    return sliced
             kv_fp8 = (k_fp8, k_scale)
             k_offset = k_fp8.shape[0]
 
@@ -1745,7 +1640,17 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
             q_offset, k_offset, device_index
         )
 
-        if not need_chunk:
+        group_slices = ()
+        if (
+            _is_hcu
+            and envs.SGLANG_DSA_MQA_SPLIT_BY_SEQ.get()
+            and metadata.topk_backend.is_sgl_kernel()
+        ):
+            group_slices = metadata.mqa_request_slices
+            if group_slices:
+                assert group_slices[-1][1] == q_offset
+
+        if not need_chunk and not group_slices:
             assert q_fp8[:q_offset].shape[0] != 0
             with self._with_real_sm_count():
                 if use_bf16_index_cache:
@@ -1804,10 +1709,6 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
             topk_result[:q_offset] = raw_topk_result
             return topk_result
 
-        bytes_per_row = k_offset * self._MQA_LOGITS_BYTES_PER_ELEM
-        max_rows = max(1, int(logits_budget_bytes // max(bytes_per_row, 1)))
-        max_rows = min(max_rows, q_offset)
-
         global_topk_offset = metadata.attn_metadata.topk_indices_offset
         cu_seqlens_q_full = None
         if global_topk_offset is None:
@@ -1821,28 +1722,38 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
                 global_topk_offset.shape[0] >= q_offset
             ), f"topk_indices_offset too short: {global_topk_offset.shape[0]} < {q_offset}"
 
-        start = 0
-        while start < q_offset:
-            end = min(start + max_rows, q_offset)
+        slices = group_slices or ((0, q_offset, 0, k_offset),)
+        for start, end, k_start, k_end in iter_mqa_chunks(
+            slices, logits_budget_bytes, self._MQA_LOGITS_BYTES_PER_ELEM
+        ):
+            # Logits columns become group-local; output offsets stay global.
+            chunk_ks = ks[start:end] - k_start if group_slices else ks[start:end]
+            chunk_ke = ke[start:end] - k_start if group_slices else ke[start:end]
 
             with self._with_real_sm_count():
                 if use_bf16_index_cache:
                     logits_chunk = _hcu_mqa_logits(
                         q_fp8[start:end],
-                        kv_bf16,
+                        kv_bf16[k_start:k_end],
                         weights[start:end].to(torch.float32),
-                        ks[start:end],
-                        ke[start:end],
+                        chunk_ks,
+                        chunk_ke,
                         kv_scale=None,
                     )
                 elif _is_hcu:
                     kv, scale = kv_fp8
+                    kv = kv[k_start:k_end]
+                    scale = scale[k_start:k_end]
+                    # LightOp vector-loads FP32 scales from a 16-byte aligned base.
+                    # A contiguous request slice can still have an unaligned offset.
+                    if scale.data_ptr() % 16:
+                        scale = scale.clone()
                     logits_chunk = _hcu_mqa_logits(
                         q_fp8[start:end],
                         kv,
                         weights[start:end],
-                        ks[start:end],
-                        ke[start:end],
+                        chunk_ks,
+                        chunk_ke,
                         kv_scale=scale,
                     )
                 elif _is_hip:
@@ -1855,8 +1766,8 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
                         kv,
                         scale,
                         weights[start:end],
-                        ks[start:end],
-                        ke[start:end],
+                        chunk_ks,
+                        chunk_ke,
                         clean_logits=False,
                     )
                 else:
@@ -1867,13 +1778,13 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
                         q_padded,
                         kv_fp8,
                         w_padded,
-                        ks[start:end],
-                        ke[start:end],
+                        chunk_ks,
+                        chunk_ke,
                         clean_logits=False,
                     )
 
             lengths_chunk = seq_lens_expanded[start:end]
-            self._mask_init_and_local_tokens(logits_chunk, lengths_chunk, ks[start:end])
+            self._mask_init_and_local_tokens(logits_chunk, lengths_chunk, chunk_ks)
 
             # RAGGED: use global offset; PAGED: construct local cu_seqlens_q per chunk
             if global_topk_offset is not None:
@@ -1890,14 +1801,14 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
             raw_topk_chunk = metadata.topk_transform(
                 logits_chunk,
                 self.index_topk,
-                ks=ks[start:end],
+                ks=chunk_ks,
                 cu_seqlens_q=cu_seqlens_q_chunk,
                 ke_offset=lengths_chunk,
                 batch_idx_list=batch_idx_chunk,
                 topk_indices_offset_override=topk_offset_chunk,
             )
             topk_result[start:end] = raw_topk_chunk
-            start = end
+            del logits_chunk
 
         return topk_result
 
@@ -2487,9 +2398,7 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
                             self.weights_proj(x_for_gate)[0].float()
                             * self.n_heads**-0.5
                         )
-                        weights = self._apply_q_scale_and_softmax_scale(
-                            gate, q_scale
-                        )
+                        weights = self._apply_q_scale_and_softmax_scale(gate, q_scale)
                     else:
                         weights = self._get_logits_head_gate(x_for_gate, q_scale)
         elif (
