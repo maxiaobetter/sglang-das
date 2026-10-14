@@ -1117,7 +1117,7 @@ class TokenizerManager(TokenizerControlMixin, TokenizerManagerScoreMixin):
             mm_inputs = None
             mm_processor_input = (
                 input_ids
-                if self.mm_processor.prefer_tokenized_input and input_ids is not None
+                if self.mm_processor.prefer_tokenized_input and input_ids
                 else (input_text or input_ids)
             )
 
