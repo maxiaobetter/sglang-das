@@ -274,7 +274,6 @@ POSITIONAL_FIELD_ORDER = (
     "speculative_draft_load_format",
     "speculative_num_steps",
     "speculative_eagle_topk",
-    "speculative_draft_lm_head_vp_size",
     "speculative_num_draft_tokens",
     "speculative_dflash_block_size",
     "speculative_dspark_block_size",
