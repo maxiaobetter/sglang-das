@@ -11,6 +11,7 @@ GPU tensor operations remain in :mod:`server.MMEncoder`.
 import asyncio
 import contextlib
 import logging
+import os
 import threading
 import time
 import uuid
@@ -232,7 +233,16 @@ def launch_server(server_args: ServerArgs):
         _register_encoder_url_with_bootstrap()
         atexit.register(_unregister_encoder_url_from_bootstrap)
 
-    uvicorn.run(app, host=get_serving().host, port=get_serving().port)
+    # Keep the historical uvicorn default unless the deployment explicitly
+    # changes it. This is an environment-controlled knob for separating
+    # listener backlog pressure from encoder processing pressure.
+    http_backlog = int(os.environ.get("SGLANG_ENCODER_HTTP_BACKLOG", "2048"))
+    uvicorn.run(
+        app,
+        host=get_serving().host,
+        port=get_serving().port,
+        backlog=http_backlog,
+    )
 
 
 def _summarise_dp_broadcast(results: List[dict]) -> Response:

@@ -516,7 +516,12 @@ class TokenizerManager(TokenizerControlMixin, TokenizerManagerScoreMixin):
                 self.tokenizer = self.processor = None
             else:
                 self.processor = _processor
-                self.tokenizer = get_tokenizer_from_processor(self.processor)
+                # Text offload and multimodal preprocessing can run concurrently.
+                # Fast tokenizers keep mutable padding/truncation state, so the
+                # text path must not share the processor's tokenizer backend.
+                self.tokenizer = copy.deepcopy(
+                    get_tokenizer_from_processor(self.processor)
+                )
                 os.environ["TOKENIZERS_PARALLELISM"] = "false"
         else:
             self.mm_processor = self.processor = None
@@ -1879,14 +1884,7 @@ class TokenizerManager(TokenizerControlMixin, TokenizerManagerScoreMixin):
             HTTPStatus.INTERNAL_SERVER_ERROR,
             HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
         ):
-            # Delete the key to prevent resending abort request to the scheduler and
-            # to ensure aborted request state is cleaned up.
-            if state.obj.rid in self.rid_to_state:
-                del self.rid_to_state[state.obj.rid]
-
-            # Mark ongoing LoRA request as finished.
-            if self.enable_lora and state.obj.lora_path:
-                await self.lora_registry.release(state.obj.lora_id)
+            await self._drop_aborted_state(state)
             if not is_stream:
                 raise fastapi.HTTPException(
                     status_code=finish_reason["status_code"],
@@ -1894,7 +1892,31 @@ class TokenizerManager(TokenizerControlMixin, TokenizerManagerScoreMixin):
                 )
             return out
 
+        if (
+            finish_reason.get("type") == "abort"
+            and not is_stream
+            and self.disaggregation_mode == DisaggregationMode.PREFILL
+        ):
+            # The PD router treats the prefill HTTP status as its only failure
+            # signal; a 200 leaves the paired decode waiting for KV until timeout.
+            await self._drop_aborted_state(state)
+            raise fastapi.HTTPException(
+                status_code=finish_reason.get("status_code")
+                or HTTPStatus.INTERNAL_SERVER_ERROR,
+                detail=finish_reason.get("message") or "Prefill request aborted.",
+            )
+
         return None
+
+    async def _drop_aborted_state(self, state: ReqState) -> None:
+        # Delete the key to prevent resending abort request to the scheduler and
+        # to ensure aborted request state is cleaned up.
+        if state.obj.rid in self.rid_to_state:
+            del self.rid_to_state[state.obj.rid]
+
+        # Mark ongoing LoRA request as finished.
+        if self.enable_lora and state.obj.lora_path:
+            await self.lora_registry.release(state.obj.lora_id)
 
     def _wait_one_response(
         self,

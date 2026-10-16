@@ -510,6 +510,9 @@ v1_loads_router.route_class = ORJSONRoute
 app.include_router(v1_loads_router)
 
 from sglang.srt.arg_groups.serving_hook import ssl_verify_of
+from sglang.srt.disaggregation.encoder.prefill_response import (
+    epd_prefill_forces_non_streaming,
+)
 from sglang.srt.entrypoints.elastic_ep import router as elastic_ep_router
 from sglang.srt.runtime_context import (
     describe_kv_events_publisher,
@@ -943,6 +946,8 @@ async def generate_request(obj: GenerateReqInput, request: Request):
     """Handle a generate request."""
     if envs.SGLANG_ENABLE_REQUEST_HEADER_OVERRIDES.get():
         apply_header_overrides(obj, request.headers)
+    if epd_prefill_forces_non_streaming():
+        obj.stream = False
     if obj.stream:
 
         async def stream_results() -> AsyncIterator[bytes]:

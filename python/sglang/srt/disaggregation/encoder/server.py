@@ -619,6 +619,26 @@ class MMEncoder:
         self.scheduler_send_sockets = {}
         self.scheduler_send_locks = {}
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
+        # Keep blocking GPU work off the event loop by default so uvicorn keeps
+        # accepting /send and /encode while a large ViT batch runs. Set
+        # SGLANG_ENCODER_GPU_EXECUTOR=0 to restore the inline path.
+        # GPU work and RDMA use separate pools so neither queues behind the other.
+        self.gpu_executor = (
+            concurrent.futures.ThreadPoolExecutor(
+                max_workers=1, thread_name_prefix="encoder-gpu"
+            )
+            if os.environ.get("SGLANG_ENCODER_GPU_EXECUTOR", "1") == "1"
+            else None
+        )
+        logger.info(
+            "Encoder dedicated GPU executor enabled=%s", self.gpu_executor is not None
+        )
+        # The preprocessor is initialized before the executor so model loading
+        # stays unchanged. Install the bound runner before the first request;
+        # GPU-aware model preprocessing will then use the same pinned
+        # device/stream as the vision forward.
+        self.preprocessor._gpu_work_runner = self._run_gpu_work
+        self.transfer_executor = None
 
         embedding_cache_size = int(os.environ.get("SGLANG_VLM_CACHE_SIZE_MB", "4096"))
         self.mm_cache = MultiModalStaticCache(embedding_cache_size * 1024 * 1024)
@@ -631,6 +651,8 @@ class MMEncoder:
                 self.context, zmq.PULL, schedule_path, True
             )
         self.background_tasks: Set[asyncio.Task] = set()
+        self._event_loop_probe_task: Optional[asyncio.Task] = None
+        self._event_loop_stage = "idle"
 
         # Embedding dtype = model param dtype. Always available (both transfer
         # backends and the global-cache pool rely on it).
@@ -667,6 +689,15 @@ class MMEncoder:
             )
 
             if get_disagg().encoder_transfer_backend == "mooncake":
+                # Dedicated RDMA pool: blocking transfer_sync must not share the
+                # default asyncio pool with preprocessing and ZMQ work.
+                transfer_workers = int(
+                    os.environ.get("SGLANG_ENCODER_TRANSFER_WORKERS", "10")
+                )
+                self.transfer_executor = concurrent.futures.ThreadPoolExecutor(
+                    max_workers=transfer_workers, thread_name_prefix="mc-transfer"
+                )
+                logger.info("Encoder dedicated transfer workers=%d", transfer_workers)
                 self.local_ip = get_local_ip_auto()
 
                 self.engine = get_mooncake_transfer_engine()
@@ -720,6 +751,39 @@ class MMEncoder:
         self.background_tasks.add(task)
         task.add_done_callback(self._background_task_done)
         return task
+
+    def _ensure_event_loop_probe(self) -> None:
+        """Start an opt-in event-loop lag probe after the loop is running."""
+        if self._event_loop_probe_task is not None:
+            return
+        if os.environ.get("SGLANG_ENCODER_EVENT_LOOP_PROBE", "0") != "1":
+            return
+        self._event_loop_probe_task = self._create_background_task(
+            self._event_loop_probe_loop()
+        )
+
+    async def _event_loop_probe_loop(self) -> None:
+        interval = max(
+            0.01,
+            float(os.environ.get("SGLANG_ENCODER_EVENT_LOOP_PROBE_INTERVAL", "0.1")),
+        )
+        threshold = max(
+            interval,
+            float(os.environ.get("SGLANG_ENCODER_EVENT_LOOP_PROBE_THRESHOLD", "0.05")),
+        )
+        expected = asyncio.get_running_loop().time() + interval
+        while True:
+            await asyncio.sleep(interval)
+            now = asyncio.get_running_loop().time()
+            lag = now - expected
+            if lag >= threshold:
+                logger.warning(
+                    "Encoder event-loop lag %.3fs (threshold=%.3fs, stage=%s)",
+                    lag,
+                    threshold,
+                    self._event_loop_stage,
+                )
+            expected = now + interval
 
     def supports_modality(self, modality: Modality) -> bool:
         return self.preprocessor.supports_modality(modality)
@@ -1716,6 +1780,39 @@ class MMEncoder:
 
         return None
 
+    async def _run_gpu_work(self, fn, *args, **kwargs):
+        """Run blocking GPU work without changing its device or CUDA stream.
+
+        Cancellation must drain the worker before batch_encode releases request
+        references: cancelling an asyncio Future cannot stop running CUDA work.
+        Request state and asyncio synchronization remain on the event loop.
+        """
+        executor = self.gpu_executor
+        if executor is None:
+            return fn(*args, **kwargs)
+        stream = torch.cuda.current_stream(self.gpu_id)
+
+        def run():
+            torch.cuda.set_device(self.gpu_id)
+            with torch.cuda.stream(stream):
+                return fn(*args, **kwargs)
+
+        future = asyncio.wrap_future(executor.submit(run))
+        try:
+            return await asyncio.shield(future)
+        except asyncio.CancelledError:
+            # Also tolerate repeated cancellation while draining the worker.
+            while not future.done():
+                try:
+                    await asyncio.shield(future)
+                except asyncio.CancelledError:
+                    continue
+                except Exception:
+                    break
+            if not future.cancelled():
+                future.exception()  # Retrieve a worker exception, if any.
+            raise
+
     async def _compute_direct_embedding(
         self,
         ctx: EncodeContext,
@@ -1758,10 +1855,17 @@ class MMEncoder:
 
             if mm_embedding is None:
                 forward_start = time.perf_counter()
-                with torch.inference_mode():
-                    mm_embedding: torch.Tensor = ctx.get_feature_fn(mm_items)
-                    if not keep_on_gpu:
-                        mm_embedding = mm_embedding.cpu()
+
+                def forward():
+                    with torch.inference_mode():
+                        embedding = ctx.get_feature_fn(mm_items)
+                        return embedding if keep_on_gpu else embedding.cpu()
+
+                mm_embedding = (
+                    forward()
+                    if ctx.use_global_cache
+                    else await self._run_gpu_work(forward)
+                )
                 if len(mm_embedding.shape) != 2:
                     mm_embedding = mm_embedding.reshape(-1, mm_embedding.shape[-1])
                 if encoder_metrics_collector is not None and not ctx.is_health_check:
@@ -1953,7 +2057,8 @@ class MMEncoder:
                     self._glm_source_buffers = GlmSourceBuffers(self.engine)
                 mr_already_registered = self._glm_source_buffers.pool is not None
                 xfer_ret = await _await_transfer_completion(
-                    asyncio.to_thread(
+                    asyncio.get_running_loop().run_in_executor(
+                        self.transfer_executor,
                         self._glm_source_buffers.transfer,
                         embedding,
                         session_id,
@@ -2128,7 +2233,8 @@ class MMEncoder:
     ) -> int:
         """Keep the send active until its blocking transfer stops using the MR."""
         return await _await_transfer_completion(
-            asyncio.to_thread(
+            asyncio.get_running_loop().run_in_executor(
+                self.transfer_executor,
                 self.engine.transfer_sync,
                 session_id,
                 source_address,
@@ -2161,88 +2267,121 @@ class MMEncoder:
         finally:
             mm_data._mr_ptr = None
 
-    def _stage_embeddings(
+    def _prepare_staged_embeddings(
         self,
         ctx: EncodeContext,
         requests: List[dict],
         mm_embedding: Optional[torch.Tensor],
         *,
         keep_on_gpu: bool,
-    ) -> List[Tuple[int, int, int, Optional[str], Optional[int]]]:
-        """Split the fused embedding per request and stage one EmbeddingData each.
+    ) -> tuple:
+        """Split the fused embedding per request and build one EmbeddingData each.
 
         Per-request token ranges are contiguous in flatten order, so each
-        staged embedding is a slice of the batch tensor.
+        staged embedding is a slice of the batch tensor. GPU-only work (clones,
+        stream sync); publication happens in _publish_staged_embeddings.
         """
         if self.rank != 0:
-            return [(0, 0, 0, None, None)] * len(requests)
+            return [], [(0, 0, 0, None, None)] * len(requests)
         if mm_embedding is None:
             raise InternalError(f"Rank 0 produced no embedding for {ctx.req_id}")
 
         results = []
         staged_embeddings = []
-        try:
-            item_offset = 0
-            token_offset = 0
-            for req, num_items in zip(requests, ctx.items_per_req):
-                item_end = item_offset + num_items
-                num_tokens = sum(
-                    ctx.preprocess_result.token_counts[item_offset:item_end]
+        item_offset = 0
+        token_offset = 0
+        for req, num_items in zip(requests, ctx.items_per_req):
+            item_end = item_offset + num_items
+            num_tokens = sum(
+                ctx.preprocess_result.token_counts[item_offset:item_end]
+            )
+            embedding = mm_embedding[token_offset : token_offset + num_tokens]
+            if keep_on_gpu and len(requests) > 1:
+                # A view would pin the whole batch tensor until the last transfer.
+                embedding = embedding.clone()
+            req_aux_data = dict(ctx.aux_data)
+            if ctx.item_hashes is not None:
+                req_aux_data["item_hashes"] = ctx.item_hashes[item_offset:item_end]
+            if ctx.aux_data.get("original_image_sizes") is not None:
+                req_aux_data["original_image_sizes"] = ctx.aux_data[
+                    "original_image_sizes"
+                ][item_offset:item_end]
+            mm_data = EmbeddingData(
+                req["req_id"],
+                req["num_parts"],
+                req["part_idx"],
+                (
+                    ctx.preprocess_result.mm_inputs["_reported_grid"]
+                    if "_reported_grid" in ctx.preprocess_result.mm_inputs
+                    else ctx.preprocess_result.grid_thw[item_offset:item_end]
+                ),
+                ctx.modality,
+                embedding,
+                **req_aux_data,
+            )
+            staged_embeddings.append(mm_data)
+            results.append(
+                (
+                    embedding.nbytes,
+                    embedding.shape[0],
+                    embedding.shape[1],
+                    None,
+                    None,
                 )
-                embedding = mm_embedding[token_offset : token_offset + num_tokens]
-                if keep_on_gpu and len(requests) > 1:
-                    # A view would pin the whole batch tensor until the last transfer.
-                    embedding = embedding.clone()
-                req_aux_data = dict(ctx.aux_data)
-                if ctx.item_hashes is not None:
-                    req_aux_data["item_hashes"] = ctx.item_hashes[item_offset:item_end]
-                if ctx.aux_data.get("original_image_sizes") is not None:
-                    req_aux_data["original_image_sizes"] = ctx.aux_data[
-                        "original_image_sizes"
-                    ][item_offset:item_end]
-                mm_data = EmbeddingData(
-                    req["req_id"],
-                    req["num_parts"],
-                    req["part_idx"],
-                    (
-                        ctx.preprocess_result.mm_inputs["_reported_grid"]
-                        if "_reported_grid" in ctx.preprocess_result.mm_inputs
-                        else ctx.preprocess_result.grid_thw[item_offset:item_end]
-                    ),
-                    ctx.modality,
-                    embedding,
-                    **req_aux_data,
-                )
-                # Global-cache embeddings keep registering per /send instead.
-                if (
-                    keep_on_gpu
-                    and not ctx.use_global_cache
-                    and "glm" not in self.model_type
-                ):
-                    self._register_shared_mr(mm_data, embedding)
-                staged_embeddings.append(mm_data)
-                results.append(
-                    (
-                        embedding.nbytes,
-                        embedding.shape[0],
-                        embedding.shape[1],
-                        None,
-                        None,
-                    )
-                )
-                item_offset = item_end
-                token_offset += num_tokens
+            )
+            item_offset = item_end
+            token_offset += num_tokens
 
-            # transfer_sync bypasses CUDA streams, so GPU writes (forward and the
-            # per-request clones) must land before /send reads the buffers.
-            if keep_on_gpu and mm_embedding.is_cuda:
-                torch.cuda.current_stream(mm_embedding.device).synchronize()
+        # transfer_sync bypasses CUDA streams, so GPU writes (forward and the
+        # per-request clones) must land before /send reads the buffers.
+        if keep_on_gpu and mm_embedding.is_cuda:
+            torch.cuda.current_stream(mm_embedding.device).synchronize()
+        return staged_embeddings, results
+
+    def _publish_staged_embeddings(self, ctx, staged_embeddings, *, keep_on_gpu):
+        # MR registration, asyncio.Event publication and request state stay on
+        # the event loop.
+        try:
+            # Global-cache embeddings keep registering per /send instead.
+            if (
+                keep_on_gpu
+                and not ctx.use_global_cache
+                and "glm" not in self.model_type
+            ):
+                for mm_data in staged_embeddings:
+                    self._register_shared_mr(mm_data, mm_data.embedding)
             self._stage_embedding_batch(staged_embeddings)
-            return results
         except BaseException:
             for mm_data in staged_embeddings:
                 self._deregister_shared_mr(mm_data)
             raise
+
+    def _stage_embeddings(self, ctx, requests, mm_embedding, *, keep_on_gpu):
+        """Synchronous path, used when the GPU executor is disabled."""
+        staged, results = self._prepare_staged_embeddings(
+            ctx, requests, mm_embedding, keep_on_gpu=keep_on_gpu
+        )
+        self._publish_staged_embeddings(ctx, staged, keep_on_gpu=keep_on_gpu)
+        return results
+
+    async def _stage_embeddings_async(
+        self, ctx, requests, mm_embedding, *, keep_on_gpu
+    ):
+        # Global-cache assembly has its own synchronization; leave that optional
+        # feature on its existing path until it has a separate validation.
+        if self.gpu_executor is None or ctx.use_global_cache:
+            return self._stage_embeddings(
+                ctx, requests, mm_embedding, keep_on_gpu=keep_on_gpu
+            )
+        staged, results = await self._run_gpu_work(
+            self._prepare_staged_embeddings,
+            ctx,
+            requests,
+            mm_embedding,
+            keep_on_gpu=keep_on_gpu,
+        )
+        self._publish_staged_embeddings(ctx, staged, keep_on_gpu=keep_on_gpu)
+        return results
 
     def _stage_errors(
         self, requests: List[dict], modality: Modality, exc: Exception
@@ -2276,6 +2415,7 @@ class MMEncoder:
         Fuse-or-not is EncoderScheduler policy, not an API fork. Health probes
         bypass caches and stage on CPU so completion confirms a model forward.
         """
+        self._ensure_event_loop_probe()
         states = [self._acquire_encode_ref(req["req_id"]) for req in requests]
         is_health_check = all(
             is_health_check_request(req["req_id"]) for req in requests
@@ -2294,19 +2434,22 @@ class MMEncoder:
             if self.rank == 0:
                 async with encode_state_condition:
                     encode_state_condition.notify_all()
+            self._event_loop_stage = "prepare_encode_context"
             ctx = await self._prepare_encode_context_on_all_ranks(
                 requests,
                 modality,
                 use_global_cache=use_global_cache,
                 is_health_check=is_health_check,
             )
+            self._event_loop_stage = "compute_embedding"
             mm_embedding = await self._compute_embedding(ctx, keep_on_gpu=keep_on_gpu)
 
             if self.profiler is not None:
                 for _ in requests:
                     self.profiler.step()
 
-            return self._stage_embeddings(
+            self._event_loop_stage = "stage_embeddings"
+            return await self._stage_embeddings_async(
                 ctx, requests, mm_embedding, keep_on_gpu=keep_on_gpu
             )
         except Exception as e:
@@ -2316,6 +2459,7 @@ class MMEncoder:
                 self._glm_vit_semaphore.release()
             for state in states:
                 await self._release_encode_ref(state)
+            self._event_loop_stage = "idle"
 
     async def encode(
         self, mm_items, modality: Modality, req_id, num_parts, part_idx, hashes=None
