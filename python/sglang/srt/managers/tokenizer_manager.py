@@ -516,7 +516,12 @@ class TokenizerManager(TokenizerControlMixin, TokenizerManagerScoreMixin):
                 self.tokenizer = self.processor = None
             else:
                 self.processor = _processor
-                self.tokenizer = get_tokenizer_from_processor(self.processor)
+                # Text offload and multimodal preprocessing can run concurrently.
+                # Fast tokenizers keep mutable padding/truncation state, so the
+                # text path must not share the processor's tokenizer backend.
+                self.tokenizer = copy.deepcopy(
+                    get_tokenizer_from_processor(self.processor)
+                )
                 os.environ["TOKENIZERS_PARALLELISM"] = "false"
         else:
             self.mm_processor = self.processor = None
