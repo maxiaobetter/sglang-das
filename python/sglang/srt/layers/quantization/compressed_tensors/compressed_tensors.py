@@ -49,6 +49,7 @@ from sglang.srt.layers.quantization.compressed_tensors.schemes import (
     CompressedTensorsW4A4Fp4,
     CompressedTensorsW4A4Nvfp4MoE,
     CompressedTensorsW4AFP8MoE,
+    HCUCompressedTensorsW4A8Int8DynamicMoE,
     CompressedTensorsW8A8Fp8,
     CompressedTensorsW8A8Fp8MoE,
     CompressedTensorsW8A8Int8,
@@ -74,9 +75,10 @@ from sglang.srt.layers.quantization.unquant import (
     UnquantizedLinearMethod,
 )
 from sglang.srt.runtime_context import get_platform
-from sglang.srt.utils import is_cuda, is_hip, is_npu, is_xpu
+from sglang.srt.utils import is_cuda, is_hcu, is_hip, is_npu, is_xpu
 
 _is_cuda = is_cuda()
+_is_hcu = is_hcu()
 _is_npu = is_npu()
 _is_hip = is_hip()
 _is_xpu = is_xpu()
@@ -914,12 +916,22 @@ class CompressedTensorsConfig(QuantizationConfig):
             if _is_npu and self._is_dynamic_token_w4a8(weight_quant, input_quant):
                 logger.info_once("Using NPUCompressedTensorsW4A8Int8DynamicMoE")
                 return NPUCompressedTensorsW4A8Int8DynamicMoE(self)
+            if _is_hcu and self._is_dynamic_token_w4a8(weight_quant, input_quant):
+                logger.info_once("Using HCUCompressedTensorsW4A8Int8DynamicMoE")
+                return HCUCompressedTensorsW4A8Int8DynamicMoE(
+                    self, weight_quant=weight_quant
+                )
             logger.info_once("Using CompressedTensorsW4AFP8MoE")
             return CompressedTensorsW4AFP8MoE(self, weight_quant, input_quant)
         elif self._is_dynamic_token_w4a8(weight_quant, input_quant):
             if _is_npu:
                 logger.info_once("Using NPUCompressedTensorsW4A8Int8DynamicMoE")
                 return NPUCompressedTensorsW4A8Int8DynamicMoE(self)
+            elif _is_hcu:
+                logger.info_once("Using HCUCompressedTensorsW4A8Int8DynamicMoE")
+                return HCUCompressedTensorsW4A8Int8DynamicMoE(
+                    self, weight_quant=weight_quant
+                )
             else:
                 raise NotImplementedError(
                     "The W4A8Int8 Fused MoE scheme is implemented only for NPU for now."

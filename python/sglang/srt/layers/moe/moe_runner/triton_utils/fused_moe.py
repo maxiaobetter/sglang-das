@@ -1117,17 +1117,38 @@ def _fused_moe_kernel_sequence(
                 intermediate_cache1[:, :half].clamp_(max=swiglu_limit)
                 intermediate_cache1[:, half:].clamp_(
                     min=-swiglu_limit, max=swiglu_limit
+                # HCU(gfx936)/HIP 补丁：单机 TP8 时所有专家都在本地
+                # (num_local_experts == num_experts) ⇒ filter_expert=False，
+                # 于是走到 fused silu_and_mul_clamp。原断言只允许 CUDA/XPU，
+                # 会让每次单机启动在 CUDA graph 捕获阶段直接 abort：
+                #   AssertionError: fused silu_and_mul_clamp kernel is CUDA/XPU
+                #   only; HIP must disable SWIGLU_CLAMP_FUSION
+                # 但该 kernel 实际是 load_jit 的 CUDA/HIP 模块，本 build 可用
+                # —— dense MLP 路径 (deepseek_v2.py 的 silu_and_mul_clamp)
+                # 用同一个 swiglu_limit=10.0 早已在跑。故放开 HIP。
+                assert _is_cuda or _is_xpu or _is_hip, (
+                    "fused silu_and_mul_clamp kernel is CUDA/XPU only; HIP must disable SWIGLU_CLAMP_FUSION"
                 )
 
             if not filter_expert:
                 if swiglu_limit_for_silu_and_mul_clamp is not None:
-                    from sglang.kernels.ops.attention.dsv4 import silu_and_mul_clamp
+                    _clamped = intermediate_cache1.view(-1, N)
+                    try:
+                        from sglang.kernels.ops.attention.dsv4 import silu_and_mul_clamp
 
-                    silu_and_mul_clamp(
-                        intermediate_cache1.view(-1, N),
-                        intermediate_cache2,
-                        swiglu_limit_for_silu_and_mul_clamp,
-                    )
+                        silu_and_mul_clamp(
+                            _clamped,
+                            intermediate_cache2,
+                            swiglu_limit_for_silu_and_mul_clamp,
+                        )
+                    except Exception:
+                        # 兜底：显式 clamp 后再普通 silu_and_mul（语义等价：
+                        # gate 截到 <=limit，up 截到 [-limit, limit]）。
+                        _limit = float(swiglu_limit_for_silu_and_mul_clamp)
+                        _gate, _up = _clamped.chunk(2, dim=-1)
+                        _gate.clamp_(max=_limit)
+                        _up.clamp_(min=-_limit, max=_limit)
+                        silu_and_mul(_clamped, intermediate_cache2)
                 else:
                     silu_and_mul(intermediate_cache1.view(-1, N), intermediate_cache2)
             else:

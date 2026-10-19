@@ -549,7 +549,13 @@ class _DeepEPDispatcherImplNormal(_DeepEPDispatcherImplBase):
     ):
         topk_weights, topk_ids = topk_output.topk_weights, topk_output.topk_ids
         topk_ids = topk_ids.to(torch.int64)
-        if use_groupgemm:
+        if self.quant_config.get("bf16_dispatch", False):
+            # Mixed checkpoints can have BF16 NextN experts alongside INT4/FP8
+            # target experts. Respect the layer's precision before global flags.
+            pass
+        elif self.quant_config.get("int8_dispatch", False):
+            hidden_states = per_token_quant_int8(hidden_states)
+        elif use_groupgemm:
             if _use_fp8_w8a8_moe:
                 hidden_states = per_token_quant_fp8(hidden_states)
             elif _use_marlin_w16a16_moe:
@@ -655,6 +661,7 @@ class _DeepEPDispatcherImplNormal(_DeepEPDispatcherImplBase):
                         )
                         or _use_fp8_w8a8_moe
                         or _use_marlin_w16a16_moe
+                        or (is_hcu() and self.quant_config.get("bf16_dispatch", False))
                     )
                     else 1
                 ),
@@ -680,7 +687,11 @@ class _DeepEPDispatcherImplNormal(_DeepEPDispatcherImplBase):
                 async_finish=self.async_finish,
                 allocate_on_comm_stream=(previous_event is not None)
                 and self.async_finish,
-                expert_alignment=128 if deep_gemm_wrapper.ENABLE_JIT_DEEPGEMM else 1,
+                expert_alignment=(
+                    256
+                    if is_hcu() and self.quant_config.get("bf16_dispatch", False)
+                    else 128 if deep_gemm_wrapper.ENABLE_JIT_DEEPGEMM else 1
+                ),
                 config=DeepEPConfig.get_instance().normal_dispatch_config,
             )
         get_global_expert_distribution_recorder().on_deepep_dispatch_normal(
@@ -863,7 +874,25 @@ class _DeepEPDispatcherImplLowLatency(_DeepEPDispatcherImplBase):
         buffer = self._get_buffer()
         _deepep_precompile_tp_barrier()
         if use_groupgemm:
-            if _use_fp8_w8a8_moe:
+            if self.quant_config.get("bf16_dispatch", False) or self.quant_config.get(
+                "int8_dispatch", False
+            ):
+                # A mixed checkpoint's BF16 draft must not inherit target INT8.
+                quant_type = 0 if self.quant_config.get("bf16_dispatch", False) else 1
+                packed_recv_hidden, self.packed_recv_count, self.handle, event, hook = (
+                    buffer.low_latency_dispatch(
+                        hidden_states,
+                        topk_ids,
+                        topk_weights,
+                        self.num_max_dispatch_tokens_per_rank,
+                        self.num_experts,
+                        quant_type=quant_type,
+                        fp8_round_scale=False,
+                        async_finish=not self.return_recv_hook,
+                        return_recv_hook=self.return_recv_hook,
+                    )
+                )
+            elif _use_fp8_w8a8_moe:
                 packed_recv_hidden, self.packed_recv_count, self.handle, event, hook = (
                     buffer.low_latency_dispatch(
                         hidden_states,

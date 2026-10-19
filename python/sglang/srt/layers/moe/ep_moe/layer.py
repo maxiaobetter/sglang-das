@@ -740,8 +740,13 @@ class DeepEPMoE(FusedMoE):
 
         self.deepep_mode = get_deepep_mode()
 
+        if quant_config is not None and quant_config.get_name() == "slimquant_w4a8":
+            self.dispatcher.set_quant_config({"int8_dispatch": True})
         if quant_config is None and hasattr(self.dispatcher, "set_quant_config"):
             self.dispatcher.set_quant_config({"bf16_dispatch": True})
+            if _is_hcu:
+                # DeepEP's grouped BF16 path consumes ordinary, unshuffled weights.
+                self._skip_aiter_moe_shuffle = True
         if (
             self.deepep_mode.enable_low_latency()
             and not _is_npu
@@ -872,7 +877,14 @@ class DeepEPMoE(FusedMoE):
 
         if DispatchOutputChecker.format_is_deepep_normal(dispatch_output):
             # assert deep_gemm_wrapper.ENABLE_JIT_DEEPGEMM and self.use_fp8_w8a8
-            if (
+            if _is_hcu and self.quant_config is None:
+                output = self.forward_groupgemm_bf16_contiguous(dispatch_output)
+            elif (
+                self.quant_config is not None
+                and self.quant_config.get_name() == "slimquant_w4a8"
+            ):
+                output = self.quant_method.apply_deepep_normal(self, dispatch_output)
+            elif (
                 _is_hcu
                 and _use_deepgemm_moe
                 and (
@@ -922,6 +934,8 @@ class DeepEPMoE(FusedMoE):
         elif DispatchOutputChecker.format_is_deepep_ll(dispatch_output):
             if self.quant_config is None:
                 output = self.forward_unquantized_deepep_ll(dispatch_output)
+            elif self.quant_config.get_name() == "slimquant_w4a8":
+                output = self.quant_method.apply_deepep_low_latency(self, dispatch_output)
             elif (
                 get_moe_runner_backend().is_flashinfer_cutedsl()
                 and self.quant_config is not None
@@ -1334,6 +1348,7 @@ class DeepEPMoE(FusedMoE):
             topk_weights,
             num_recv_tokens_per_expert,
         ) = dispatch_output
+        assert hidden_states_scale is None and hidden_states.dtype == torch.bfloat16
         assert self.moe_runner_config.activation == "silu"
         if num_recv_tokens_per_expert is None:
             return hidden_states.bfloat16()
@@ -2154,6 +2169,117 @@ class DeepEPMoE(FusedMoE):
             expected_m,
         )
         return down_output
+
+    def forward_deepgemm_w4a8_contiguous(
+        self,
+        dispatch_output: DeepEPNormalDispatchOutput,
+    ):
+        from deepgemm import m_grouped_w4a8_gemm_nt_contiguous_hipc
+
+        (
+            hidden_states,
+            hidden_states_scale,
+            topk_ids,
+            topk_weights,
+            num_recv_tokens_per_expert,
+        ) = dispatch_output
+        assert self.quant_method is not None
+        assert self.moe_runner_config.activation == "silu"
+        if hidden_states_scale is None:
+            raise RuntimeError("DeepEP W4A8 INT8 dispatch must return activation scales.")
+        if num_recv_tokens_per_expert is None:
+            return hidden_states.bfloat16()
+
+        all_tokens = sum(num_recv_tokens_per_expert)
+        if all_tokens <= 0:
+            return hidden_states.bfloat16()
+
+        _, k = hidden_states.shape
+        n1 = self.w13_weight_scale.size(1)
+        # The current HIPC contiguous API defaults to MODE=1002, whose
+        # output tile is 128 columns x 4. Both GEMMs need full 512-column
+        # tiles; smaller widths can leave unwritten/invalid output values.
+        if k % 512 or n1 % 512:
+            raise ValueError(
+                "DeepGEMM W4A8 contiguous MODE=1002 requires both GEMM output "
+                f"widths divisible by 512; got gate_up={n1}, down={k}"
+            )
+        hidden_states_shape = hidden_states.shape
+        hidden_states_device = hidden_states.device
+        counts_are_aligned = all(
+            count % 256 == 0 for count in num_recv_tokens_per_expert
+        )
+        if not counts_are_aligned or all_tokens % 256 != 0:
+            raise RuntimeError(
+                "W4A8 contiguous HIPC requires DeepEP normal dispatch counts "
+                "aligned to 256; got counts="
+                f"{num_recv_tokens_per_expert}"
+            )
+
+        a_int8 = torch.empty(
+            (all_tokens, k), device=hidden_states_device, dtype=hidden_states.dtype
+        )
+        a_scale = torch.empty(
+            (all_tokens, 1), device=hidden_states_device, dtype=torch.float32
+        )
+        if get_offloader().forbid_copy_engine_usage:
+            num_recv_tokens_per_expert_gpu = copy_list_to_gpu_no_ce(
+                num_recv_tokens_per_expert
+            )
+        else:
+            num_recv_tokens_per_expert_gpu = torch.tensor(
+                num_recv_tokens_per_expert,
+                dtype=torch.int32,
+                pin_memory=True,
+                device="cpu",
+            ).cuda(non_blocking=True)
+        m_indices, output_index = _ep_scatter_with_optional_lightop(
+            hidden_states,
+            hidden_states_scale,
+            topk_ids,
+            num_recv_tokens_per_expert_gpu,
+            a_int8,
+            a_scale,
+            all_tokens,
+            counts_are_aligned=counts_are_aligned,
+        )
+
+        gateup_output = torch.empty(
+            (all_tokens, n1), device=hidden_states_device, dtype=torch.bfloat16
+        )
+        m_grouped_w4a8_gemm_nt_contiguous_hipc(
+            (a_int8, a_scale),
+            (self.w13_weight_deepgemm, self.w13_weight_scale),
+            gateup_output,
+            m_indices,
+        )
+        del a_int8, a_scale
+
+        swiglu_limit = getattr(self.moe_runner_config, "swiglu_limit", None)
+        if swiglu_limit is None:
+            q_a2_all, q_a2_scale = fuse_silu_mul_quant(gateup_output)
+        else:
+            q_a2_all, q_a2_scale = fuse_silu_mul_clamp_quant(
+                gateup_output, float(swiglu_limit)
+            )
+        del gateup_output
+
+        down_output = torch.empty(
+            (all_tokens, k), device=hidden_states_device, dtype=torch.bfloat16
+        )
+        m_grouped_w4a8_gemm_nt_contiguous_hipc(
+            (q_a2_all, q_a2_scale),
+            (self.w2_weight_deepgemm, self.w2_weight_scale),
+            down_output,
+            m_indices,
+        )
+        gather_out = torch.zeros(
+            hidden_states_shape, device=hidden_states_device, dtype=torch.bfloat16
+        )
+        _ep_gather_with_optional_lightop(
+            down_output, topk_ids, topk_weights, output_index, gather_out
+        )
+        return gather_out
 
     def forward_groupgemm_w8a8_int8_contiguous(
         self,

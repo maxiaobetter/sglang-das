@@ -1553,6 +1553,10 @@ class ModelNextForCausalLM(nn.Module):
         weight_names = []
 
         for name, loaded_weight in weights:
+            if qc is not None and qc.get_name() == "slimquant_w4a8":
+                name, loaded_weight = qc.normalize_expert_weight(name, loaded_weight)
+                if name is None:
+                    continue
             weight_names.append(name)
 
             if is_nextn or is_eagle:
@@ -1612,6 +1616,10 @@ class ModelNextForCausalLM(nn.Module):
                         mapped,
                         shard_id=shard_id,
                         expert_id=expert_id,
+                    )
+                elif qc is not None and qc.get_name() == "slimquant_w4a8":
+                    raise ValueError(
+                        f"SlimQuant expert parameter {name} maps to missing {mapped}"
                     )
                 break
             if is_expert_weight:
