@@ -3788,7 +3788,13 @@ class TokenizerManager(TokenizerControlMixin, TokenizerManagerScoreMixin):
         if isinstance(obj, GenerateReqInput) and obj.contains_mm_input():
             # dispatch to encoder by default
             should_dispatch = True
-            if get_disagg().enable_adaptive_dispatch_to_encoder:
+            if self.disaggregation_mode == DisaggregationMode.DECODE:
+                # Decode reuses prefill KV and never consumes vision embeddings;
+                # it only needs input_ids / mrope layout. Dispatching here would
+                # run a second full ViT encode (+ RDMA) per request on the
+                # shared encoder. Build the metadata locally instead.
+                should_dispatch = False
+            elif get_disagg().enable_adaptive_dispatch_to_encoder:
                 should_dispatch = self._should_dispatch_to_encoder(obj)
 
             # Set need_wait_for_mm_inputs flag based on whether we dispatch to encoder
