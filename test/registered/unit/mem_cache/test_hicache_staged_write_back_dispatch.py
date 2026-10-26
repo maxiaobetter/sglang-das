@@ -824,10 +824,15 @@ class TestHiCacheStagedWriteBackDispatch(CustomTestCase):
         device_pool = _device_pool_stub(
             layer_num=layer_num,
             index_k_with_scale_buffer=device_layers,
+            start_layer=0,
+            _get_indexer_cache_index=lambda layer_id: layer_id,
         )
 
         host = DSAIndexerPoolHost.__new__(DSAIndexerPoolHost)
         host.device_pool = device_pool
+        host.target_layer_id_to_host_index = {
+            layer_id: layer_id for layer_id in range(layer_num)
+        }
         host.layout = "page_first"
         host.page_size = page_size
         host.layer_num = layer_num

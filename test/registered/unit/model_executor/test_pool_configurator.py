@@ -797,7 +797,7 @@ class TestDSAIndexerAllocationPolicy(CustomTestCase):
         "sglang.srt.mem_cache.kv_cache_configurator.calculate_mla_kv_cache_dim",
         return_value=576,
     )
-    def test_resolved_hicache_override_prices_every_indexer_layer(
+    def test_resolved_hicache_override_prices_active_indexer_layers(
         self,
         _mock_calculate_mla_kv_cache_dim,
     ):
@@ -817,17 +817,18 @@ class TestDSAIndexerAllocationPolicy(CustomTestCase):
 
             cfg = DefaultPoolConfigurator(mr)
 
-        self.assertEqual(cfg._cell_size, (576 + 132) * num_layers)
+        # Layers 0, 1, 2 run the indexer; HiCache preserves compact storage.
+        self.assertEqual(cfg._cell_size, 576 * num_layers + 132 * 3)
 
     @patch(
         "sglang.srt.mem_cache.kv_cache_configurator.calculate_mla_kv_cache_dim",
         return_value=576,
     )
-    def test_pd_prices_every_indexer_layer(
+    def test_pd_prices_active_indexer_layers(
         self,
         _mock_calculate_mla_kv_cache_dim,
     ):
-        """PD must retain dense index-K metadata until transports support sparsity."""
+        """PD sizes the compact Index-K layout used by its transfer metadata."""
         num_layers = 6
         mr = _make_model_runner(
             self,
@@ -846,7 +847,7 @@ class TestDSAIndexerAllocationPolicy(CustomTestCase):
 
             cfg = DefaultPoolConfigurator(mr)
 
-        self.assertEqual(cfg._cell_size, (576 + 132) * num_layers)
+        self.assertEqual(cfg._cell_size, 576 * num_layers + 132 * 3)
 
 
 class TestFactory(CustomTestCase):

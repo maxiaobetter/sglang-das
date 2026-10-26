@@ -97,7 +97,6 @@ def _should_elide_dsa_index_k(*, is_draft_worker: bool) -> bool:
     return (
         not memory_config.enable_hisparse
         and not is_draft_worker
-        and not memory_config.enable_hierarchical_cache
         and not memory_config.enable_unified_cache_external_linker
     )
 
@@ -1134,7 +1133,9 @@ class KVCacheConfigurator:
             )
 
             pool_cls = CpCacheLayerSplitDeepSeekV4TokenToKVPool
-            pool_kwargs = dict(cp_rank=self.ps.attn_cp_rank, cp_size=self.ps.attn_cp_size)
+            pool_kwargs = dict(
+                cp_rank=self.ps.attn_cp_rank, cp_size=self.ps.attn_cp_size
+            )
 
         token_to_kv_pool = pool_cls(
             **pool_kwargs,
@@ -1386,8 +1387,8 @@ class KVCacheConfigurator:
                 range(self.layer_info.start_layer, self.layer_info.end_layer)
             )
         if use_layer_split_pool:
-            # HiCache uses dense storage/transfer metadata, but skip-topk
-            # layers still must not enqueue an Index-K collective.
+            # Only layers that execute the indexer need an Index-K collective,
+            # even when another consumer requires dense storage metadata.
             pool_kwargs["indexer_prefetch_layer_ids"] = full_indexer_layer_ids
         if not get_memory().enable_hisparse:
             pool_kwargs["indexer_layer_ids"] = indexer_layer_ids
