@@ -970,9 +970,20 @@ class SchedulerBatchResultProcessor:
             req.output_ids.extend(next_token_id)
             new_accept_len = len(next_token_id)
 
-            self._maybe_update_reasoning_tokens(req, next_token_id)
             req.time_stats.set_last_decode_finish_time()
             req.update_finish_state(new_accept_len)
+
+            # A speculative accept block may cross EOS or the output budget.
+            # Only retained tokens may advance reasoning counts or its matcher.
+            reasoning_token_ids = next_token_id
+            if req.finished_len is not None:
+                output_start = len(req.output_ids) - new_accept_len
+                retained_len = max(
+                    0, min(new_accept_len, req.finished_len - output_start)
+                )
+                reasoning_token_ids = next_token_id[:retained_len]
+            if reasoning_token_ids:
+                self._maybe_update_reasoning_tokens(req, reasoning_token_ids)
 
             self._handle_finish_state_updated_req(req, batch, result, i, logits_output)
 
