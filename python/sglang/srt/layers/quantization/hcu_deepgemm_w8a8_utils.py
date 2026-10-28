@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from typing import Callable
 
 import torch
 
@@ -34,6 +35,36 @@ def _register_runtime_buffer(
     if hasattr(layer, name):
         delattr(layer, name)
     layer.register_buffer(name, value, persistent=False)
+
+
+def _get_w6_ll_weight_packer() -> Callable[[torch.Tensor], torch.Tensor]:
+    try:
+        from deepgemm.m_group_gemm import pack_int8_weight_w6_ll
+    except ImportError:
+        # deepgemm builds before 2026-10-22 only export the pre-rename name.
+        from deepgemm.m_group_gemm import (
+            pack_int8_weight_enk_to_w6_low_latency as pack_int8_weight_w6_ll,
+        )
+    return pack_int8_weight_w6_ll
+
+
+def pack_w8a8_fp8_deepgemm_weight(weight: torch.Tensor) -> torch.Tensor:
+    from sglang.srt.layers.moe.utils import get_deepep_mode
+
+    deepep_mode = get_deepep_mode()
+    if deepep_mode.is_normal():
+        # Paired with m_grouped_fp8_gemm_nt_contiguous, which consumes pair32
+        # instead of W6 on gfx938 since deepgemm 2026-10-22.
+        from deepgemm import marlin_fp8_contiguous_weight
+
+        return marlin_fp8_contiguous_weight(weight)
+    if deepep_mode.is_low_latency():
+        # Paired with m_grouped_fp8_gemm_nt_masked_ll.
+        return _get_w6_ll_weight_packer()(weight)
+    raise NotImplementedError(
+        "HCU channelwise FP8 DeepGEMM MoE requires --deepep-mode normal or "
+        "low_latency; the contiguous and masked GEMMs may need different layouts"
+    )
 
 
 def _check_int8_weight(weight: torch.Tensor) -> tuple[int, int, int]:
@@ -101,9 +132,7 @@ def prepare_w8a8_int8_deepgemm_weights(layer: torch.nn.Module) -> None:
     elif arch == "gfx936":
         from deepgemm import pack_w8a8_gfx936_weight_to_w6 as pack_weight
     else:
-        from deepgemm.m_group_gemm import (
-            pack_int8_weight_enk_to_w6_low_latency as pack_weight,
-        )
+        pack_weight = _get_w6_ll_weight_packer()
 
     w13_weight = layer.w13_weight
     w2_weight = layer.w2_weight

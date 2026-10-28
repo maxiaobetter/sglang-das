@@ -26,6 +26,7 @@ from sglang.srt.layers.deep_gemm_wrapper.configurer import (  # noqa: F401
     DEEPGEMM_SCALE_UE8M0,
     ENABLE_JIT_DEEPGEMM,
 )
+from sglang.srt.utils import is_hcu
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,12 @@ if ENABLE_JIT_DEEPGEMM:
 
 
 _SANITY_CHECK = envs.SGLANG_DEEPGEMM_SANITY_CHECK.get()
+
+# Hygon exposes DeepGEMM as the `deepgemm` package (no underscore) and is
+# neither CUDA nor MUSA, so ENABLE_JIT_DEEPGEMM is False and the module-level
+# `deep_gemm` import above is skipped. Ops reached on HCU resolve `deepgemm`
+# directly instead.
+_is_hcu = is_hcu()
 
 
 # TODO maybe rename these functions
@@ -300,7 +307,14 @@ def tf32_hc_prenorm_gemm(
 ):
     if x.shape[0] == 0:
         return
-    deep_gemm.tf32_hc_prenorm_gemm(x, fn, out, sqrsum, num_splits=num_splits)
+    if _is_hcu:
+        # Hygon names this op `tf32_hc_pernorm_gemm` (pernorm); the positional
+        # signature (a, b, d, sqr_sum, num_splits) matches the upstream call.
+        from deepgemm import tf32_hc_pernorm_gemm
+
+        tf32_hc_pernorm_gemm(x, fn, out, sqrsum, num_splits=num_splits)
+    else:
+        deep_gemm.tf32_hc_prenorm_gemm(x, fn, out, sqrsum, num_splits=num_splits)
 
 
 def update_deep_gemm_config(gpu_id: int):

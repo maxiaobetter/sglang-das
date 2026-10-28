@@ -1812,14 +1812,16 @@ def mhc_fused_post_pre(
         )
 
         if envs.SGLANG_OPT_DEEPGEMM_HC_PRENORM.get():
-            import deep_gemm
+            from sglang.srt.layers.deep_gemm_wrapper.entrypoint import (
+                tf32_hc_prenorm_gemm,
+            )
 
-            deep_gemm.tf32_hc_prenorm_gemm(
+            tf32_hc_prenorm_gemm(
                 residual_cur.view(num_tokens, hc_hidden_size),
                 fn,
                 gemm_out_mul,
                 gemm_out_sqrsum,
-                num_splits=n_splits,
+                n_splits,
             )
         else:
             # Fallback mirrors mhc_pre when DeepGEMM prenorm is disabled.

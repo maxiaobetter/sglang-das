@@ -293,11 +293,13 @@ class CompressedTensorsW8A8Fp8MoE(CompressedTensorsMoEScheme):
         w13 = layer.w13_weight
         w2 = layer.w2_weight
 
-        from deepgemm.m_group_gemm import pack_int8_weight_enk_to_w6_low_latency
+        from sglang.srt.layers.quantization.hcu_deepgemm_w8a8_utils import (
+            pack_w8a8_fp8_deepgemm_weight,
+        )
 
         with torch.no_grad():
-            w13_deepgemm = pack_int8_weight_enk_to_w6_low_latency(w13).detach()
-            w2_deepgemm = pack_int8_weight_enk_to_w6_low_latency(w2).detach()
+            w13_deepgemm = pack_w8a8_fp8_deepgemm_weight(w13).detach()
+            w2_deepgemm = pack_w8a8_fp8_deepgemm_weight(w2).detach()
 
         self._register_runtime_buffer(layer, "w13_weight_deepgemm", w13_deepgemm)
         self._register_runtime_buffer(layer, "w2_weight_deepgemm", w2_deepgemm)
