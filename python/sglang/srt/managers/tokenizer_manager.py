@@ -96,7 +96,10 @@ from sglang.srt.managers.io_struct import (
     unwrap_from_pickle,
 )
 from sglang.srt.managers.load_snapshot import create_load_snapshot_reader
-from sglang.srt.managers.mm_utils import wrap_shm_features
+from sglang.srt.managers.mm_utils import (
+    strip_local_decode_mm_features,
+    wrap_shm_features,
+)
 from sglang.srt.managers.multimodal_processor import get_mm_processor, import_processors
 from sglang.srt.managers.schedule_batch import (
     MultimodalDataItem,
@@ -1214,6 +1217,17 @@ class TokenizerManager(TokenizerControlMixin, TokenizerManagerScoreMixin):
                         item.set_pad_value()
         else:
             mm_inputs = None
+
+        if (
+            self.disaggregation_mode == DisaggregationMode.DECODE
+            and get_disagg().language_only
+            and get_disagg().encoder_transfer_backend in ("mooncake", "zmq_to_scheduler")
+            and not obj.need_wait_for_mm_inputs
+            and getattr(self.mm_processor, "tokenizes_input_text", False)
+        ):
+            # GLM already built token IDs, grid metadata and M-RoPE locally.
+            # The decoder reuses Prefill KV and never runs the vision encoder.
+            strip_local_decode_mm_features(mm_inputs)
 
         if getattr(self.model_config.hf_text_config, "model_type", None) in (
             "glm5_next",
