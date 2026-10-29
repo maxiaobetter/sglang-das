@@ -1,4 +1,3 @@
-import itertools
 import math
 import pickle
 import random
@@ -171,8 +170,7 @@ def sample_generated_shared_prefix_requests(
     """Generate benchmark requests with shared system prompts using random tokens and caching.
 
     When group_distribution is "uniform" (default), each group receives exactly
-    prompts_per_group requests. Newly generated unordered uniform requests
-    interleave groups round-robin. Cached rows retain their stored ordering.
+    prompts_per_group requests; behavior matches the legacy generator.
 
     When group_distribution is "zipf", each request's group is sampled by rank
     with probability 1/rank**zipf_alpha / sum_k(1/k**zipf_alpha); rank starts at
@@ -300,15 +298,7 @@ def sample_generated_shared_prefix_requests(
         total_output_tokens += output_len_val
 
     if not ordered:
-        if group_distribution == "uniform":
-            groups = [
-                input_requests[start : start + prompts_per_group]
-                for start in range(0, len(input_requests), prompts_per_group)
-            ]
-            input_requests = list(itertools.chain.from_iterable(zip(*groups)))
-        else:
-            # Preserve the target's Zipf traffic distribution and ordering mode.
-            random.shuffle(input_requests)
+        random.shuffle(input_requests)
 
     print(f"\nGenerated shared prefix dataset statistics:")
     print(f"Number of groups: {num_groups}")
