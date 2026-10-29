@@ -103,6 +103,9 @@ class MooncakeDirectLinker(UnifiedCacheLinker):
             attn_cp_rank=params.attn_cp_rank,
             pp_rank=params.pp_rank,
         )
+        layout_tag = getattr(self.pool_group, "storage_layout_tag", None)
+        if layout_tag is not None:
+            storage_suffix += f"_{layout_tag}_tpn{tp_size}_cpn{params.attn_cp_size}"
         self.storage.mla_suffix = storage_suffix
         self.storage.mha_suffix = storage_suffix
         logger.info(

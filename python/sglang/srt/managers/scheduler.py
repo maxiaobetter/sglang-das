@@ -3904,6 +3904,10 @@ class Scheduler(
             mamba_allocator.alloc_group_begin(len(self.waiting_queue))
         # Get requests from the waiting queue to a new prefill batch
         for req in self.waiting_queue:
+            # A resumed chunk may have consumed this iteration's compute budget.
+            # NO_TOKEN must still reach the existing preemption/admission checks.
+            if adder.budget_state() == AddReqResult.OTHER:
+                break
             if self.enable_lora and not self._can_schedule_lora_req(req, running_loras):
                 continue
 

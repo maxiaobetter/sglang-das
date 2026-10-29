@@ -337,9 +337,15 @@ class UnifiedCacheLinkerWrapper:
         prefix_len = hit.device_hit_len + len(tail_hashes) * cache.page_size
         component_transfers: list[tuple[TreeComponent, PoolTransfer]] = []
         for component in cache._components_tuple:
-            transfer = component.build_external_linker_transfer(
-                LinkerTransferPhase.LOAD, None, tail_hashes
-            )
+            try:
+                transfer = component.build_external_linker_transfer(
+                    LinkerTransferPhase.LOAD, None, tail_hashes
+                )
+            except BaseException:
+                self._update_load(
+                    ExternalLinkerLoadPhase.ABORT, req, component_transfers, prefix_len
+                )
+                raise
             if transfer is None:
                 self._update_load(
                     ExternalLinkerLoadPhase.ABORT, req, component_transfers, prefix_len
