@@ -133,8 +133,10 @@ class PagedTokenToKVPoolAllocator(BaseTokenToKVPoolAllocator):
         super().__init__(size, page_size, dtype, device, kvcache, need_sort)
         self.num_pages = size // page_size
         self.debug_mode = get_bool_env_var("SGLANG_DEBUG_MEMORY_POOL")
+        # Native allocation fills each request serially; long PD preallocations
+        # use Triton by default. Keep native kernels available as an opt-in.
         self.sglang_kvalloc_kernel = get_bool_env_var(
-            "SGLANG_KVALLOC_KERNEL", default="true"
+            "SGLANG_KVALLOC_KERNEL", default="false"
         )
         self.seen_max_num_extend_tokens_next_power_of_2 = 1
 

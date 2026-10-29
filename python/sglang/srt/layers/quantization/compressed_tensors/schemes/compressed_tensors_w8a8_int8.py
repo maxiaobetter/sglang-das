@@ -26,10 +26,8 @@ from sglang.srt.layers.quantization.compressed_tensors.schemes import (
     CompressedTensorsLinearScheme,
 )
 from sglang.srt.layers.quantization.utils import requantize_with_max_scale
-from sglang.srt.utils import get_bool_env_var, is_cuda, is_hcu
+from sglang.srt.utils import is_cuda, is_hcu
 
-_use_fused_rms_quant = get_bool_env_var("SGLANG_USE_LEGACY_FUSED_RMS_QUANT")
-_use_fused_silu_mul_quant = get_bool_env_var("SGLANG_USE_FUSED_SILU_MUL_QUANT")
 
 __all__ = ["CompressedTensorsW8A8Int8", "NPUCompressedTensorsW8A8Int8"]
 
@@ -53,6 +51,9 @@ class CompressedTensorsW8A8Int8(CompressedTensorsLinearScheme):
         self.strategy = strategy
         self.is_static_input_scheme = is_static_input_scheme
         self.input_symmetric = input_symmetric
+        self.supports_prequantized_input = (
+            not is_static_input_scheme and input_symmetric
+        )
         self.w8a8_strategy = int(os.getenv("W8A8_SUPPORT_METHODS", "1"))  # TODO
 
     def create_weights(
@@ -281,10 +282,11 @@ class CompressedTensorsW8A8Int8(CompressedTensorsLinearScheme):
         silu_quant_args: Optional[list[torch.Tensor]] = None,
     ) -> torch.Tensor:
         # TODO: add cutlass_scaled_mm_azp support
-        if _use_fused_rms_quant and input_quant_args is not None:
+        if input_quant_args is not None:
             assert len(input_quant_args) == 2
             x_q, x_scale = input_quant_args
-        elif _use_fused_silu_mul_quant and silu_quant_args is not None:
+        elif silu_quant_args is not None:
+            assert len(silu_quant_args) == 2
             x_q, x_scale = silu_quant_args
         else:
             x_q, x_scale = per_token_quant_int8(x)

@@ -20,6 +20,7 @@ from sglang.srt.utils.common import (
     Range,
     ceil_align,
     flatten_arrays_to_pinned_cpu,
+    get_bool_env_var,
     is_pin_memory_available,
 )
 from sglang.srt.utils.weight_versions import (
@@ -160,6 +161,10 @@ INIT_INCREMENTAL_DETOKENIZATION_OFFSET = 5
 # This ensures pad_values don't overlap with valid text token IDs.
 MM_PAD_SHIFT_VALUE = 1_000_000
 _MM_HASH_MASK = (1 << 64) - 1
+
+# Opt in to radix-cache inserts for FAKE_BOOTSTRAP_HOST requests (stub-driven
+# benchmark runs); see the comment in Req.__init__.
+_FAKE_BOOTSTRAP_USE_RADIX = get_bool_env_var("SGLANG_FAKE_BOOTSTRAP_USE_RADIX")
 
 logger = logging.getLogger(__name__)
 
@@ -1288,7 +1293,14 @@ class Req(ReqDllmMixin):
         # retracted request is rebootstrapped. Set in pause_generation(retract)
         # and consumed in the decode transfer commit; never plumbed to prefill.
         self.pd_rebootstrap_forced_output_id: Optional[int] = None
-        self.skip_radix_cache_insert = bootstrap_host == FAKE_BOOTSTRAP_HOST
+        # Engine warmup/health probes use FAKE_BOOTSTRAP_HOST and must not
+        # pollute the radix cache. Stub-driven benchmarks reuse the same host,
+        # but they DO need radix inserts, otherwise chunked-prefill continuation
+        # never finds its own prefix and re-prefills the first chunk forever.
+        # Opt in with SGLANG_FAKE_BOOTSTRAP_USE_RADIX=1 for benchmark runs.
+        self.skip_radix_cache_insert = (
+            bootstrap_host == FAKE_BOOTSTRAP_HOST and not _FAKE_BOOTSTRAP_USE_RADIX
+        )
         self.disagg_kv_sender: Optional[BaseKVSender] = None
 
         self.routed_dp_rank: Optional[int] = routed_dp_rank

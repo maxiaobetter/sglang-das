@@ -1184,6 +1184,16 @@ class SchedulerMetricsReporter:
         self.stats.hicache_host_used_tokens = host_total - host_pool.available_size()
         self.stats.hicache_host_total_tokens = host_total
 
+        mamba_host_pool = getattr(self.scheduler.tree_cache, "mamba_pool_host", None)
+        self.stats.hicache_host_mamba_used_slots = (
+            mamba_host_pool.size - mamba_host_pool.available_size()
+            if mamba_host_pool is not None
+            else 0
+        )
+        self.stats.hicache_host_mamba_total_slots = (
+            mamba_host_pool.size if mamba_host_pool is not None else 0
+        )
+
     def _update_lora_metrics(self):
         """Update LoRA pool metrics for monitoring and autoscaling."""
         if not self.scheduler.enable_lora:
