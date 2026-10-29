@@ -534,6 +534,98 @@ class MambaAttnBackendBase(AttentionBackend):
             dtype=torch.int32,
             device=self.device,
         )
+        self._precompile_tilelang_verify(max_bs, draft_token_num)
+
+    def _precompile_tilelang_verify(self, max_bs: int, draft_token_num: int) -> None:
+        """Warm the optional TileLang verify kernel for every capture bs.
+
+        Runs host-side tilelang JIT ahead of graph capture so a mid-capture
+        cache miss cannot happen. No-op unless the KDA replayssm spec path
+        with the TileLang env flag is active; compile errors only disable
+        the fast path (the per-call helper stays fail-open).
+        """
+        try:
+            from sglang.kernels.ops.attention.fla.hcu.kda_tilelang_verify import (
+                precompile,
+            )
+
+            mamba_pool = self.req_to_token_pool.mamba_pool
+            if not getattr(mamba_pool, "use_hcu_kda_replayssm", False):
+                return
+            spec_cache = mamba_pool.mamba_cache
+            ring = getattr(spec_cache, "replayssm_g", None)
+            if ring is None or not envs.SGLANG_KDA_USE_TILELANG_VERIFY.get():
+                return
+            if not (2 <= draft_token_num <= 8):
+                return
+            # Pool/ring pitches: the dispatch receives at_layer_idx(layer)
+            # per-layer views, i.e. temporal[layer] with stride(0) == the
+            # SLOT pitch (temporal[0].stride(0)), not the whole-pool layer
+            # pitch (temporal.stride(0)). Precompiling with the layer pitch
+            # would never match the runtime cache key.
+            num_layers, pool_slots, hv, window_len, k_dim = ring.shape
+            temporal = spec_cache.temporal[0]
+            _, _, v_dim, k_check = temporal.shape
+            if k_check != k_dim:
+                return
+            # Compile only the capture batch sizes actually used (the
+            # graph-runner capture list when configured; otherwise a coarse
+            # power-of-two ladder plus max_bs). Sizes outside the list still
+            # work: their first (eager warmup) call compiles, and the two
+            # pre-capture warmup runs absorb the JIT so capture never sees it.
+            # Align with the graph runner's real capture list (applies the
+            # tbo/gathered-buffer/TP mul_base and num_max_requests filters
+            # that a raw server_args.cuda_graph_bs read would miss); fall
+            # back to a power-of-two ladder. Sizes outside the list are
+            # still safe: the two pre-capture warmup runs absorb their JIT.
+            bs_list = None
+            try:
+                from sglang.srt.model_executor.runner.base_cuda_graph_runner import (
+                    get_batch_sizes_to_capture,
+                )
+
+                bs_list = [
+                    bs
+                    for bs in get_batch_sizes_to_capture(
+                        self._model_runner, captured_req_width=draft_token_num
+                    )[0]
+                    if 1 <= bs <= max_bs
+                ]
+            except Exception:
+                bs_list = None
+            if not bs_list:
+                bs_list = sorted(
+                    set(
+                        [1 << i for i in range(13) if (1 << i) <= max_bs]
+                        + [max_bs]
+                    )
+                )
+            # Activations arrive with the serving fused-projection layout;
+            # the contiguous defaults here cover the dense path and any
+            # strided variant compiles during warmup (see above).
+            precompile(
+                n_list=bs_list,
+                S=draft_token_num,
+                HV=hv,
+                K=k_dim,
+                V=v_dim,
+                P=pool_slots,
+                PR=pool_slots,
+                W=window_len,
+                pool_dtype=str(spec_cache.temporal.dtype).removeprefix("torch."),
+                h0_stride=spec_cache.temporal[0].stride(0),
+                rv_slot=spec_cache.replayssm_rawv[0].stride(0),
+                rk_slot=spec_cache.replayssm_rawk[0].stride(0),
+                rg_slot=spec_cache.replayssm_g[0].stride(0),
+                rb_slot=spec_cache.replayssm_beta[0].stride(0),
+            )
+        except Exception as e:  # noqa: BLE001 - best-effort warmup
+            logger.warning(
+                "[KDA-TileLang] precompile skipped (%s: %s); the TileLang "
+                "verify path will fall back to Triton per call",
+                type(e).__name__,
+                e,
+            )
 
     def init_cpu_graph_state(self, max_bs: int, max_num_tokens: int):
         assert max_num_tokens % max_bs == 0, (
