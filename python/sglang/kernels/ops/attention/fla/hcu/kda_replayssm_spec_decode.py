@@ -4,7 +4,7 @@
 The recurrent verify kernel still computes every speculative output. It also
 stages the current window's raw ``v``, pre-normalization ``k``, per-K fp32 gate,
 and fp32 beta. After sampling, this module replays only the accepted prefix into
-the persistent fp32 state. The next verify step overwrites the staging window.
+the persistent state with fp32 accumulation. The next verify step overwrites the staging window.
 """
 
 from __future__ import annotations
@@ -171,8 +171,6 @@ def commit_kda_replayssm_spec_all_layers(
     num_layers, _, value_heads, value_dim, key_dim = checkpoint_state.shape
     key_heads = rawk_cache.shape[2]
     window_len = rawv_cache.shape[-2]
-    if checkpoint_state.dtype != torch.float32:
-        raise ValueError("KDA ReplaySSM requires a float32 checkpoint")
     if g_cache.dtype != torch.float32 or beta_cache.dtype != torch.float32:
         raise ValueError("KDA ReplaySSM g/beta windows must use float32")
     if accept_lens.shape != ssm_state_indices.shape:

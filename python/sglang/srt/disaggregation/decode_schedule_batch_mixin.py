@@ -10,12 +10,20 @@ from sglang.srt.managers.overlap_utils import RelayPayload
 from sglang.srt.mem_cache.common import maybe_cache_unfinished_req
 from sglang.srt.model_executor.forward_batch_info import ForwardMode
 from sglang.srt.sampling.sampling_batch_info import SamplingBatchInfo
+from sglang.srt.utils.common import is_pin_memory_available
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from sglang.srt.managers.overlap_utils import FutureMap
     from sglang.srt.managers.schedule_batch import ScheduleBatch
+
+
+def _to_device_async(values, dtype, device):
+    pin = is_pin_memory_available(device)
+    return torch.tensor(values, dtype=dtype, pin_memory=pin).to(
+        device, non_blocking=pin
+    )
 
 
 class ScheduleBatchDisaggregationDecodeMixin:
@@ -80,15 +88,19 @@ class ScheduleBatchDisaggregationDecodeMixin:
         # process_prebuilt through FutureMap, so merge/forward-entry rebuilds
         # input_ids from the relay.
         self.input_ids = None
-        self.req_pool_indices = torch.tensor(
-            req_pool_indices, dtype=torch.int64, device=self.device
+        self.req_pool_indices_cpu = torch.tensor(
+            req_pool_indices, dtype=torch.int64,
+            pin_memory=is_pin_memory_available(self.device),
         )
-        self.req_pool_indices_cpu = torch.tensor(req_pool_indices, dtype=torch.int64)
-        self.seq_lens = torch.tensor(seq_lens, dtype=torch.int64, device=self.device)
-        self.seq_lens_cpu = torch.tensor(seq_lens, dtype=torch.int64)
-        self.orig_seq_lens = torch.tensor(
-            seq_lens, dtype=torch.int32, device=self.device
+        self.req_pool_indices = self.req_pool_indices_cpu.to(
+            self.device, non_blocking=True
         )
+        self.seq_lens_cpu = torch.tensor(
+            seq_lens, dtype=torch.int64,
+            pin_memory=is_pin_memory_available(self.device),
+        )
+        self.seq_lens = self.seq_lens_cpu.to(self.device, non_blocking=True)
+        self.orig_seq_lens = _to_device_async(seq_lens, torch.int32, self.device)
         self.out_cache_loc = out_cache_loc
         self.seq_lens_sum = sum(seq_lens)
 
@@ -140,9 +152,7 @@ class ScheduleBatchDisaggregationDecodeMixin:
                         error_message, HTTPStatus.INTERNAL_SERVER_ERROR
                     )
                 req.grammar.finished = req.finished()
-        last_tokens_tensor = torch.tensor(
-            last_tokens, dtype=torch.int64, device=self.device
-        )
+        last_tokens_tensor = _to_device_async(last_tokens, torch.int64, self.device)
 
         spec_info = self.spec_algorithm.build_disagg_draft_input(
             self,

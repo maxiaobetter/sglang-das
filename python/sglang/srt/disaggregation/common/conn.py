@@ -917,9 +917,26 @@ class CommonKVManager(BaseKVManager):
     ):
         # Cached sockets are shared across sender threads and zmq sockets are
         # not thread-safe; serialize sends per endpoint.
-        sock = self._connect(endpoint, is_ipv6=is_ipv6)
-        with self._socket_send_locks[endpoint]:
+        with self._socket_lock:
+            send_lock = self._socket_send_locks.setdefault(endpoint, threading.Lock())
+        with send_lock:
+            sock = self._connect(endpoint, is_ipv6=is_ipv6)
             sock.send_multipart(parts)
+
+    def _disconnect_manager_endpoint(self, endpoint: str):
+        # Keep the per-endpoint lock so a reconnect and a concurrent retirement
+        # serialize with the same lock as sends. Acquire it before _socket_lock,
+        # matching _send_multipart_locked and avoiding close during a live send.
+        with self._socket_lock:
+            send_lock = self._socket_send_locks.setdefault(endpoint, threading.Lock())
+        with send_lock:
+            with self._socket_lock:
+                sock = self._socket_cache.pop(endpoint, None)
+                monitor = self._monitor_cache.pop(endpoint, None)
+                if sock is not None:
+                    sock.close(linger=0)
+                if monitor is not None:
+                    monitor.close()
 
     def get_mha_kv_ptrs_with_pp(
         self, src_kv_ptrs: List[int], dst_kv_ptrs: List[int]
@@ -1421,6 +1438,7 @@ class CommonKVManager(BaseKVManager):
 
         for endpoint in stale_endpoints:
             CommonKVReceiver.disconnect_endpoint(endpoint)
+            self._disconnect_manager_endpoint(endpoint)
 
         affected_rooms = []
         for room in possible_affected_rooms:
