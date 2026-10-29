@@ -98,6 +98,7 @@ from sglang.srt.mem_cache.common import (
 )
 from sglang.srt.mem_cache.deepseek_v4_memory_pool import DeepSeekV4TokenToKVPool
 from sglang.srt.mem_cache.memory_pool import (
+    DSATokenToKVPool,
     HybridReqToTokenPool,
     KVCache,
     ReqToTokenPool,
@@ -526,19 +527,79 @@ class DecodePreallocQueue(DecodeHiCachePreallocMixin):
             and isinstance(self.token_to_kv_pool, DeepSeekV4TokenToKVPool)
         )
 
+    def _uses_dsa_decode_radix_cache(self) -> bool:
+        # Main and MTP draft KV share token slots and reuse the same radix
+        # prefix. Their buffers remain grouped for delta-only KV transfer;
+        # Index-K still uses full-prompt state transfer.
+        return (
+            self.scheduler.server_args.disaggregation_decode_enable_radix_cache
+            and isinstance(self.token_to_kv_pool, DSATokenToKVPool)
+        )
+
+    def _uses_mla_decode_radix_cache(self) -> bool:
+        return (
+            self._uses_dsv4_decode_radix_cache()
+            or self._uses_dsa_decode_radix_cache()
+        )
+
+    def _log_decode_radix_transfer_plan(
+        self,
+        req: Req,
+        *,
+        prompt_tokens: int,
+        prefix_tokens: int,
+        transfer_pages: int,
+        page_size: int,
+        state_indices: Optional[List],
+    ) -> None:
+        if not self._uses_mla_decode_radix_cache() or not (
+            envs.SGLANG_DEBUG_DECODE_RADIX_CACHE.get()
+            or envs.SGLANG_DEBUG_DSV4_DECODE_RADIX_TRANSFER.get()
+        ):
+            return
+
+        index_k_pages = 0
+        for state_type, indices in zip(
+            self.kv_manager.kv_args.state_types, state_indices or []
+        ):
+            if state_type == StateType.DSA and indices is not None:
+                index_k_pages += len(indices)
+        logger.info(
+            "Decode radix transfer plan: rid=%s pool=%s "
+            "prompt_tokens=%d decode_prefix_len=%d "
+            "kv_transfer_tokens=%d kv_transfer_pages=%d page_size=%d "
+            "draft_kv_included=%s index_k_transfer_pages=%d",
+            req.rid,
+            type(self.token_to_kv_pool).__name__,
+            prompt_tokens,
+            prefix_tokens,
+            prompt_tokens - prefix_tokens,
+            transfer_pages,
+            page_size,
+            self.draft_token_to_kv_pool is not None,
+            index_k_pages,
+        )
+
+    def _decode_radix_compression_ratios(self) -> List[int]:
+        # DSV4 exposes per-layer compression ratios; plain MLA/DSA pools do not
+        # compress, so treat them as ratio 1 (page-size alignment only). This
+        # also fixes the AttributeError on DSATokenToKVPool, which has no
+        # `compression_ratios` attribute.
+        return list(getattr(self.token_to_kv_pool, "compression_ratios", []) or [1])
+
     def _dsv4_safe_prefix_len(self, prefix_len: int) -> int:
         """Avoid splitting reused prefixes through compressed DSV4 blocks."""
-        if not self._uses_dsv4_decode_radix_cache() or prefix_len <= 0:
+        if not self._uses_mla_decode_radix_cache() or prefix_len <= 0:
             return prefix_len
 
-        compression_ratios = self.token_to_kv_pool.compression_ratios
+        compression_ratios = self._decode_radix_compression_ratios()
         max_compression_ratio = max([r for r in compression_ratios if r > 0], default=1)
         page_size = self.token_to_kv_pool_allocator.page_size
         alignment = math.lcm(page_size, max_compression_ratio)
         return (prefix_len // alignment) * alignment
 
     def _dsv4_singleflight_min_prefix_len(self) -> int:
-        compression_ratios = self.token_to_kv_pool.compression_ratios
+        compression_ratios = self._decode_radix_compression_ratios()
         max_compression_ratio = max([r for r in compression_ratios if r > 0], default=1)
         alignment = math.lcm(
             self.token_to_kv_pool_allocator.page_size, max_compression_ratio
@@ -555,7 +616,7 @@ class DecodePreallocQueue(DecodeHiCachePreallocMixin):
     def _dsv4_inflight_prompt_reqs(
         self, preallocated_reqs: List[DecodeRequest]
     ) -> List[Req]:
-        if not self._uses_dsv4_decode_radix_cache():
+        if not self._uses_mla_decode_radix_cache():
             return []
 
         inflight_reqs = [
@@ -2149,21 +2210,14 @@ class DecodePreallocQueue(DecodeHiCachePreallocMixin):
             metadata_kwargs = {}
             if device_page_indices is not None:
                 metadata_kwargs["device_kv_indices"] = device_page_indices
-            if (
-                self._uses_dsv4_decode_radix_cache()
-                and envs.SGLANG_DEBUG_DSV4_DECODE_RADIX_TRANSFER.get()
-            ):
-                logger.info(
-                    "DSV4 decode radix transfer stats: rid=%s "
-                    "origin_input_len=%d decode_prefix_len=%d "
-                    "transfer_tokens=%d transfer_pages=%d page_size=%d",
-                    decode_req.req.rid,
-                    origin_input_len,
-                    total_prefix_len,
-                    origin_input_len - total_prefix_len,
-                    len(page_indices),
-                    kv_transfer_page_size,
-                )
+            self._log_decode_radix_transfer_plan(
+                decode_req.req,
+                prompt_tokens=origin_input_len,
+                prefix_tokens=total_prefix_len,
+                transfer_pages=len(page_indices),
+                page_size=kv_transfer_page_size,
+                state_indices=state_indices,
+            )
             if (
                 self.transfer_queue.enable_staging
                 and hasattr(decode_req.kv_receiver, "require_staging")
@@ -2541,12 +2595,14 @@ class DecodePreallocQueue(DecodeHiCachePreallocMixin):
         # inserts committed KV into the radix tree. The last output token
         # hasn't had KV committed yet (output_ids is 1 ahead).
         req.full_untruncated_fill_ids = req.origin_input_ids + req.output_ids
-        if self._uses_dsv4_decode_radix_cache():
-            # DSV4 compressed sidecars are not yet safe to reinsert from decode
-            # workers after generation starts. Defer the one prompt insert
-            # until the prebuilt forward has finished; process_prebuilt() runs
-            # before forward and must not free duplicate prompt pages still
-            # referenced by the current batch's out_cache_loc.
+        if self._uses_mla_decode_radix_cache():
+            # Defer the single prompt insert until the prebuilt forward has
+            # finished: process_prebuilt() runs before forward and must not free
+            # duplicate prompt pages still referenced by the current batch's
+            # out_cache_loc. DSV4 additionally carries compressed sidecars; DSA
+            # is plain MLA but shares the same deferral requirement. Bounding the
+            # key to kv_committed_len keeps MTP accepted/draft deltas out of the
+            # radix tree.
             req.dsv4_decode_radix_cache_prompt_len = req.kv_committed_len
             req.dsv4_decode_radix_cache_prompt_once = True
             req.skip_radix_cache_insert = True
