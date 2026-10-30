@@ -860,6 +860,9 @@ class SlimQuantW4A8Int8MarlinConfig(QuantizationConfig):
                     raise NotImplementedError(
                         f"SlimQuant W4A8 requires INT8 Linear weights: {prefix}"
                     )
+                # The CT scheme already selects INT8; do not fall through to
+                # the architecture-specific mixed_precision include list.
+                return SlimQuantW4A8Int8LinearMethod(self)
             fused_mapping = getattr(self, "packed_modules_mapping", {}) or {}
             # Kimi-K3 INT4 (from mxfp4_to_int4.py) only quantizes the routed
             # experts; dense layers stay in BF16 and are listed in the
