@@ -96,7 +96,10 @@ from sglang.srt.managers.io_struct import (
     unwrap_from_pickle,
 )
 from sglang.srt.managers.load_snapshot import create_load_snapshot_reader
-from sglang.srt.managers.mm_utils import wrap_shm_features
+from sglang.srt.managers.mm_utils import (
+    strip_local_decode_mm_features,
+    wrap_shm_features,
+)
 from sglang.srt.managers.multimodal_processor import get_mm_processor, import_processors
 from sglang.srt.managers.schedule_batch import (
     MultimodalDataItem,
@@ -1214,6 +1217,17 @@ class TokenizerManager(TokenizerControlMixin, TokenizerManagerScoreMixin):
                         item.set_pad_value()
         else:
             mm_inputs = None
+
+        if (
+            self.disaggregation_mode == DisaggregationMode.DECODE
+            and get_disagg().language_only
+            and get_disagg().encoder_transfer_backend in ("mooncake", "zmq_to_scheduler")
+            and not obj.need_wait_for_mm_inputs
+            and getattr(self.mm_processor, "tokenizes_input_text", False)
+        ):
+            # GLM already built token IDs, grid metadata and M-RoPE locally.
+            # The decoder reuses Prefill KV and never runs the vision encoder.
+            strip_local_decode_mm_features(mm_inputs)
 
         if getattr(self.model_config.hf_text_config, "model_type", None) in (
             "glm5_next",
@@ -3756,6 +3770,36 @@ class TokenizerManager(TokenizerControlMixin, TokenizerManagerScoreMixin):
             self._forward_encoder_dispatch_error, error
         )
 
+    def _decode_can_build_mm_locally(self, obj: GenerateReqInput) -> bool:
+        """Whether decode can build the mm metadata without the encoder.
+
+        Prefill keeps a literal mm token that has no matching data (e.g. user
+        text containing "<|video|>") as plain text, but the local mm parser
+        rejects it. A local failure here would never reach prefill, which then
+        waits for decode until the bootstrap timeout, so such prompts must take
+        the same encoder path as prefill.
+        """
+        mm_tokens = getattr(self.mm_processor, "mm_tokens", None)
+        prompt = obj.text
+        if prompt is None and obj.is_single and obj.input_ids and self.tokenizer:
+            prompt = self.tokenizer.decode(obj.input_ids)
+        if mm_tokens is None or not isinstance(prompt, str):
+            return True
+        can_build_locally = self.mm_processor.mm_tokens_match_data(
+            prompt,
+            mm_tokens,
+            image_data=obj.image_data,
+            video_data=obj.video_data,
+            audio_data=obj.audio_data,
+        )
+        if not can_build_locally:
+            logger.info(
+                "Multimodal tokens do not match the data of request %s; "
+                "dispatching to the encoder on decode.",
+                obj.rid,
+            )
+        return can_build_locally
+
     def _should_dispatch_to_encoder(
         self, obj: Union[GenerateReqInput, EmbeddingReqInput]
     ) -> bool:
@@ -3788,7 +3832,14 @@ class TokenizerManager(TokenizerControlMixin, TokenizerManagerScoreMixin):
         if isinstance(obj, GenerateReqInput) and obj.contains_mm_input():
             # dispatch to encoder by default
             should_dispatch = True
-            if get_disagg().enable_adaptive_dispatch_to_encoder:
+            if self.disaggregation_mode == DisaggregationMode.DECODE:
+                # Decode reuses prefill KV and never consumes vision embeddings;
+                # it only needs input_ids / mrope layout. Dispatching here would
+                # run a second full ViT encode (+ RDMA) per request on the
+                # shared encoder. Build the metadata locally instead, unless the
+                # prompt cannot be parsed locally (see below).
+                should_dispatch = not self._decode_can_build_mm_locally(obj)
+            elif get_disagg().enable_adaptive_dispatch_to_encoder:
                 should_dispatch = self._should_dispatch_to_encoder(obj)
 
             # Set need_wait_for_mm_inputs flag based on whether we dispatch to encoder
