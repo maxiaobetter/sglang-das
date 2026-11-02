@@ -3794,39 +3794,6 @@ class TokenizerManager(TokenizerControlMixin, TokenizerManagerScoreMixin):
             and self.mm_processor.builds_epd_layout_from_media
         )
 
-    def _decode_can_build_mm_locally(self, obj: GenerateReqInput) -> bool:
-        """Whether decode can build the mm metadata without the encoder.
-
-        Prefill keeps a literal mm token that has no matching data (e.g. user
-        text containing "<|video|>") as plain text, but a processor without
-        process_mm_layout_async parses the prompt text and rejects it. A local
-        failure here would never reach prefill, which then waits for decode
-        until the bootstrap timeout, so such prompts must take the same encoder
-        path as prefill.
-        """
-        if self._decode_builds_mm_layout_from_media():
-            return True
-        mm_tokens = getattr(self.mm_processor, "mm_tokens", None)
-        prompt = obj.text
-        if prompt is None and obj.is_single and obj.input_ids and self.tokenizer:
-            prompt = self.tokenizer.decode(obj.input_ids)
-        if mm_tokens is None or not isinstance(prompt, str):
-            return True
-        can_build_locally = self.mm_processor.mm_tokens_match_data(
-            prompt,
-            mm_tokens,
-            image_data=obj.image_data,
-            video_data=obj.video_data,
-            audio_data=obj.audio_data,
-        )
-        if not can_build_locally:
-            logger.info(
-                "Multimodal tokens do not match the data of request %s; "
-                "dispatching to the encoder on decode.",
-                obj.rid,
-            )
-        return can_build_locally
-
     def _should_dispatch_to_encoder(
         self, obj: Union[GenerateReqInput, EmbeddingReqInput]
     ) -> bool:
@@ -3859,13 +3826,13 @@ class TokenizerManager(TokenizerControlMixin, TokenizerManagerScoreMixin):
         if isinstance(obj, GenerateReqInput) and obj.contains_mm_input():
             # dispatch to encoder by default
             should_dispatch = True
-            if self.disaggregation_mode == DisaggregationMode.DECODE:
+            if self._decode_builds_mm_layout_from_media():
                 # Decode reuses prefill KV and never consumes vision embeddings;
                 # it only needs input_ids / mrope layout. Dispatching here would
                 # run a second full ViT encode (+ RDMA) per request on the
-                # shared encoder. Build the metadata locally instead, unless the
-                # prompt cannot be parsed locally (see below).
-                should_dispatch = not self._decode_can_build_mm_locally(obj)
+                # shared encoder. Other processors have no local layout that
+                # matches prefill's, so they keep dispatching.
+                should_dispatch = False
             elif get_disagg().enable_adaptive_dispatch_to_encoder:
                 should_dispatch = self._should_dispatch_to_encoder(obj)
 

@@ -839,6 +839,7 @@ class BaseMultimodalProcessor(ABC):
         videos=None,
         audios=None,
         processor=None,
+        processor_image_config: Optional[Dict[str, Any]] = None,
         processor_video_config: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> dict:
@@ -849,8 +850,13 @@ class BaseMultimodalProcessor(ABC):
 
         if images:
             kwargs["images"] = images
-            if self.image_config:
-                kwargs.setdefault("images_kwargs", {}).update(self.image_config)
+            image_config = (
+                self.image_config
+                if processor_image_config is None
+                else processor_image_config
+            )
+            if image_config:
+                kwargs.setdefault("images_kwargs", {}).update(image_config)
         if videos:
             kwargs["videos"] = videos
             video_config = (
@@ -1222,30 +1228,6 @@ class BaseMultimodalProcessor(ABC):
             audios.append(result)
 
         return is_precomputed, images, videos, audios
-
-    @staticmethod
-    def mm_tokens_match_data(
-        prompt: str,
-        multimodal_tokens: MultimodalSpecialTokens,
-        image_data: Optional[Union[list, Any]] = None,
-        video_data: Optional[Union[list, Any]] = None,
-        audio_data: Optional[Union[list, Any]] = None,
-    ) -> bool:
-        """Whether the prompt has exactly one mm token per data item."""
-        cnt = {Modality.IMAGE: 0, Modality.VIDEO: 0, Modality.AUDIO: 0}
-        for text_part in re.split(multimodal_tokens.get_combined_regex(), prompt):
-            modality = multimodal_tokens.get_modality_of_token(text_part)
-            if modality is not None:
-                cnt[modality] += 1
-
-        def _count(data) -> int:
-            return len(data) if isinstance(data, list) else int(data is not None)
-
-        return (
-            cnt[Modality.IMAGE] == _count(image_data)
-            and cnt[Modality.VIDEO] == _count(video_data)
-            and cnt[Modality.AUDIO] == _count(audio_data)
-        )
 
     async def load_mm_data(
         self,
