@@ -217,6 +217,9 @@ class BaseMultimodalProcessor(ABC):
     smart_rgb_conversion = False
     video_preprocessing_device = None
     prefer_tokenized_input = False
+    # Set by processors implementing process_mm_layout_async, which EPD decode
+    # uses to rebuild prefill's layout from the media alone.
+    builds_epd_layout_from_media = False
     precompute_hash_before_cpu_transfer = False
     # Set by processors that already build input_ids from the request's own
     # tokens, so the retokenize-avoidance rebuild below has nothing to add.
