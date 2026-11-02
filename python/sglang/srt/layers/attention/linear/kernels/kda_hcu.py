@@ -13,6 +13,15 @@ if not is_cpu():
     )
     from sglang.kernels.ops.attention.fla.hcu.kda import chunk_kda
 
+    try:
+        from sglang.kernels.ops.attention.fla.hcu.kda_tilelang_verify import (
+            tilelang_target_verify_or_none,
+        )
+    except ImportError:
+        tilelang_target_verify_or_none = None
+else:
+    tilelang_target_verify_or_none = None
+
 
 class HcuKDAKernel(LinearAttnKernelBase):
     """Triton-based kernel for KDA (Kimi Delta Attention) linear attention."""
@@ -105,6 +114,32 @@ class HcuKDAKernel(LinearAttnKernelBase):
         beta_scale: float = 1.0,
         **kwargs,
     ) -> torch.Tensor:
+        # Optional TileLang fast path. Returns None when disabled or when this
+        # call shape is unsupported, in which case we fall through to Triton.
+        if tilelang_target_verify_or_none is not None:
+            out = tilelang_target_verify_or_none(
+                A_log=A_log,
+                dt_bias=dt_bias,
+                q=q,
+                k=k,
+                v=v,
+                a=a,
+                b=b,
+                initial_state_source=ssm_states,
+                initial_state_indices=cache_indices,
+                cu_seqlens=query_start_loc,
+                lower_bound=lower_bound,
+                beta_scale=beta_scale,
+                cache_steps=cache_steps,
+                retrieve_parent_token=retrieve_parent_token,
+                cache_replayssm_inputs=kwargs.get("cache_replayssm_inputs", False),
+                replayssm_rawv=kwargs.get("replayssm_rawv"),
+                replayssm_rawk=kwargs.get("replayssm_rawk"),
+                replayssm_g=kwargs.get("replayssm_g"),
+                replayssm_beta=kwargs.get("replayssm_beta"),
+            )
+            if out is not None:
+                return out
         return fused_sigmoid_gating_delta_rule_update(
             A_log=A_log,
             dt_bias=dt_bias,

@@ -255,6 +255,9 @@ class DsparkFoldedSampling(IntEnum):
 
 
 class Envs:
+    # Optional HCU KDA speculative verification kernel (default off).
+    SGLANG_KDA_USE_TILELANG_VERIFY = EnvBool(False)
+
     SGLANG_ENABLE_HEALTH_CHECK_IPC_DRAIN_ALL = EnvBool(False)
     SGLANG_UVICORN_WORKER_STARTUP_TIMEOUT = EnvInt(300)
     SGLANG_USE_FUSED_SILU_MUL_CLAMP_QUANT = EnvBool(False)

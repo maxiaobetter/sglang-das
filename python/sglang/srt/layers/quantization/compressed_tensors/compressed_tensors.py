@@ -198,7 +198,7 @@ class CompressedTensorsConfig(QuantizationConfig):
             if scheme is None:
                 return UnquantizedLinearMethod()
             layer.scheme = scheme
-            return CompressedTensorsLinearMethod(self)
+            return CompressedTensorsLinearMethod(self, scheme=scheme)
 
         from sglang.srt.layers.vocab_parallel_embedding import ParallelLMHead
 
@@ -208,7 +208,7 @@ class CompressedTensorsConfig(QuantizationConfig):
                 # Unquantized head: fall back to the embedding default.
                 return None
             layer.scheme = scheme
-            return CompressedTensorsLinearMethod(self)
+            return CompressedTensorsLinearMethod(self, scheme=scheme)
 
         from sglang.srt.layers.radix_attention import RadixAttention
 
@@ -1221,9 +1221,18 @@ class CompressedTensorsKVCacheMethod(BaseKVCacheMethod):
 
 
 class CompressedTensorsLinearMethod(LinearMethodBase):
-    def __init__(self, quantization_config: CompressedTensorsConfig):
+    supports_prequantized_input = False
+
+    def __init__(
+        self,
+        quantization_config: CompressedTensorsConfig,
+        scheme: Optional[CompressedTensorsLinearScheme] = None,
+    ):
         self.quantization_config = quantization_config
         self.quant_config = quantization_config
+        self.supports_prequantized_input = bool(
+            getattr(scheme, "supports_prequantized_input", False)
+        )
 
     def process_weights_after_loading(self, layer: torch.nn.Module) -> None:
         layer.scheme.process_weights_after_loading(layer)

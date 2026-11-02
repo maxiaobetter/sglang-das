@@ -1428,12 +1428,20 @@ async def benchmark(
         warmup_batch_size = max(1, warmup_requests)
         warmup_indices = set()
     elif args.dataset_name == "generated-shared-prefix":
-        # Warm up with real requests spread over the whole dataset instead of a
-        # contiguous prefix: with --gsp-ordered the rows are group-major, so a
-        # prefix would only ever warm the first few groups. Evenly spaced picks
-        # cover every group in both ordered and shuffled modes.
-        step = len(input_requests) / max(1, warmup_requests)
-        warmup_indices = {int(i * step) for i in range(warmup_requests)}
+        if (
+            not getattr(args, "gsp_ordered", False)
+            and getattr(args, "gsp_group_distribution", "uniform") == "uniform"
+        ):
+            # Round-robin rows: use 2*G distinct suffixes to expose the shared
+            # prefix branch for G groups. Two serialized waves let branch-point
+            # Mamba/KDA state be tracked before the measured requests arrive.
+            # Cached datasets retain their saved order; check cache reuse when
+            # using an older dataset. Keep the target's warmup exclusion below.
+            warmup_indices = set(range(warmup_requests))
+        else:
+            # Ordered and Zipf modes retain the target's spread-out sampling.
+            step = len(input_requests) / max(1, warmup_requests)
+            warmup_indices = {int(i * step) for i in range(warmup_requests)}
         warmup_rows = [input_requests[i] for i in sorted(warmup_indices)]
         # Send one wave per group so a single wave already touches every group
         # instead of warming the same prefix repeatedly.
@@ -2724,7 +2732,7 @@ def cli_main():
     group.add_argument(
         "--gsp-ordered",
         action="store_true",
-        help="Keep requests in order without shuffling. By default, requests are shuffled randomly.",
+        help="Keep generation order. Default uniform requests interleave groups round-robin; Zipf requests are shuffled.",
     )
     group.add_argument(
         "--gsp-group-distribution",

@@ -114,7 +114,12 @@ def build_conv_slot_descriptor(tensors: List[torch.Tensor]) -> ConvSlotDescripto
         layer_stride.append(t.stride(0))
         slot_stride.append(t.stride(1))
         max_feat = max(max_feat, t[0, 0].numel())
-    to_i64 = lambda xs: torch.tensor(xs, dtype=torch.int64, device=device)
+    def to_i64(xs):
+        # Keep descriptor materialization asynchronous on the serving stream.
+        # A pageable H2D copy can wait on unrelated in-flight collectives.
+        return torch.tensor(
+            xs, dtype=torch.int64, pin_memory=device.type == "cuda"
+        ).to(device, non_blocking=True)
     return ConvSlotDescriptor(
         ptr=to_i64(ptr),
         feat=to_i64(feat),

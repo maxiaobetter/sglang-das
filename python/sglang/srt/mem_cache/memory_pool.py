@@ -540,8 +540,6 @@ class MambaPool:
         self.use_hcu_kda_replayssm = bool(
             enable_linear_replayssm_spec and self.use_hcu_kda
         )
-        if self.use_hcu_kda_replayssm and ssm_dtype != torch.float32:
-            raise ValueError("GLM5-Next ReplaySSM requires float32 Mamba state")
         self.replayssm_spec_fold = bool(
             enable_linear_replayssm_spec and cache_params.is_kda
         )
