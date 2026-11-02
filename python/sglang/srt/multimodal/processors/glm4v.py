@@ -22,6 +22,7 @@ from sglang.srt.multimodal.processors.base_processor import (
 from sglang.srt.multimodal.processors.base_processor import (
     MultimodalSpecialTokens,
 )
+from sglang.srt.runtime_context import get_mm
 from sglang.srt.utils import GLM_MEDIA_CONFIG_KEYS
 from sglang.srt.utils.video_decoder import VideoDecoderWrapper
 
@@ -894,7 +895,7 @@ class Glm4vImageProcessor(SGLangBaseProcessor):
         never matched against the data here, so decode accepts what prefill does.
         """
         video_urls, video_configs, video_processor = self._glm_video_configs(
-            request_obj
+            request_obj, base_config=self._encoder_mm_config("video")
         )
         loaded = await self.fast_load_mm_data(
             prompt="",
@@ -917,9 +918,15 @@ class Glm4vImageProcessor(SGLangBaseProcessor):
             video_processor=video_processor,
             sampler=None,
         )
+        # The encoder's video config only steers sampling; its processor call
+        # gets the budget kwargs alone.
         processor_kwargs = self._glm_video_processor_kwargs(
-            video_metadata=video_metadata, videos_kwargs=videos_kwargs
+            video_metadata=video_metadata,
+            videos_kwargs=videos_kwargs,
+            base_config={},
         )
+        processor_kwargs.setdefault("processor_video_config", videos_kwargs or {})
+        processor_kwargs["processor_image_config"] = self._encoder_mm_config("image")
         if (
             framed
             and video_metadata is not None
@@ -960,12 +967,21 @@ class Glm4vImageProcessor(SGLangBaseProcessor):
             self.process_mm_data, input_text="", **kwargs
         )
 
-    def _glm_video_configs(self, request_obj):
+    @staticmethod
+    def _encoder_mm_config(modality):
+        # EncoderPreprocessor._build_vision_config reads vision_config, while
+        # self.image_config / self.video_config are the top-level keys.
+        vision_config = (get_mm().mm_process_config or {}).get("vision_config") or {}
+        return vision_config.get(modality) or {}
+
+    def _glm_video_configs(self, request_obj, base_config=None):
         # Bare base64 video must use SGLang's decoder because HF treats it as a path-like string.
         video_urls, video_configs = split_glm_video_items(request_obj.video_data)
         video_processor = getattr(self._processor, "video_processor", None)
         default_video_config = glm_processor_video_config(video_processor)
-        default_video_config.update(self.video_config)
+        default_video_config.update(
+            self.video_config if base_config is None else base_config
+        )
         video_configs = _merge_glm_video_configs(default_video_config, video_configs)
         return video_urls, video_configs, video_processor
 
@@ -1032,12 +1048,16 @@ class Glm4vImageProcessor(SGLangBaseProcessor):
             return metadata, videos_kwargs
         return None, videos_kwargs
 
-    def _glm_video_processor_kwargs(self, *, video_metadata, videos_kwargs):
+    def _glm_video_processor_kwargs(
+        self, *, video_metadata, videos_kwargs, base_config=None
+    ):
         if video_metadata is None:
             return {}
         processor_video_config = {
             key: value
-            for key, value in self.video_config.items()
+            for key, value in (
+                self.video_config if base_config is None else base_config
+            ).items()
             if key not in {"fps", "max_frames", "max_tokens_per_frame"}
         }
         if videos_kwargs is not None:

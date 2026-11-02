@@ -1779,7 +1779,7 @@ class GlmWaitingRDMARequest(WaitingRDMARequest):
         if not self.recv_req.encoder_part_routes:
             raise ValueError(f"No encoder parts assigned for {self.rid}")
         if getattr(self.mm_processor, "tp_rank", 0) == 0:
-            logger.info(
+            logger.debug(
                 "EPD per-part RDMA pipeline: rid=%s parts=%d",
                 self.rid, len(self.recv_req.encoder_part_routes),
             )
@@ -1844,7 +1844,7 @@ class GlmWaitingRDMARequest(WaitingRDMARequest):
                     # No sibling metadata/encode barrier: publish this
                     # destination as soon as this part's embedding is ready.
                     if getattr(self.mm_processor, "tp_rank", 0) == 0:
-                        logger.info(
+                        logger.debug(
                             "EPD part send: rid=%s part=%d bytes=%d",
                             self.rid, route["part_idx"], nbytes,
                         )
