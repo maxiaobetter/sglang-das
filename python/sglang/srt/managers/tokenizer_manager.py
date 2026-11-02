@@ -1044,6 +1044,11 @@ class TokenizerManager(TokenizerControlMixin, TokenizerManagerScoreMixin):
         is_cross_encoder_request = (
             isinstance(obj, EmbeddingReqInput) and obj.is_cross_encoder_request
         )
+        decode_mm_layout = (
+            self._decode_builds_mm_layout_from_media()
+            and obj.contains_mm_input()
+            and not obj.need_wait_for_mm_inputs
+        )
         if obj.input_embeds is not None:
             if not get_memory().disable_radix_cache:
                 raise ValueError(
@@ -1065,12 +1070,15 @@ class TokenizerManager(TokenizerControlMixin, TokenizerManagerScoreMixin):
 
             # For audio-only requests (e.g., Whisper), text may be empty.
             # The multimodal processor will provide input_ids later.
-            glm_local_mm = getattr(
-                self.mm_processor, "tokenizes_input_text", False
-            ) and (
-                not get_disagg().language_only
-                or get_disagg().encoder_transfer_backend == "zmq_to_tokenizer"
-                or not obj.need_wait_for_mm_inputs
+            # Decode layout tokenizes like prefill: both expand the same token IDs.
+            glm_local_mm = (
+                getattr(self.mm_processor, "tokenizes_input_text", False)
+                and not decode_mm_layout
+                and (
+                    not get_disagg().language_only
+                    or get_disagg().encoder_transfer_backend == "zmq_to_tokenizer"
+                    or not obj.need_wait_for_mm_inputs
+                )
             )
             if (
                 self.mm_processor
@@ -1154,6 +1162,12 @@ class TokenizerManager(TokenizerControlMixin, TokenizerManagerScoreMixin):
                         request_obj=obj,
                         max_req_input_len=self.max_req_input_len,
                     )
+            elif decode_mm_layout:
+                mm_inputs = await self.mm_processor.process_mm_layout_async(
+                    image_data=obj.image_data,
+                    input_ids=input_ids,
+                    request_obj=obj,
+                )
             elif (
                 get_disagg().language_only
                 and get_disagg().encoder_transfer_backend
@@ -3770,15 +3784,28 @@ class TokenizerManager(TokenizerControlMixin, TokenizerManagerScoreMixin):
             self._forward_encoder_dispatch_error, error
         )
 
+    def _decode_builds_mm_layout_from_media(self) -> bool:
+        """Whether decode rebuilds prefill's mm layout itself, without the encoder."""
+        return (
+            self.disaggregation_mode == DisaggregationMode.DECODE
+            and get_disagg().language_only
+            and get_disagg().encoder_transfer_backend in ("mooncake", "zmq_to_scheduler")
+            and self.mm_processor is not None
+            and self.mm_processor.builds_epd_layout_from_media
+        )
+
     def _decode_can_build_mm_locally(self, obj: GenerateReqInput) -> bool:
         """Whether decode can build the mm metadata without the encoder.
 
         Prefill keeps a literal mm token that has no matching data (e.g. user
-        text containing "<|video|>") as plain text, but the local mm parser
-        rejects it. A local failure here would never reach prefill, which then
-        waits for decode until the bootstrap timeout, so such prompts must take
-        the same encoder path as prefill.
+        text containing "<|video|>") as plain text, but a processor without
+        process_mm_layout_async parses the prompt text and rejects it. A local
+        failure here would never reach prefill, which then waits for decode
+        until the bootstrap timeout, so such prompts must take the same encoder
+        path as prefill.
         """
+        if self._decode_builds_mm_layout_from_media():
+            return True
         mm_tokens = getattr(self.mm_processor, "mm_tokens", None)
         prompt = obj.text
         if prompt is None and obj.is_single and obj.input_ids and self.tokenizer:
