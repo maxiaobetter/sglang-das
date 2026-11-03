@@ -919,6 +919,11 @@ class Envs:
     SGLANG_ENABLE_DP_ATTENTION_LOCAL_CONTROL_BROADCAST = EnvBool(False)
     SGLANG_KV_LAYOUT_HCU_FA = EnvBool(True)
     SGLANG_USE_LIGHTOP = EnvBool(False)
+    # Experimental GLM DSA channel-FP8 fusions; master switch defaults off.
+    SGLANG_GLM_LIGHTOP_FUSIONS = EnvBool(False)
+    SGLANG_LIGHTOP_MLA_KV_FUSED = EnvBool(True)
+    SGLANG_LIGHTOP_NORM_QUANT = EnvBool(True)
+    SGLANG_LIGHTOP_FUSION_PHASES = EnvStr("verify")
     SGLANG_USE_LIGHTOP_MOE_SUM_MUL_ADD = EnvBool(False)
     SGLANG_USE_OPT_CAT = EnvBool(False)
     SGLANG_USE_FUSED_MLA_CAT = EnvBool(False)

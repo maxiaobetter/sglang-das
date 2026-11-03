@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -12,7 +13,6 @@ from typing import (
     TypeAlias,
 )
 
-import os
 import torch
 
 from sglang.srt.configs.model_config import get_dsa_index_topk, is_deepseek_dsa
@@ -2001,6 +2001,7 @@ class DeepseekSparseAttnBackend(
         is_neox: Optional[bool] = False,
         llama_4_scaling: Optional[torch.Tensor] = None,
         attn_sink: Optional[torch.Tensor] = None,
+        lightop_fused_q: bool = False,
     ) -> torch.Tensor:
 
         causal = not layer.is_cross_attention
@@ -2069,8 +2070,15 @@ class DeepseekSparseAttnBackend(
                 metadata=metadata,
             )
 
-        # Do absorbed multi-latent attention (MLA path)
-        assert q_rope is not None
+        # FlashMLA KV can consume Q already joined by the LightOp fusion.
+        # Other extend implementations retain their split-Q contract.
+        assert q_rope is not None or (
+            lightop_fused_q
+            and envs.SGLANG_GLM_LIGHTOP_FUSIONS.get()
+            and dsa_impl == "flashmla_kv"
+            and (forward_mode.is_target_verify() or forward_mode.is_draft_extend_v2())
+        )
+        q_all = None
         kv_cache = self.token_to_kv_pool.get_key_buffer(layer.layer_id)
 
         if q_rope is not None:
@@ -2292,7 +2300,7 @@ class DeepseekSparseAttnBackend(
                 skip_softmax_threshold_scale_factor=envs.SGLANG_SKIP_SOFTMAX_PREFILL_THRESHOLD_SCALE_FACTOR.get(),
             )
         elif dsa_impl == "flashmla_kv":
-            if q_rope is not None:
+            if not lightop_fused_q or q_all is None:
                 q_all = concat_mla_absorb_q_general(q_nope, q_rope)
             return self._forward_flashmla_kv(
                 q_all=q_all,
@@ -2350,6 +2358,7 @@ class DeepseekSparseAttnBackend(
         is_neox: Optional[bool] = False,
         llama_4_scaling: Optional[torch.Tensor] = None,
         attn_sink: Optional[torch.Tensor] = None,
+        lightop_fused_q: bool = False,
     ) -> torch.Tensor:
 
         causal = not layer.is_cross_attention
@@ -2452,7 +2461,7 @@ class DeepseekSparseAttnBackend(
                 skip_softmax_threshold_scale_factor=envs.SGLANG_SKIP_SOFTMAX_DECODE_THRESHOLD_SCALE_FACTOR.get(),
             )
         elif self.dsa_decode_impl == "flashmla_kv":
-            if q_rope is not None:
+            if not lightop_fused_q or q_all is None:
                 q_all = concat_mla_absorb_q_general(q_nope, q_rope)
             return self._forward_flashmla_kv(
                 q_all=q_all,
@@ -2596,17 +2605,16 @@ class DeepseekSparseAttnBackend(
         # indices shape must be (s_q, h_kv=1, topk), keep h_kv=1 unchanged
         indices_input = page_table_1.unsqueeze(1)
 
-        if _is_hcu and os.environ.get(
-            "SGLANG_HCU_FORCE_SORTED_SPARSE_INDICES", "0"
-        ) == "1":
+        if (
+            _is_hcu
+            and os.environ.get("SGLANG_HCU_FORCE_SORTED_SPARSE_INDICES", "0") == "1"
+        ):
             from flash_mla.flash_mla_interface import _safe_sort_sparse_indices_inplace
 
             can_reuse_canonical_order = (
                 indices_are_sorted
                 and indices_input.stride(-1) == 1
-                and os.environ.get(
-                    "SGLANG_HCU_REUSE_CANONICAL_SPARSE_SORT", "0"
-                ) == "1"
+                and os.environ.get("SGLANG_HCU_REUSE_CANONICAL_SPARSE_SORT", "0") == "1"
             )
             if not can_reuse_canonical_order:
                 indices_input = _safe_sort_sparse_indices_inplace(
@@ -3042,9 +3050,10 @@ class DeepseekSparseAttnBackend(
             kv_cache = quantize_k_cache(kv_cache)
 
         indices = page_table_1.unsqueeze(1)
-        if _is_hcu and os.environ.get(
-            "SGLANG_HCU_FORCE_SORTED_DECODE_INDICES", "0"
-        ) == "1":
+        if (
+            _is_hcu
+            and os.environ.get("SGLANG_HCU_FORCE_SORTED_DECODE_INDICES", "0") == "1"
+        ):
             from flash_mla.flash_mla_interface import _safe_sort_sparse_indices
 
             # Indices address tokens, not pages. Avoid mutating shared metadata.
