@@ -27,7 +27,7 @@ P01 没有换 LightOp 包。P02 只通过隔离 PYTHONPATH 加载候选 FlashMLA
 
 每行都单独与 B0 比较，其他新增开关保持 0；不要依次累加开启。
 
-Fresh control 平均 TTFT **5019.78 ms**，与历史 B0 相差 +0.16%；P03-r1 为 **10533.73 ms**，较 fresh control 高 **109.84%**，保持关闭。P03-r2 只修订通信 stream 复用后为 **4986.79 ms**，比 fresh control 低 **0.66%**，尚不能确认稳定收益、保持默认关闭。详见 `P03.md` 和 `control_results.json`。
+Fresh control 平均 TTFT **5019.78 ms**，与历史 B0 相差 +0.16%；P03-r1 为 **10533.73 ms**，较 fresh control 高 **109.84%**，保持关闭。P03-r2 只修订通信 stream 复用后为 **4986.79 ms**，比 fresh control 低 **0.66%**，尚不能确认稳定收益、保持默认关闭。P04 两轮为 **4992.98 ms**，相对fresh control低 **0.53%**，同样保持默认关闭。详见 `P03.md`、`P04.md` 和 `control_results.json`。
 
 | ID | 仅开启项 | 实现范围 / 前置条件 |
 | --- | --- | --- |
@@ -43,7 +43,7 @@ Fresh control 平均 TTFT **5019.78 ms**，与历史 B0 相差 +0.16%；P03-r1 �
 | P07 | `SGLANG_HCU_MEGA_MOE_RUNTIME=deepgemm_mega` + MegaMoE backend | 接入 DeepGEMM 的合并版 runtime，保留 checkpoint FP8 权重与 SwiGLU；仅 gfx938、eager、同宿主 HIP IPC；当前两节点基线暂不能直接使用 |
 
 P03–P06 限 GLM 普通 prefill。每项必须确认日志和 trace 命中，未命中标记“不适用”，不能填写性能收益。
-P07 是独立实验入口，不是本次两节点 DeepEP 的已验证替换。跨节点 IPC、在线 EPLB receive stats 尚不支持。
+P07 是独立实验入口，不是本次两节点 DeepEP 的已验证替换。当前adapter暂拒绝不同boot_id的rank；跨宿主HyLink HIP IPC尚未验证，这个保护不能证明硬件或库不支持。在线EPLB receive stats尚未接入。
 如果必须改成单宿主或更新 DeepGEMM 包，需要独立的匹配对照，不能把拓扑/包差异计为 P07 单项收益。
 
 基线包不提供 P05/P06 所需接口时，先记录“包能力缺失”。确需升级则隔离安装，并以同一新包、开关关闭作为该单项的匹配对照，同时保留相对 B0 的结果。不能全量更新三个算子库后再声称单项收益。

@@ -87,10 +87,11 @@
     "note": "Interval overlap is not an A/B saving. Phase timing/attribution still requires matched control and P03-r2."
   },
   "P03_r2_code_commit": "a64d22b963",
-  "P03_r2_measured": false,
+  "P03_r2_measured": true,
   "matched_control": {
     "id": "control-20261104",
     "mean_ttft_ms": 5019.777865951255,
     "relative_ttft_percent": 109.84445493120951
-  }
+  },
+  "P03_r2_result": "P03_r2_results.json"
 }

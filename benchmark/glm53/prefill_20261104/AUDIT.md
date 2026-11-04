@@ -43,7 +43,7 @@
 | 项目 | 静态核验与实际适用性 | 验证状态 |
 | --- | --- | --- |
 | P03 主 KV AllGather / Q absorb BMM overlap | CPv2 interleave 已接入，保持 logical/physical padding；配置只启用此新增开关 | r1 已完成两轮与profile，明显慢于历史B0；fresh control重现B0，r1回退确认；r2恢复基线附近、TTFT低0.66%尚不宣称稳定收益，详见P03.md |
-| P04 直写 Q buffer | 新增开关独立，保持 BF16 absorb 权重/scale | 待独立验证 |
+| P04 直写 Q buffer | Q concat已由78次full copy改为tail copy；BMM strided输出略慢 | 两轮TTFT低0.53%，暂不宣称稳定收益，详见P04.md |
 | P05 Q RMSNorm + FP8 quant | 基线有 `rms_norm_fp8_quant`，但新接入要求显式 `match_sglang` ABI v1，避免沿用旧归约/量化行为 | 待独立验证 |
 | P06 native KV gather/dequant | 基线有 kernel 符号，但缺少 `PREFILL_GATHER_TRITON_NAN_COMPAT_VERSION`，不能只凭符号开启 | 基线包不满足接入契约，需兼容候选包及匹配对照 |
 | residual/input norm + quant | 基线无显式 `match_sglang` ABI v1；兼容内核将以 opt-in 保持 FP32 residual 语义，默认 API 保留原行为 | 框架扩展 P09 已接入，兼容算子与实测尚未完成 |
