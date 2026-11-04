@@ -35,6 +35,8 @@ P11单项已完成：TTFT均值 **4962.62 ms**，相对framework-control低 **1.
 
 P12单项也已完成：TTFT均值 **5015.97 ms**，比framework-control低 **0.52%**，比历史B0高 **0.084%**；Q projection并行命中，32K step只低5.16ms，未确立稳定收益，见 `P12.md`。
 
+LightOp B2全部关闭的匹配对照已完成：TTFT **5017.45 ms**，19/20，32K chunk **3272.20 ms**；换包本身未确立加速。后续融合项分别与此组对照，见 `B2-control.md`。
+
 | ID | 仅开启项 | 实现范围 / 前置条件 |
 | --- | --- | --- |
 | P03 | `SGLANG_GLM_PREFILL_CP_OVERLAP=1` | 主 KV AllGather 与 Q absorb BMM 重叠；支持 CP v1 round-robin 和基线 CP v2 interleave，保留逻辑 token 截断与 padding；不是 Q projection overlap |
