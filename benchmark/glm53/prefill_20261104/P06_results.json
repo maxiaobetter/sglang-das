@@ -1,0 +1,185 @@
+{
+  "case": "P06",
+  "unique_change": "SGLANG_GLM_PREFILL_NATIVE_KV=1; other8flags0 and beta absent; same framework69 and B2 as matching all-off control",
+  "matching_control": "B2_control_results.json",
+  "source_commit": "69fbccd6ed8d0ac9614c71203fd9c9c7d6c8d699",
+  "deployed_source_manifest": "/Users/better/Desktop/SGLang相关/sglang_dcu_github_origin/dcu-sglang/profiles/glm53-prefill-opt-20261104/P06/P06/deployed_source.json",
+  "required_native_sha256": [
+    "f4d69b478289cf93a2be4c0f8f92c7374877609276bd6ba40476ab5a10abee6c",
+    "b0ea2f7f108da6ba22e951c3e795a1ba8a8f95bd70a6843758cb434e1296d66e",
+    "79325b382a56de60f69cfaf8f75fe2b725d2092c002d1cf67bd1248f1537af7a"
+  ],
+  "repeats": [
+    {
+      "repeat": 1,
+      "ttft_ms": 5126.435970810235,
+      "new_input_tok_s": 8531.118702182552,
+      "duration": 21.125482634990476
+    },
+    {
+      "repeat": 2,
+      "ttft_ms": 5127.330787624487,
+      "new_input_tok_s": 8537.239368942202,
+      "duration": 21.110336985002505
+    }
+  ],
+  "mean_ttft_ms": 5126.883379217361,
+  "mean_new_input_tok_s": 8534.179035562378,
+  "relative_to_matching_control_percent": 2.1810106159961817,
+  "relative_to_historical_B0_percent": 2.296860774085019,
+  "gsm8k_20": {
+    "accuracy": 0.95,
+    "invalid": 0.0,
+    "latency": 73.34200700398651,
+    "output_throughput": 29.123828038737713
+  },
+  "trace": {
+    "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P06/traces/1793800702.0988023/1793800702.1084151-TP-0-EP-0.trace.json.gz",
+    "bytes": 82124523,
+    "sha256": "b8229f0fac8d52b00647712f346cd2b1cc34a4ad500cdf0b1ddafd8fc6759c53"
+  },
+  "representative_32k_step": {
+    "ph": "X",
+    "cat": "gpu_user_annotation",
+    "name": "step[EXTEND bs=6 toks=32768]",
+    "pid": 0,
+    "tid": 151,
+    "ts": 2943677132082.882,
+    "dur": 3360276.529,
+    "args": {
+      "External id": 35120
+    }
+  },
+  "matching_control_step_ms": 3272.2033530000003,
+  "step_delta_ms": 88.07317599999998,
+  "native_gather_kernel": {
+    "count": 78,
+    "sum_us": 142564.802
+  },
+  "original_Triton_dequant_kernel": {
+    "count": 78,
+    "sum_us": 61764.041999999994
+  },
+  "kernel_groups_us_sum_and_count": {
+    "Other": [
+      481930.65399999986,
+      3966
+    ],
+    "Other GEMM": [
+      393052.4890000001,
+      727
+    ],
+    "RCCL": [
+      46119.37200000002,
+      101
+    ],
+    "MQA logits": [
+      372971.66800000006,
+      126
+    ],
+    "TopK": [
+      138483.30300000004,
+      126
+    ],
+    "FlashMLA sparse attention": [
+      777743.1699999996,
+      78
+    ],
+    "DeepEP dispatch/other": [
+      111747.86899999992,
+      225
+    ],
+    "DeepGEMM MoE": [
+      431730.16799999983,
+      150
+    ],
+    "DeepEP combine notify/wait": [
+      349711.859,
+      75
+    ],
+    "DeepEP combine data": [
+      230133.397,
+      75
+    ]
+  },
+  "all_rank_scopes": {
+    "case": "P06",
+    "scope": "glm_prefill_native_kv_gather",
+    "rank_trace_count": 8,
+    "all_rank_scopes_present": true,
+    "counts_note": "Raw named profiler events may include CPU and GPU annotation copies; counts are not inferred kernel invocations or speedups. Numerical/model correctness and performance remain separate.",
+    "traces": [
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P06/traces/1793800702.0988023/1793800702.1084151-TP-0-EP-0.trace.json.gz",
+        "scope": "glm_prefill_native_kv_gather",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "b8229f0fac8d52b00647712f346cd2b1cc34a4ad500cdf0b1ddafd8fc6759c53"
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P06/traces/1793800702.0988023/1793800702.1084151-TP-1-EP-1.trace.json.gz",
+        "scope": "glm_prefill_native_kv_gather",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "365efb67109cc0cb2787e0d07aed69cc7b4f99c5da3b1dff686f44916d51d15c"
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P06/traces/1793800702.0988023/1793800702.1084151-TP-2-EP-2.trace.json.gz",
+        "scope": "glm_prefill_native_kv_gather",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "a192416b7f0867a45087f165ce361f7daae9688c6f05aa60bbf8c8ce7d4285bb"
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P06/traces/1793800702.0988023/1793800702.1084151-TP-3-EP-3.trace.json.gz",
+        "scope": "glm_prefill_native_kv_gather",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "2d7b3aae269e595e677c3309ee01eb85d8bf083c62096f475de6482734e8eea8"
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P06/traces/1793800702.0988023/1793800702.1084151-TP-4-EP-4.trace.json.gz",
+        "scope": "glm_prefill_native_kv_gather",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "f1db5093a4f131af0a5b4a268e3cde28759d76ab2c9c0aa7c6d83a210345eab3"
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P06/traces/1793800702.0988023/1793800702.1084151-TP-5-EP-5.trace.json.gz",
+        "scope": "glm_prefill_native_kv_gather",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "519868b2f9c1f7674b4c671925d9ff07fe1af6ac5d50ca5abc27d6e71c5528e7"
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P06/traces/1793800702.0988023/1793800702.1084151-TP-6-EP-6.trace.json.gz",
+        "scope": "glm_prefill_native_kv_gather",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "a5a02bd4738c5d7a85bda68f8d623b6d1c181040e68891f80a2a77d276a34c60"
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P06/traces/1793800702.0988023/1793800702.1084151-TP-7-EP-7.trace.json.gz",
+        "scope": "glm_prefill_native_kv_gather",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "418da183c35b44e3beaa35f9fb4234c916cd1d2cb4d7350904d357b1719ee89e"
+      }
+    ]
+  },
+  "logical_bandwidth_estimate": {
+    "estimated_logical_rows_per_call": 674816,
+    "derivation": "matching profiled scheduler log cached642048+new32768, all6requests own positive interleaved CP query counts, page_table_1_flattened concatenates all6KV lengths; not a hardware counter",
+    "matching_profile_log": "[2026-11-04 21:58:27 ATTN_CP0 TP0 EP0] Prefill batch, #new-seq: 6, #new-token: 32768, #cached-token: 642048, token usage: 0.33, #running-req: 1, #queue-req: 0, #pending-token: 113664, cuda graph: False, input throughput (token/s): 35315.65",
+    "bytes_per_row": {
+      "packed_FP8_scale_BF16rope_input": 656,
+      "BF16_output": 1152,
+      "index_int32": 4
+    },
+    "minimum_logical_bytes_sum": 95375794176,
+    "native_GB_s": 668.9995906282675,
+    "original_Triton_GB_s": 1544.1961226566102,
+    "limit": "Logical traffic includes repeated prefix rows and cache effects; excludes repeated transactions/extra passes. Not measured HBM bandwidth or hardware utilization."
+  },
+  "native_QA_existing": {
+    "numerical": "bitexact checks passed, including compatibility with original Triton behavior",
+    "existing_speed_assertion": "FAILED; native237.09614277us vsTriton145.92809677us for81920tokens; original native_checks.rc1 retained, no thresholds altered"
+  },
+  "classification_warning": "Generic trace group classifier labels this new native name Other. Absence of old KV dequantize group is replacement, not removal of dequantization cost. Use actual142.565ms kernel time.",
+  "cleanup": "Both clients0/0 andall8traces before exact-owned stop. First memory check still saw delayed VRAM release; no extra kills. Old owned PIDs absent andNo KFD PIDs verified, thenall8cards2MiB. Onlyafterthat F-control launched. Original failed memory attempt preserved remotely as*_release_attempt1.json.",
+  "raw_local": "/Users/better/Desktop/SGLang相关/sglang_dcu_github_origin/dcu-sglang/profiles/glm53-prefill-opt-20261104/P06",
+  "raw_remote": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P06",
+  "conclusion": "Numeric/model sanity and all8rank execution proof pass, but e2e regresses2.18% andmain32Kstep88.07ms slower. Native kernel2.31x Triton duration inactualshape. KeepOFF andoutofselectedcombination; package numerical capability is not performance approval."
+}

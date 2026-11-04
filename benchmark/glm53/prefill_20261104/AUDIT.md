@@ -45,7 +45,7 @@
 | P03 主 KV AllGather / Q absorb BMM overlap | CPv2 interleave 已接入，保持 logical/physical padding；配置只启用此新增开关 | r1 已完成两轮与profile，明显慢于历史B0；fresh control重现B0，r1回退确认；r2恢复基线附近、TTFT低0.66%尚不宣称稳定收益，详见P03.md |
 | P04 直写 Q buffer | Q concat已由78次full copy改为tail copy；BMM strided输出略慢 | 两轮TTFT低0.53%，暂不宣称稳定收益，详见P04.md |
 | P05 Q RMSNorm + FP8 quant | 基线有 `rms_norm_fp8_quant`，但新接入要求显式 `match_sglang` ABI v1，避免沿用旧归约/量化行为 | GSM8K19/20、78次融合命中；TTFT高0.15%而32K step基本不变，默认关闭，见P05.md |
-| P06 native KV gather/dequant | 基线有 kernel 符号，但缺少 `PREFILL_GATHER_TRITON_NAN_COMPAT_VERSION`，不能只凭符号开启 | B2数值通过，但81920tokens性能断言失败237.10us vs Triton145.93us；默认关闭，见LIGHTOP.md |
+| P06 native KV gather/dequant | 基线有 kernel 符号，但缺少 `PREFILL_GATHER_TRITON_NAN_COMPAT_VERSION`，不能只凭符号开启 | B2数值通过、原速度断言失败；模型GSM19/20及8rank命中，TTFT高2.18%、32K step高88.07ms，默认关闭，见P06.md |
 | residual/input norm + quant | 基线无显式 `match_sglang` ABI v1；兼容内核将以 opt-in 保持 FP32 residual 语义，默认 API 保留原行为 | 融合与消费者命中，TTFT低0.09%无稳定收益；GSM17/20复核17/20，不进组合，见P09.md |
 | P10 KV norm/RoPE/store 融合 | 新增prefix CPv2 interleave入口，先写local656-byte行，再全局byte gather及physical loc store；不重复量化，不改cold BF16路径；限制普通DSA pool | B2原生168+2组通过；GSM19/20、8rank命中，TTFT低0.77%、32K step低15.37ms，默认关闭待组合，见P10.md |
 | 合并版MegaMoE | 原型曾对应develop的deepgemm.mega，但原生L1/L2实际使用groupwise激活scale | 固定GLM per-token约束下排除；新增adapter已移除，现有后端保留；另有双宿主HIP IPC失败，见P07.md |

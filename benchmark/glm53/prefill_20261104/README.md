@@ -47,6 +47,8 @@ P08已完成：TTFT **5013.89ms**（同包对照低0.071%），GSM19/20，75次�
 
 P10已完成：TTFT **4978.72ms**，比同包关闭对照低 **0.77%**，GSM19/20，32K step低15.37ms；8rank融合及packed交换命中。小幅变化待组合/重复确认，默认关闭，见 `P10.md`。
 
+P06已完成：TTFT **5126.88ms**（同包对照高 **2.18%**），GSM19/20、8rank命中，32K step高88.07ms；native反量化142.565ms vs Triton61.764ms，保持关闭、不进组合，见 `P06.md`。
+
 | ID | 仅开启项 | 实现范围 / 前置条件 |
 | --- | --- | --- |
 | P03 | `SGLANG_GLM_PREFILL_CP_OVERLAP=1` | 主 KV AllGather 与 Q absorb BMM 重叠；支持 CP v1 round-robin 和基线 CP v2 interleave，保留逻辑 token 截断与 padding；不是 Q projection overlap |
