@@ -288,5 +288,62 @@
       "passed": true,
       "readonly_observation_count": 2
     }
+  },
+  "all_rank_mqa_native_dispatch": {
+    "case": "F-control",
+    "expected_beta": false,
+    "all8rank_native_dispatch_verified": true,
+    "matches_only_cat_kernel": true,
+    "traces": [
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-control/traces/1793801807.3815923/1793801807.3920882-TP-0-EP-0.trace.json.gz",
+        "sha256": "be207f101b087ae345d793c41c83cd4479e89116c282b07a580b473be190e905",
+        "beta_kernel_events": 0,
+        "legacy_fp8_kernel_events": 726
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-control/traces/1793801807.3815923/1793801807.3920882-TP-1-EP-1.trace.json.gz",
+        "sha256": "3a772385191976e397ea286122e2a2aa1c8e29406b588510c806b8a2029869d1",
+        "beta_kernel_events": 0,
+        "legacy_fp8_kernel_events": 726
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-control/traces/1793801807.3815923/1793801807.3920882-TP-2-EP-2.trace.json.gz",
+        "sha256": "d205a578041859392e7963341dbced0963d5a9f92eb7550275d57905799469ce",
+        "beta_kernel_events": 0,
+        "legacy_fp8_kernel_events": 726
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-control/traces/1793801807.3815923/1793801807.3920882-TP-3-EP-3.trace.json.gz",
+        "sha256": "962a7a930193cce8caa903c64823140764a99662e920e559aa773dc2015b822b",
+        "beta_kernel_events": 0,
+        "legacy_fp8_kernel_events": 726
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-control/traces/1793801807.3815923/1793801807.3920882-TP-4-EP-4.trace.json.gz",
+        "sha256": "6777be23cd56d812dc8738ee4227295b387a5cb2d0d83aadea22f403b310892d",
+        "beta_kernel_events": 0,
+        "legacy_fp8_kernel_events": 726
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-control/traces/1793801807.3815923/1793801807.3920882-TP-5-EP-5.trace.json.gz",
+        "sha256": "0c5263e8f3f5e86cda1d2c31d268810c833ba27cb23560abe23a2f8340b12a0c",
+        "beta_kernel_events": 0,
+        "legacy_fp8_kernel_events": 726
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-control/traces/1793801807.3815923/1793801807.3920882-TP-6-EP-6.trace.json.gz",
+        "sha256": "06993c39a727327e228dacd3d49c531da32c258808d6d203c1a155872429a31b",
+        "beta_kernel_events": 0,
+        "legacy_fp8_kernel_events": 726
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-control/traces/1793801807.3815923/1793801807.3920882-TP-7-EP-7.trace.json.gz",
+        "sha256": "4f2b4a5e57ca914d9eb0f28dfac0f5d27bb6e3a8b4a7960acff4b9eaa36c1c2f",
+        "beta_kernel_events": 0,
+        "legacy_fp8_kernel_events": 726
+      }
+    ],
+    "scope": "Complete trace event counts include all captured steps, not just main32K; rank0 whole-step analysis reports timing separately. Known native beta FP8 entrynames from pinnedLightOp c388. No numerical threshold change."
   }
 }
