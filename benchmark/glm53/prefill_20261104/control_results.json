@@ -1,0 +1,92 @@
+{
+  "id": "control-20261104",
+  "source": "immutable full installed Python source snapshot; original native packages",
+  "repeats": [
+    {
+      "repeat": 1,
+      "ttft_ms": 5022.984320280557,
+      "new_input_tok_s": 8712.844593592787,
+      "duration": 20.684863372007385
+    },
+    {
+      "repeat": 2,
+      "ttft_ms": 5016.571411621953,
+      "new_input_tok_s": 8723.539891578415,
+      "duration": 20.659503164992202
+    }
+  ],
+  "mean_ttft_ms": 5019.777865951255,
+  "mean_new_input_tok_s": 8718.192242585601,
+  "gsm8k_20": {
+    "accuracy": 0.95,
+    "invalid": 0.0,
+    "latency": 72.88576047099195,
+    "output_throughput": 29.306135878902076
+  },
+  "relative_to_historical_B0_percent": 0.15978119409418845,
+  "trace": {
+    "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/control/traces/1793786108.3765855/1793786108.3863924-TP-0-EP-0.trace.json.gz",
+    "bytes": 83316488,
+    "sha256": "5bf597e1729c38ef9332ab7fa682d1002263e2ded0b7d14dbbba17eeb63abe98"
+  },
+  "representative_32k_step": {
+    "ph": "X",
+    "cat": "gpu_user_annotation",
+    "name": "step[EXTEND bs=6 toks=32768]",
+    "pid": 0,
+    "tid": 151,
+    "ts": 2929083411013.301,
+    "dur": 3272253.752,
+    "args": {
+      "External id": 35879
+    }
+  },
+  "kernel_groups_us_sum_and_count": {
+    "Other": [
+      339314.64000000036,
+      3888
+    ],
+    "Other GEMM": [
+      393941.28199999995,
+      727
+    ],
+    "RCCL": [
+      37718.743,
+      101
+    ],
+    "MQA logits": [
+      372962.6950000002,
+      126
+    ],
+    "TopK": [
+      137854.82100000003,
+      126
+    ],
+    "KV dequantize": [
+      61748.99600000002,
+      78
+    ],
+    "FlashMLA sparse attention": [
+      777808.5790000004,
+      78
+    ],
+    "DeepEP dispatch/other": [
+      111282.58799999999,
+      225
+    ],
+    "DeepGEMM MoE": [
+      432095.272,
+      150
+    ],
+    "DeepEP combine notify/wait": [
+      349767.389,
+      75
+    ],
+    "DeepEP combine data": [
+      230859.15299999996,
+      75
+    ]
+  },
+  "remote_root": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/control",
+  "cleanup": "exact PID/start-time cleanup; subsequent memory check passed, eight cards at 2 MiB"
+}
