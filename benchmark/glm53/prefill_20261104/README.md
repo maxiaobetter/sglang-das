@@ -2,7 +2,7 @@
 
 沿用 2026-11-04 已实测的原镜像基线 B0，不将 MQA beta 或候选 FlashMLA 自动并入基线。
 原始结果保存在 `/public/home/maxiao1/scripts/glm5.3/fp8/runs/ifb_ab_20261104_1548/`。
-历史 B0/P01/P02 保留原结果；本轮 fresh control 和 P03-r1 已完成 DCU 实测，P03-r2 正在独立验证。
+历史 B0/P01/P02 保留原结果；本轮 fresh control 和 P03-r1 已完成 DCU 实测，P03-r2 已完成独立验证。
 
 ## 固定基线
 
@@ -27,7 +27,7 @@ P01 没有换 LightOp 包。P02 只通过隔离 PYTHONPATH 加载候选 FlashMLA
 
 每行都单独与 B0 比较，其他新增开关保持 0；不要依次累加开启。
 
-Fresh control 平均 TTFT **5019.78 ms**，与历史 B0 相差 +0.16%；P03-r1 为 **10533.73 ms**，较 fresh control 高 **109.84%**，保持关闭。P03-r2 只修订通信 stream 复用，正在测试。详见 `P03_r1.md` 和 `control_results.json`。
+Fresh control 平均 TTFT **5019.78 ms**，与历史 B0 相差 +0.16%；P03-r1 为 **10533.73 ms**，较 fresh control 高 **109.84%**，保持关闭。P03-r2 只修订通信 stream 复用后为 **4986.79 ms**，比 fresh control 低 **0.66%**，尚不能确认稳定收益、保持默认关闭。详见 `P03.md` 和 `control_results.json`。
 
 | ID | 仅开启项 | 实现范围 / 前置条件 |
 | --- | --- | --- |

@@ -1,0 +1,116 @@
+{
+  "candidate": "P03-r2",
+  "deployed_source": {
+    "base_snapshot": "candidate_source",
+    "base_commit": "9b7870b450624414da1524cc497a60521fd55bab",
+    "patch_commit": "a64d22b963",
+    "change": "one CP comm stream per device; all other source files identical to P03-r1",
+    "file": "sglang/srt/models/deepseek_common/glm_prefill.py",
+    "sha256": "963e491c549d910cd3fd7963c9292d2dc99a7c4d83bf121f8d60f254dbf69835"
+  },
+  "repeats": [
+    {
+      "repeat": 1,
+      "ttft_ms": 4984.286037873062,
+      "new_input_tok_s": 8774.560249088314,
+      "duration": 20.539376889995765
+    },
+    {
+      "repeat": 2,
+      "ttft_ms": 4989.289850223031,
+      "new_input_tok_s": 8759.20605287582,
+      "duration": 20.575380795024103
+    }
+  ],
+  "gsm8k_20": {
+    "accuracy": 0.95,
+    "invalid": 0.0,
+    "latency": 73.78757924601086,
+    "output_throughput": 28.947961456744462
+  },
+  "mean_ttft_ms": 4986.7879440480465,
+  "mean_new_input_tok_s": 8766.883150982067,
+  "relative_to_historical_B0_percent": -0.4984677260120418,
+  "relative_to_fresh_control_percent": -0.6571988399521889,
+  "trace": {
+    "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P03-r2/traces/1793787233.6420348/1793787233.652309-TP-0-EP-0.trace.json.gz",
+    "bytes": 91337467,
+    "sha256": "5e8ff1e40bb134c3243179f2ef1696c2cb2de99f9c5fe61b4daeb90f24fd9063"
+  },
+  "overlap": {
+    "step": {
+      "ph": "X",
+      "cat": "gpu_user_annotation",
+      "name": "step[EXTEND bs=6 toks=32768]",
+      "pid": 0,
+      "tid": 300,
+      "ts": 2930208696706.176,
+      "dur": 3254555.194,
+      "args": {
+        "External id": 35888
+      }
+    },
+    "allgather_count": 101,
+    "allgather_stream_count": 3,
+    "allgather_stream_counts": {
+      "301": 21,
+      "451": 78,
+      "300": 2
+    },
+    "allgather_kernel_ms_sum": 44.03985199999999,
+    "bmm_kernel_count_via_external_id": 156,
+    "bmm_kernel_ms_sum": 133.93302200000002,
+    "allgather_bmm_intersection_union_ms": 33.31444677734375,
+    "note": "Interval overlap is not an A/B saving. Compare with matched control; interval overlap alone is not a measured saving."
+  },
+  "kernel_groups_us_sum_and_count": {
+    "Other": [
+      339361.69900000084,
+      3498
+    ],
+    "Other GEMM": [
+      398763.2969999992,
+      727
+    ],
+    "RCCL": [
+      44039.85199999999,
+      101
+    ],
+    "MQA logits": [
+      372988.0929999999,
+      126
+    ],
+    "TopK": [
+      138465.20900000006,
+      126
+    ],
+    "KV dequantize": [
+      61768.04599999998,
+      78
+    ],
+    "FlashMLA sparse attention": [
+      777737.6099999999,
+      78
+    ],
+    "DeepEP dispatch/other": [
+      115026.724,
+      225
+    ],
+    "DeepGEMM MoE": [
+      432090.10300000006,
+      150
+    ],
+    "DeepEP combine notify/wait": [
+      348308.798,
+      75
+    ],
+    "DeepEP combine data": [
+      231602.47100000002,
+      75
+    ]
+  },
+  "remote_root": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P03-r2",
+  "conclusion": "The one-stream revision restores baseline performance. Small 0.66% TTFT reduction over two repeats is not established as a stable gain; default remains OFF.",
+  "correctness_limit": "Existing GSM8K first20 sanity only, not full model accuracy acceptance",
+  "cleanup": "owned service PIDs/start times stopped; subsequent verification: all eight cards 2 MiB"
+}

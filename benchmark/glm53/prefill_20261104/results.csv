@@ -9,6 +9,6 @@ P05,Q RMSNorm + per-token quant,not measured,,,,,,
 P06,native KV gather/dequant,not measured,,,,,,
 P07,deepgemm.mega runtime,not measured,,,,,,
 P08,shared SwiGLU + per-token FP8 quant,not measured,,,,,,
-P03-r2,reuse one CP communication stream per device,running; no result yet,,,,,,
+P03-r2,reuse one CP communication stream per device,measured; small delta not established as stable gain; default OFF,4984.286037873062,4989.289850223031,4986.7879440480465,8766.883150982067,-0.4984677260120418,/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P03-r2
 P09,input/residual RMSNorm + FP8 quant,implemented; matching kernel package required,,,,,,
 P10,prefix KV norm RoPE store and packed CP exchange,implemented; matching kernel package required,,,,,,
