@@ -1844,6 +1844,14 @@ class DeepseekV2AttentionMLA(
         self.kv_lora_rank = kv_lora_rank
         self.quant_config = quant_config
         self.is_nextn = is_nextn
+        self._hcu_glm_prefill = (
+            _is_hcu
+            and not is_nextn
+            and bool(
+                set(getattr(config, "architectures", None) or ())
+                & {"GlmMoeDsaForCausalLM"}
+            )
+        )
         attn_tp_rank = get_parallel().attn_tp_rank
         attn_tp_size = get_parallel().attn_tp_size
         self.use_dsa = is_deepseek_dsa(config)

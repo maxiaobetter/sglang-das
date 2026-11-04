@@ -266,6 +266,7 @@ def _init_parallel_groups(
             and (
                 server_args.enable_two_batch_overlap
                 or (is_hcu() and server_args.enable_cp_cache_layer_split)
+                or (is_hcu() and envs.SGLANG_GLM_PREFILL_CP_OVERLAP.get())
             )
             and get_parallel().enable_dsa_prefill_context_parallel
         ),

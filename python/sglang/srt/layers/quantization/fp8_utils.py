@@ -1937,7 +1937,19 @@ def apply_fp8_linear(
     )
 
     if input_prequantized:
-        assert input_scale is not None and input_scale.numel() == 1
+        per_token_prequantized = (
+            _is_hcu
+            and envs.SGLANG_GLM_PREFILL_NORM_QUANT.get()
+            and input_scale is not None
+            and input_scale.dtype == torch.float32
+            and input_scale.device == input.device
+            and tuple(input_scale.shape) == (input_2d.shape[0], 1)
+            and input_2d.dtype == torch.float8_e4m3fn
+            and weight_scale.numel() == weight.shape[1]
+        )
+        assert input_scale is not None and (
+            input_scale.numel() == 1 or per_token_prequantized
+        )
         qinput = input_2d
         if channelwise_cutlass and not native_scalar_a_scale:
             # Unsupported CUTLASS epilogues require one A scale per row.

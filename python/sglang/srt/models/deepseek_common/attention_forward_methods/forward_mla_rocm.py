@@ -384,8 +384,14 @@ class DeepseekMLARocmForwardMixin:
             )
             k_nope = latent_cache[..., : self.kv_lora_rank]
 
+            from sglang.srt.models.deepseek_common.glm_prefill import try_q_norm_quant
+
+            q_prequantized = try_q_norm_quant(self, forward_batch, q)
             # overlap qk norm
-            if self.alt_stream is not None and get_is_capture_mode():
+            if q_prequantized is not None:
+                q, q_lora = q_prequantized
+                k_nope = self.kv_a_layernorm(k_nope)
+            elif self.alt_stream is not None and get_is_capture_mode():
                 current_stream = torch.cuda.current_stream()
                 self.alt_stream.wait_stream(current_stream)
                 q = self.q_a_layernorm(q)
@@ -489,6 +495,10 @@ class DeepseekMLARocmForwardMixin:
                         self.num_local_heads * get_parallel().attn_dcp_size,
                         self.qk_head_dim,
                     )
+                elif q_prequantized is not None:
+                    q = self.q_b_proj(q)[0].view(
+                        -1, self.num_local_heads, self.qk_head_dim
+                    )
                 else:
                     q = self.q_b_proj_forward(q)
 
@@ -523,6 +533,27 @@ class DeepseekMLARocmForwardMixin:
             k_nope = self.kv_a_layernorm(k_nope).unsqueeze(1)
 
         q_nope, q_pe, k_pe = self._split_q_nope_pe(q, latent_cache)
+
+        # Q/K RoPE is independent of Q's absorb BMM. Launch the CP KV gather
+        # after RoPE, then compute Q while the separate communicator runs.
+        from sglang.srt.models.deepseek_common.glm_prefill import (
+            finish_cp_kv_gather,
+            launch_cp_kv_gather,
+            try_direct_q_buffer,
+        )
+
+        kv_gather = None
+        rope_prepared = False
+        if envs.SGLANG_GLM_PREFILL_CP_OVERLAP.get():
+            kv_gather, q_pe, k_pe = launch_cp_kv_gather(
+                self, forward_batch, positions, q_pe, k_nope, k_pe
+            )
+            rope_prepared = kv_gather is not None
+        packed_q = (
+            try_direct_q_buffer(self, forward_batch, q_nope, q_pe)
+            if llama_4_scaling is None and not q_replicate_active
+            else None
+        )
 
         if q_replicate_active:
             q_nope_out = (
@@ -562,9 +593,19 @@ class DeepseekMLARocmForwardMixin:
                 )
                 q_nope_out = q_nope_out[:, :expected_m, :]
             else:
-                q_nope_out = rocm_absorb_q_bmm(
-                    self, q_nope, is_capture_mode=get_is_capture_mode()
-                )
+                if packed_q is not None:
+                    # Keep the original BF16 weight/scaling semantics. The
+                    # strided output view writes directly into final Q[576].
+                    torch.bmm(
+                        q_nope.to(torch.bfloat16).transpose(0, 1),
+                        _scaled_bmm_weight(self.w_kc, self.w_scale),
+                        out=packed_q[..., : self.kv_lora_rank].transpose(0, 1),
+                    )
+                    q_nope_out = packed_q[..., : self.kv_lora_rank].transpose(0, 1)
+                else:
+                    q_nope_out = rocm_absorb_q_bmm(
+                        self, q_nope, is_capture_mode=get_is_capture_mode()
+                    )
 
             q_nope_out = q_nope_out.transpose(0, 1)
             if _SGLANG_EXPERIMENTAL_LORA_OPTI:
@@ -578,7 +619,8 @@ class DeepseekMLARocmForwardMixin:
 
         fuse_rope_for_trtllm_mla = self._fuse_rope_for_trtllm_mla(forward_batch)
         if (
-            self.rotary_emb is not None
+            not rope_prepared
+            and self.rotary_emb is not None
             and (not fuse_rope_for_trtllm_mla)
             and (not self._skip_rope_for_dsa_tilelang_fused())
             and (not self._skip_rope_for_aiter_fused_mla())
@@ -597,7 +639,9 @@ class DeepseekMLARocmForwardMixin:
             dsa_prefill_cp=dsa_prefill_cp,
             fuse_rope_for_trtllm_mla=fuse_rope_for_trtllm_mla,
         )
-        if dsa_prefill_cp and not defer_kv_gather_until_after_rope:
+        if kv_gather is not None:
+            k_nope, k_pe = finish_cp_kv_gather(kv_gather, self.kv_lora_rank)
+        elif dsa_prefill_cp and not defer_kv_gather_until_after_rope:
             from sglang.srt.layers.attention.dsa_backend import materialize_full_kv_cp
 
             k_nope, k_pe = materialize_full_kv_cp(
@@ -642,6 +686,10 @@ class DeepseekMLARocmForwardMixin:
                 logger.warning(
                     f"not supported forward_mode {forward_batch.forward_mode}"
                 )
+
+        if packed_q is not None:
+            packed_q[..., self.kv_lora_rank :].copy_(q_pe)
+            q_nope_out, q_pe = packed_q, None
 
         return (
             q_pe,

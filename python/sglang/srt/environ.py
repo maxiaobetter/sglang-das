@@ -919,6 +919,11 @@ class Envs:
     SGLANG_ENABLE_DP_ATTENTION_LOCAL_CONTROL_BROADCAST = EnvBool(False)
     SGLANG_KV_LAYOUT_HCU_FA = EnvBool(True)
     SGLANG_USE_LIGHTOP = EnvBool(False)
+    # Independent, opt-in GLM DSA prefill experiments (decode is unchanged).
+    SGLANG_GLM_PREFILL_CP_OVERLAP = EnvBool(False)
+    SGLANG_GLM_PREFILL_DIRECT_Q = EnvBool(False)
+    SGLANG_GLM_PREFILL_NORM_QUANT = EnvBool(False)
+    SGLANG_GLM_PREFILL_NATIVE_KV = EnvBool(False)
     SGLANG_USE_LIGHTOP_MOE_SUM_MUL_ADD = EnvBool(False)
     SGLANG_USE_OPT_CAT = EnvBool(False)
     SGLANG_USE_FUSED_MLA_CAT = EnvBool(False)
