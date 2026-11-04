@@ -31,9 +31,9 @@ P01 没有换 LightOp 包。P02 只通过隔离 PYTHONPATH 加载候选 FlashMLA
 | --- | --- | --- |
 | P03 | `SGLANG_GLM_PREFILL_CP_OVERLAP=1` | 主 KV AllGather 与 Q absorb BMM 重叠；支持 CP v1 round-robin 和基线 CP v2 interleave，保留逻辑 token 截断与 padding；不是 Q projection overlap |
 | P04 | `SGLANG_GLM_PREFILL_DIRECT_Q=1` | BF16 absorb BMM 写最终 Q buffer，避免拼接复制；保持权重与 scale，排除 DCP/LoRA/graph 等不兼容路径 |
-| P05 | `SGLANG_GLM_PREFILL_NORM_QUANT=1` | Q RMSNorm + per-token FP8 quant，Q projection 消费预量化输入，BF16 Q 仍供 indexer；不包含 residual norm，不适用 AITER shuffled weight |
+| P05 | `SGLANG_GLM_PREFILL_NORM_QUANT=1` | Q RMSNorm + per-token FP8 quant，Q projection 消费预量化输入，BF16 Q 仍供 indexer；不包含 residual norm，不适用 AITER shuffled weight；要求 LightOp match_sglang ABI v1 |
 | P06 | `SGLANG_GLM_PREFILL_NATIVE_KV=1` | LightOp native prefix KV gather/dequant；需 NaN 兼容能力标记，缺失时报错，不能静默换旧 ABI |
-| P09 | `SGLANG_GLM_PREFILL_INPUT_NORM_QUANT=1` | input/residual RMSNorm + FP8 量化；类型化显式传递给 fused QKV-A，BF16 保留给 indexer；要求声明匹配 FP32 residual 语义的 LightOp 包，当前 B0 包不满足 |
+| P09 | `SGLANG_GLM_PREFILL_INPUT_NORM_QUANT=1` | input/residual RMSNorm + FP8 量化；类型化显式传递给 fused QKV-A，BF16 保留给 indexer；要求 LightOp match_sglang ABI v1，显式 opt-in 匹配 FP32 residual/quant 语义，当前 B0 包不满足 |
 | P08 | `SGLANG_GLM_PREFILL_SHARED_QUANT=1` | DeepEP GLM shared expert 的 SwiGLU + per-token FP8 量化，交给 down projection 消费；普通 eager prefill，channelwise 动态 FP8；需独立数值和性能验证 |
 | P07 | `SGLANG_HCU_MEGA_MOE_RUNTIME=deepgemm_mega` + MegaMoE backend | 接入 DeepGEMM 的合并版 runtime，保留 checkpoint FP8 权重与 SwiGLU；仅 gfx938、eager、同宿主 HIP IPC；当前两节点基线暂不能直接使用 |
 

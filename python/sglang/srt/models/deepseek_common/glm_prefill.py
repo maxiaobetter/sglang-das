@@ -205,17 +205,25 @@ def try_q_norm_quant(attn, batch, q):
         and norm.weight.data_ptr() % 16 == 0
     ):
         return None
-    from lightop.rmsnorm import rms_norm_per_token_fp8_quant
+    from lightop import rmsnorm
+
+    widths = getattr(rmsnorm.op, "RMS_NORM_FP8_MATCH_SGLANG_WIDTHS", ())
+    if (
+        getattr(rmsnorm.op, "RMS_NORM_FP8_MATCH_SGLANG_ABI_VERSION", 0) < 1
+        or q.shape[1] not in widths
+    ):
+        raise RuntimeError("GLM Q norm quant requires LightOp match_sglang ABI v1")
 
     # q is normally a view into fused Q/K projection; preserve its other users.
     normalized = q.clone(memory_format=torch.contiguous_format)
     with torch.profiler.record_function("glm_prefill_q_norm_quant"):
-        quant, scale = rms_norm_per_token_fp8_quant(
+        quant, scale = rmsnorm.rms_norm_per_token_fp8_quant(
             normalized,
             norm.weight,
             epsilon=norm.variance_epsilon,
             fp8type=0,
             update_input=True,
+            match_sglang=True,
         )
     report(attn, "Q RMSNorm + per-token FP8 quantization")
     return (quant, scale, q.dtype), normalized

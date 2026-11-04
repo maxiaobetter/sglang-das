@@ -44,9 +44,9 @@
 | --- | --- | --- |
 | P03 主 KV AllGather / Q absorb BMM overlap | CPv2 interleave 已接入，保持 logical/physical padding；配置只启用此新增开关 | r1 已完成两轮与profile，明显慢于历史B0；当前control和r2待验证，详见P03_r1.md |
 | P04 直写 Q buffer | 新增开关独立，保持 BF16 absorb 权重/scale | 待独立验证 |
-| P05 Q RMSNorm + FP8 quant | 基线有 `rms_norm_fp8_quant`，尚需验证归约/量化结果及消费者调用 | 待独立验证 |
+| P05 Q RMSNorm + FP8 quant | 基线有 `rms_norm_fp8_quant`，但新接入要求显式 `match_sglang` ABI v1，避免沿用旧归约/量化行为 | 待独立验证 |
 | P06 native KV gather/dequant | 基线有 kernel 符号，但缺少 `PREFILL_GATHER_TRITON_NAN_COMPAT_VERSION`，不能只凭符号开启 | 基线包不满足接入契约，需兼容候选包及匹配对照 |
-| residual/input norm + quant | 基线无 `RMS_NORM_FP8_FP32_RESIDUAL_WIDTHS` 能力声明；旧实现的 residual 舍入差异仍需解决 | 框架扩展 P09 已接入，兼容算子与实测尚未完成 |
+| residual/input norm + quant | 基线无显式 `match_sglang` ABI v1；兼容内核将以 opt-in 保持 FP32 residual 语义，默认 API 保留原行为 | 框架扩展 P09 已接入，兼容算子与实测尚未完成 |
 | KV norm/RoPE/store 融合 | 基线有 q_cat 接口，但无 `MLA_ROPE_SUPPORTED_Q_HEAD_STRIDES` 声明；CP local/global cache loc 和 GLM Q stride 必须适配 | 尚未完成，不能将 decode 融合直接启用到 prefill |
 | MegaMoE | 新 adapter 对应 develop 的 `deepgemm.mega`，不是容器原有 `deepgemm.op` 接口 | 同宿主 IPC 入口，跨节点可用性尚未证明 |
 | 历史 KV 下一层预取 | 分支已有 `maybe_prefetch_next_full_attention_kv`，依赖 layer split；B0 的 IFB layer split 关闭 | 需作为独立配置实验，不能记作新实现收益 |

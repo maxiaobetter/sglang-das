@@ -769,11 +769,14 @@ class RMSNorm(BaseFusedOp):
 
         # Old kernels normalize a BF16-rounded residual sum. Require the
         # native producer to declare widths with matching FP32-sum semantics.
-        widths = getattr(rmsnorm.op, "RMS_NORM_FP8_FP32_RESIDUAL_WIDTHS", ())
-        if x.shape[1] not in widths:
+        widths = getattr(rmsnorm.op, "RMS_NORM_FP8_MATCH_SGLANG_WIDTHS", ())
+        if (
+            getattr(rmsnorm.op, "RMS_NORM_FP8_MATCH_SGLANG_ABI_VERSION", 0) < 1
+            or x.shape[1] not in widths
+        ):
             raise RuntimeError(
                 "GLM prefill input norm quant requires LightOp "
-                f"RMS_NORM_FP8_FP32_RESIDUAL_WIDTHS including {x.shape[1]}"
+                f"match_sglang ABI v1 and support for width {x.shape[1]}"
             )
         normalized = x.clone() if residual is None else x
         with torch.profiler.record_function("glm_prefill_input_norm_quant"):
@@ -784,6 +787,7 @@ class RMSNorm(BaseFusedOp):
                 fp8type=0,
                 residual=residual,
                 update_input=True,
+                match_sglang=True,
             )
         return PrefillFP8Input(quant, scale, normalized), (
             x if residual is None else residual
