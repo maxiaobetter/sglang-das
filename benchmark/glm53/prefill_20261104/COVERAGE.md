@@ -13,7 +13,7 @@
 | prefix KV gather/dequant替换 | P06 | B2的数值对照通过，但原有速度断言失败，237.10us vs Triton145.93us；保持关闭，模型收益未验 |
 | 合并版MegaMoE route/GEMM/combine | P07排除 | 实际L1→L2的groupwise scale不符合GLM per-token约束，新增adapter移除、原有后端保留。双宿主HIP IPC另有失败证据，不能据此认定HyLink硬件不支持；兼容ABI及未实现工作见P07.md |
 | 独立MegaMoE normal | P13当前包不原样复用 | normal支持GLM shape，但实际8组K2 FP8/scale均不同；原量化/路由契约不等价，raw+packed最低168.75GiB超预算，binary fabric返回64B。需明确兼容ABI/生命周期/HSA编译；未跑完整模型或计收益，见P13.md |
-| shared激活 + FP8 quant | P08 | GLM使用SwiGLU，旧融合核scale下限不同，新增显式兼容入口；框架与原生实现已提交，8组原生输出/scale逐位一致，模型/性能待验 |
+| shared激活 + FP8 quant | P08 | GLM使用SwiGLU，旧融合核scale下限不同，新增显式兼容入口；原生8组FP8/scale逐位一致；GSM19/20、75次融合及消费者命中，TTFT低0.071%未确立端到端收益，默认关闭，见P08.md |
 | shared/routed expert overlap | P11 | B0未开ROCM多流门控；新增普通prefill限定入口，复用一条stream。两轮TTFT低1.58%，GSM8K19/20，32K step低42.15ms；稳定收益尚未确立，见P11.md |
 | 下一层历史Index-K/Main-KV预取 | 已有LayerSplit路径 | 基线LayerSplit关闭，trace无broadcast。当前server_args明确只允许PD prefill，普通IFB还会执行decode，不能只加flag或删除守卫来比较。PD需要独立协议，不计作本次IFB已验证优化 |
 | Indexer LayerNorm/RoPE融合 | B0已有 | 主32K chunk实际21次opt_layernorm_rope_split，累计4.43ms，不重复实现/计收益 |

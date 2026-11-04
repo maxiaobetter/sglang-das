@@ -1,0 +1,11 @@
+{
+  "source_commit": "c3881932743ed63e2fd6c30c8474d46ac8d5c15a",
+  "base_commit": "cf5b954074743d0ce620eb8d1ce8479615a3e259",
+  "source_archive": "/Users/better/Desktop/SGLang\u76f8\u5173/sglang_dcu_github_origin/dcu-sglang/profiles/glm53-prefill-opt-20261104/lightop-build-b2/wheels/lightop-glm53-prefill-c3881932743e-source.tar.gz",
+  "source_archive_sha256": "0376db5c5418d8ca6d8048987114d5e5fd5a5b7f20b689edc8ca003a075edcbd",
+  "patch": "/Users/better/Desktop/SGLang\u76f8\u5173/sglang_dcu_github_origin/dcu-sglang/profiles/glm53-prefill-opt-20261104/lightop-build-b2/wheels/lightop-glm53-prefill-c3881932743e.patch",
+  "patch_sha256": "927061af19f4511b40b18cb00bb5243be787d7cee5e3c047271824bdc4fe1967",
+  "source_tree": "e7072035678fa8b2743fa05a0a0c76871784ba01",
+  "content_scope": "Committed isolated LightOp candidate only; original dirty source not included. B2 wheel/native hashes remain those already recorded. This is not a blanket model-performance approval.",
+  "archive_matches_actual_build_input": true
+}

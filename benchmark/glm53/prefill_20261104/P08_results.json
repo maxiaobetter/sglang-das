@@ -1,0 +1,6380 @@
+{
+  "case": "P08",
+  "unique_change": "SGLANG_GLM_PREFILL_SHARED_QUANT=1; other8flags0, beta absent; same framework69 and B2 as matched all-off control",
+  "matching_control": "B2_control_results.json",
+  "deployed_source": {
+    "commit": "69fbccd6ed8d0ac9614c71203fd9c9c7d6c8d699",
+    "base_commit": "086ff10241",
+    "base_snapshot": "baseline_source",
+    "patched_files_sha256": {
+      "sglang/srt/distributed/bootstrap.py": "225362938ccb577e5bb717c58c485d1af8854e5ad17e42e0c3665d1cee9475d7",
+      "sglang/srt/environ.py": "2e79a37f63ff4271f29811c83e1979dcfa37fc78e25546c90dcca3328bfc642d",
+      "sglang/srt/layers/attention/dsa/glm_prefill_kv.py": "2ba3f293e193cb398e54d96bfd7bd50f0f877f3e9665cc5b754578af9c29ff61",
+      "sglang/srt/layers/attention/dsa_backend.py": "0943f5970d06971a584ef21442611af66efce7e185e45c95d24d5130e81a8174",
+      "sglang/srt/layers/communicator.py": "a2f0cb8bafe9782ee0fea4340e2b3cc572f0688189f4fd773f665336c2048b6e",
+      "sglang/srt/layers/layernorm.py": "cd8b8e3038ebe311623573f58a6ee355db848fe597c0db4ba0f378dcc5d89ebb",
+      "sglang/srt/layers/moe/deepgemm_mega.py": "db1fe63a1550916721dd4a18db3df042a1691cf92ce74c2513bcc00a50b52908",
+      "sglang/srt/layers/moe/mega_moe.py": "2d8b655eccbe22665203f24bd35c008a4a4986163e239843fdc4da3f52dcc25c",
+      "sglang/srt/layers/quantization/compressed_tensors/schemes/compressed_tensors_w8a8_fp8.py": "afd3e9928346e6fbdcc9c7f4f1755ec7d3f13eed532dfa6566e0ea94affc9253",
+      "sglang/srt/layers/quantization/fp8_utils.py": "8520a9ca47ae3e16733f892607b86e50fc73239ce5c0b53641c6a2cf80bc3dde",
+      "sglang/srt/layers/quantization/prefill_input.py": "fe0babcc4f7cce14eb811127ef998c83f0da8e207f1e8d1bfbb4b1bdffc6eab8",
+      "sglang/srt/models/deepseek_common/attention_forward_methods/forward_mla_rocm.py": "9739a102167dd8a4d58fc2b2b8a0df63b7b20940d72df3b05a0409dc7d2aae9f",
+      "sglang/srt/models/deepseek_common/glm_prefill.py": "0a08b9bdddcf7f214d292303e4ca9e22ab2e0d6cac34f43fd57719af4b3e7a5e",
+      "sglang/srt/models/deepseek_common/glm_prefill_kv_fusion.py": "4430e7df7ea995826d925b48c5caf236a7b84f4371fc59bfa1444e1095342aa0",
+      "sglang/srt/models/deepseek_common/glm_prefill_mlp.py": "36c729f2587c20238efecbac058bc75f2adc34171da138fcc704771cd5347666",
+      "sglang/srt/models/deepseek_v2.py": "e2977761687722d8822baa7c8cfc5713fb69ab3f536a747d1e503a7553a28e67"
+    },
+    "package_directory": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/candidate_framework_69fbccd6ed8d0ac9614c71203fd9c9c7d6c8d699",
+    "native_packages": "isolated LightOp B2 prefix; original FlashMLA and deepgemm.op unchanged",
+    "known_installed_kv_cache_configurator_difference_preserved": true,
+    "case": "P08",
+    "only_enabled_new_optimization": "SGLANG_GLM_PREFILL_SHARED_QUANT",
+    "comparison": "B2-control; same framework69 source and B2 package; immutable B0 also retained",
+    "lightop_package": {
+      "commit": "c3881932743ed63e2fd6c30c8474d46ac8d5c15a",
+      "prefix": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/lightop_c3881932743e_prefix",
+      "wheel_path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/lightop_c3881932743e/dist_candidate/lightop-0.6.0+das.dtk26041-cp310-cp310-linux_x86_64.whl",
+      "wheel_bytes": 56201094,
+      "wheel_sha256": "bcf4b829fb6d003da60fa8627b82f30d4e68b4c9f9fea221a082ece0eed75f41",
+      "native_sha256": "f4d69b478289cf93a2be4c0f8f92c7374877609276bd6ba40476ab5a10abee6c",
+      "zip_integrity": "PASS",
+      "deployment": "isolated extracted prefix only; baseline site-packages unchanged",
+      "tests": "not yet run; model P11 active"
+    },
+    "required_native_sha256": [
+      "f4d69b478289cf93a2be4c0f8f92c7374877609276bd6ba40476ab5a10abee6c",
+      "b0ea2f7f108da6ba22e951c3e795a1ba8a8f95bd70a6843758cb434e1296d66e",
+      "79325b382a56de60f69cfaf8f75fe2b725d2092c002d1cf67bd1248f1537af7a"
+    ],
+    "allowed_native_sha256": [
+      "2d182a001933f8fedb44e3364ac5ace61f1700cd448b774babc0747696374ecd",
+      "3f269515d6857d0c652f7f25afc9d684ec4079fd60d684ae415ae4fd3d55ede3",
+      "4f8cff2844f5f226124712f1044db94cd8be5a7e85c63eaeaaf11fe450ac97e2",
+      "79325b382a56de60f69cfaf8f75fe2b725d2092c002d1cf67bd1248f1537af7a",
+      "96216b42fd3b913e3db4574509e6c766c0370caeef33682961b69a11d4f205a9",
+      "b0ea2f7f108da6ba22e951c3e795a1ba8a8f95bd70a6843758cb434e1296d66e",
+      "f4d69b478289cf93a2be4c0f8f92c7374877609276bd6ba40476ab5a10abee6c"
+    ],
+    "allowed_lightop_auxiliary_sha256": {
+      "lightop/op.cpython-310-x86_64-linux-gnu.so": "f4d69b478289cf93a2be4c0f8f92c7374877609276bd6ba40476ab5a10abee6c",
+      "lightop/librarygemmbiasf/libsqueue.so": "96216b42fd3b913e3db4574509e6c766c0370caeef33682961b69a11d4f205a9",
+      "lightop/librarygemmbiasf/libhytsf.so": "2d182a001933f8fedb44e3364ac5ace61f1700cd448b774babc0747696374ecd",
+      "lightop/lib/libgemmbias.so": "3f269515d6857d0c652f7f25afc9d684ec4079fd60d684ae415ae4fd3d55ede3",
+      "lightop/lib/libhytsb.so": "4f8cff2844f5f226124712f1044db94cd8be5a7e85c63eaeaaf11fe450ac97e2",
+      "lightop/lib/libhytsf.so": "2d182a001933f8fedb44e3364ac5ace61f1700cd448b774babc0747696374ecd"
+    },
+    "notes": "P06 native numerical passed but existing speed assertion FAILED; do not claim overall package PASS or e2e benefit"
+  },
+  "repeats": [
+    {
+      "repeat": 1,
+      "ttft_ms": 5012.010289437967,
+      "new_input_tok_s": 8730.934144955077,
+      "duration": 20.642006572015816
+    },
+    {
+      "repeat": 2,
+      "ttft_ms": 5015.77595749859,
+      "new_input_tok_s": 8724.51404627139,
+      "duration": 20.65719638299197
+    }
+  ],
+  "gsm8k_20": {
+    "accuracy": 0.95,
+    "invalid": 0.0,
+    "latency": 73.41218286802177,
+    "output_throughput": 29.095988111946443
+  },
+  "mean_ttft_ms": 5013.893123468279,
+  "mean_new_input_tok_s": 8727.724095613234,
+  "relative_to_matching_control_percent": -0.070934214464069,
+  "relative_to_historical_B0_percent": 0.0423627474580579,
+  "trace": {
+    "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P08/traces/1793798347.470612/1793798347.4810326-TP-0-EP-0.trace.json.gz",
+    "bytes": 86956240,
+    "sha256": "5b081ab222b933f0277ca7b74c71cbe25aa93a913200f3676161fa2448ddfe39"
+  },
+  "trace_summary": {
+    "step": {
+      "ph": "X",
+      "cat": "gpu_user_annotation",
+      "name": "step[EXTEND bs=6 toks=32768]",
+      "pid": 0,
+      "tid": 151,
+      "ts": 2941322516834.357,
+      "dur": 3274368.68,
+      "args": {
+        "External id": 35909
+      }
+    },
+    "groups": {
+      "Other": [
+        338689.8710000018,
+        3813
+      ],
+      "Other GEMM": [
+        393248.29699999944,
+        727
+      ],
+      "RCCL": [
+        39742.898,
+        101
+      ],
+      "MQA logits": [
+        372955.9360000001,
+        126
+      ],
+      "TopK": [
+        138040.58200000002,
+        126
+      ],
+      "KV dequantize": [
+        61755.409999999996,
+        78
+      ],
+      "FlashMLA sparse attention": [
+        777861.95,
+        78
+      ],
+      "DeepEP dispatch/other": [
+        111003.05199999995,
+        225
+      ],
+      "DeepGEMM MoE": [
+        432497.1549999998,
+        150
+      ],
+      "DeepEP combine notify/wait": [
+        349565.60099999985,
+        75
+      ],
+      "DeepEP combine data": [
+        232208.5640000001,
+        75
+      ]
+    },
+    "top_kernels": [
+      [
+        "void gfx93::fwd::sparse_attn_fwd_kernel<gfx93::fwd::KernelTemplate_B_H_64<576, true, true, false, false, false, false> >(SparseAttnFwdParams)",
+        [
+          777861.95,
+          78
+        ]
+      ],
+      [
+        "void m_grouped_fp8_gemm_nt_contiguous_wasp_pair32_bm256_bn256_nloop4::fp8_pair32_wasp_kernel<__hip_bfloat16>(m_grouped_fp8_gemm_nt_contiguous_wasp_pair32_bm256_bn256_nloop4::DeepGemm_params)",
+        [
+          432497.1549999998,
+          150
+        ]
+      ],
+      [
+        "void at::native::_mqa_logits_32x128x128_TN_impl_fp8<32, 128, 32, 128, 128, true, true>(unsigned char*, unsigned char*, float*, float*, unsigned int*, unsigned int*, int, int, float const*)",
+        [
+          372955.9360000001,
+          126
+        ]
+      ],
+      [
+        "void deep_ep::intranode::cached_notify_combine_kernel<8, true>(void**, int*, int, int, int, int**, int)",
+        [
+          349565.60099999985,
+          75
+        ]
+      ],
+      [
+        "void deep_ep::intranode::combine<hip_bfloat16, 8, 1024, true>(hip_bfloat16*, float*, hip_bfloat16 const*, float const*, hip_bfloat16 const*, hip_bfloat16 const*, int const*, int const*, int const*, int*, int, int, int, int, void**, int, int, int)",
+        [
+          232208.5640000001,
+          75
+        ]
+      ],
+      [
+        "Cijk_Alik_Bljk_F8BS_MT256x256x128_TT16_8_WG16_32_1_MFWGS768_AddDepth64_StoreUseLds_WGM8_bias_channelwise",
+        [
+          141018.31500000006,
+          156
+        ]
+      ],
+      [
+        "void at::native::adaptive_topk_kernel<2048, false>(float const*, long, int, int const*, int const*, int const*, long, int, int const*, int, int*, int*, int*, bool, unsigned int, int const*)",
+        [
+          138040.58200000002,
+          126
+        ]
+      ],
+      [
+        "void deep_ep::intranode::dispatch<8, 1024, true>(HIP_vector_type<int, 4u>*, float*, int*, long*, float*, int*, int*, HIP_vector_type<int, 4u> const*, float const*, long const*, float const*, bool const*, int const*, int, int, int, int, int, int, int, int, void**, int, int, int)",
+        [
+          98862.41899999998,
+          75
+        ]
+      ],
+      [
+        "Cijk_Alik_Bljk_BBH_MT128x128x32_SE_AMAS3_BW_DTL1_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS1_FL0_GRVW8_GSU1_ISA938_IU1_KME_GRCMn2_K1_KLA_LDL1_LRVW8_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR0_PGR1_PLR1_RK0_SU0_SUM0_SUS256_SVW4_TT8_8_TLM1_ULDSWM1_USFGRO0_USSB1_VAW2_VSn1_VW8_WG16_16_1_WGM1",
+        [
+          70452.514,
+          78
+        ]
+      ],
+      [
+        "_dequantize_k_cache_paged_tiled_kernel",
+        [
+          61755.409999999996,
+          78
+        ]
+      ],
+      [
+        "Cijk_Alik_Bljk_F8BS_MT256x256x128_TT16_8_WG16_32_1_MFWGS768_structbuffer1024_AddDepth64_StoreUseLds_WGM5_bias_channelwise",
+        [
+          59019.32599999997,
+          156
+        ]
+      ],
+      [
+        "Cijk_Alik_Bljk_BBH_MT128x256x16_SE_AMAS3_BW_DTL0_BL1_DRB16_ALT_KME1_DRMT_NMZ0_ETSP_EPS0_FL0_GRVW8_GSU1_ISA938_IU1_KME_GRCMn2_K1_KLA_LDL1_LRVW8_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR1_PGR2_PLR1_RK0_SU0_SUM0_SUS256_SVW4_TT8_8_TLM0_ULDSWM0_USFGRO0_USSB0_VAW2_VSn1_VW8_WG16_32_1_WGM1",
+        [
+          58002.29799999999,
+          78
+        ]
+      ],
+      [
+        "Cijk_Alik_Bljk_F8BS_MT256x256x128_TT16_8_WG16_32_1_MFWGS768_AddDepth64_StoreUseLds_WGM1_bias_channelwise",
+        [
+          48489.639,
+          78
+        ]
+      ],
+      [
+        "void at::native::fused_add_rms_kernel_opt<c10::BFloat16, float, 8, 1024, false, false>(c10::BFloat16*, c10::BFloat16*, c10::BFloat16*, int, float, int, float)",
+        [
+          46922.69099999997,
+          156
+        ]
+      ],
+      [
+        "void at::native::ep_gather_kernel<c10::BFloat16, long, 8>(c10::BFloat16 const*, long const*, float const*, int const*, int const*, c10::BFloat16*, int, int, int, bool, int)",
+        [
+          44406.621000000014,
+          75
+        ]
+      ],
+      [
+        "void at::native::ep_scatter_kernel<signed char, float, long, 128, 8>(signed char const*, float const*, long const*, int const*, int*, signed char*, float*, int*, int*, int, int, int, int, int, int, bool)",
+        [
+          43927.24999999999,
+          75
+        ]
+      ],
+      [
+        "void at::native::act_and_mul_fp8_quant_kernel_opt1_one<c10::BFloat16, 8, true, 256>(long, int, unsigned char*, c10::BFloat16 const*, float*, int, int, int*)",
+        [
+          43557.019,
+          75
+        ]
+      ],
+      [
+        "ncclDevKernel_AllGather_Ring_Simple_Sum_i8(ncclDevKernelArgsStorage<1024ul>)",
+        [
+          39742.898,
+          101
+        ]
+      ],
+      [
+        "(anonymous namespace)::concat_mla_absorb_q_hcu_kernel(c10::BFloat16 const*, c10::BFloat16 const*, c10::BFloat16*, long, long, long, long, long, long, long, long)",
+        [
+          32738.77899999999,
+          78
+        ]
+      ],
+      [
+        "void rotary_embedding_kernel<c10::BFloat16, false>(long const*, c10::BFloat16*, c10::BFloat16*, c10::BFloat16 const*, int, long, long, long, int, int, int)",
+        [
+          15627.36799999991,
+          624
+        ]
+      ],
+      [
+        "void at::native::per_token_quant_fp8_kernel<c10::BFloat16, float, 16, 512, true>(c10::BFloat16 const*, unsigned char*, float*, int)",
+        [
+          15283.741000000009,
+          252
+        ]
+      ],
+      [
+        "void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, long, long, long, long, bool)",
+        [
+          13343.078999999996,
+          103
+        ]
+      ],
+      [
+        "void at::native::per_token_quant_fp8_kernel<c10::BFloat16, float, 16, 1024, true>(c10::BFloat16 const*, unsigned char*, float*, int)",
+        [
+          12426.789999999995,
+          81
+        ]
+      ],
+      [
+        "void at::native::elementwise_kernel_manual_unroll<128, 8, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int, bool)#1})",
+        [
+          11094.237,
+          314
+        ]
+      ],
+      [
+        "_fused_gate_scale_kernel",
+        [
+          10256.609,
+          21
+        ]
+      ],
+      [
+        "Cijk_Alik_Bljk_BBH_MT128x128x32_SE_AMAS3_BW_DTL0_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS1_FL0_GRVW8_GSU1_ISA938_IU1_KME_GRCMn1_K1_KLA_LDL1_LRVW8_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR0_PGR1_PLR1_RK1_SU0_SUM0_SUS256_SVW4_TT8_8_TLM0_ULDSWM0_USFGRO0_USSB1_VAW2_VSn1_VW8_WG16_16_1_WGM1",
+        [
+          8463.437000000002,
+          75
+        ]
+      ],
+      [
+        "void deep_ep::layout::get_dispatch_layout<256, 4, 8>(long const*, int*, int*, int*, bool*, int, int, int, int)",
+        [
+          6774.151000000001,
+          75
+        ]
+      ],
+      [
+        "void at::native::vectorized_elementwise_kernel<8, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul>)",
+        [
+          6588.563,
+          75
+        ]
+      ],
+      [
+        "void at::native::ep_scan_fill_m_indices_kernel<1024, false>(int const*, int*, int*, int, int)",
+        [
+          6321.838,
+          75
+        ]
+      ],
+      [
+        "void deep_ep::intranode::notify_dispatch<8>(int const*, int*, int const*, int*, long*, int, int, int, bool const*, int*, int*, int, int, void**, int**, int)",
+        [
+          5366.482000000001,
+          75
+        ]
+      ],
+      [
+        "void at::native::act_and_mul_fp8_quant_kernel_opt1<c10::BFloat16, 8, true, 256, true>(long, int, unsigned char*, c10::BFloat16 const*, float*, int, int, int*)",
+        [
+          5336.401999999999,
+          75
+        ]
+      ],
+      [
+        "void at::native::opt_layernorm_rope_split_kernel<float, c10::BFloat16, c10::BFloat16, float, false, false, 8, 16>(long const*, c10::BFloat16*, c10::BFloat16*, c10::BFloat16 const*, int, int, long, long, long, long, float const*, float const*, float const*, float const*, c10::BFloat16*, c10::BFloat16*, c10::BFloat16, int, int, int, int, int, int, int)",
+        [
+          4447.017,
+          21
+        ]
+      ],
+      [
+        "void at::native::fused_quantize_and_store_mla_kv_kernel<c10::BFloat16, true>(c10::BFloat16 const*, c10::BFloat16 const*, unsigned char*, long const*, long, float, int, int)",
+        [
+          3371.6010000000006,
+          78
+        ]
+      ],
+      [
+        "Cijk_Alik_Bljk_F8BS_MT256x256x128_TT16_8_WG16_32_1_MFWGS768_AddDepth64_StoreUseLds_WGM5_bias_channelwise",
+        [
+          3348.9370000000004,
+          21
+        ]
+      ],
+      [
+        "void at::native::(anonymous namespace)::CatArrayBatchedCopy<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 3, 64, 64>(at::native::(anonymous namespace)::OpaqueType<2u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 64, 64>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int)",
+        [
+          3337.36,
+          78
+        ]
+      ],
+      [
+        "void at::native::fused_rms_kernel_opt<c10::BFloat16, float, 8, 256, false, false>(c10::BFloat16*, c10::BFloat16*, c10::BFloat16*, int, float, int, float)",
+        [
+          2842.6389999999988,
+          78
+        ]
+      ],
+      [
+        "void at::native::moe_fused_gate_kernel_gourp1<__hip_bfloat16, float, at::native::KernelParams<8, 256, 32, 2, 4, 2>, 8, 256, 8>(void*, void*, float*, void*, long, long, double, bool, bool, at::native::KernelParams<8, 256, 32, 2, 4, 2>)",
+        [
+          2315.443000000001,
+          75
+        ]
+      ],
+      [
+        "void at::native::per_token_quant_fp8_kernel<c10::BFloat16, float, 16, 128, true>(c10::BFloat16 const*, unsigned char*, float*, int)",
+        [
+          2246.298000000001,
+          99
+        ]
+      ],
+      [
+        "Cijk_Alik_Bljk_BBH_MT128x128x32_SE_AMAS3_BW_DTL0_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS0_FL0_GRVW4_GSU1_ISA938_IU1_KME_GRCMn1_K1_KLA_LDL1_LRVW4_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR1_PGR2_PLR1_RK0_SU32_SUM0_SUS256_SVW4_TT8_4_TLM0_ULDSWM0_USFGRO0_USSB0_VAW2_VSn1_VW4_WG16_32_1_WGM8",
+        [
+          1964.136,
+          21
+        ]
+      ],
+      [
+        "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul> >(int, at::native::FillFunctor<int>, std::array<char*, 1ul>)",
+        [
+          1516.2920000000004,
+          187
+        ]
+      ]
+    ],
+    "gemm_shapes": [
+      {
+        "dims": [
+          [
+            59392,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            59392,
+            4096
+          ],
+          [
+            59392,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            59392
+          ],
+          []
+        ],
+        "us": 5618.235,
+        "min_bytes": 1657749504,
+        "padded_flops": 2989297238016
+      },
+      {
+        "dims": [
+          [
+            59392,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            59392,
+            6144
+          ],
+          [
+            59392,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            59392
+          ],
+          []
+        ],
+        "us": 3491.996,
+        "min_bytes": 1255358464,
+        "padded_flops": 1494648619008
+      },
+      {
+        "dims": [
+          [
+            37632,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            37632,
+            4096
+          ],
+          [
+            37632,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            37632
+          ],
+          []
+        ],
+        "us": 3577.117,
+        "min_bytes": 1345624064,
+        "padded_flops": 1894080577536
+      },
+      {
+        "dims": [
+          [
+            37632,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            37632,
+            6144
+          ],
+          [
+            37632,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            37632
+          ],
+          []
+        ],
+        "us": 2228.158,
+        "min_bytes": 943233024,
+        "padded_flops": 947040288768
+      },
+      {
+        "dims": [
+          [
+            44544,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            44544,
+            4096
+          ],
+          [
+            44544,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            44544
+          ],
+          []
+        ],
+        "us": 4248.317,
+        "min_bytes": 1444769792,
+        "padded_flops": 2241972928512
+      },
+      {
+        "dims": [
+          [
+            44544,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            44544,
+            6144
+          ],
+          [
+            44544,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            44544
+          ],
+          []
+        ],
+        "us": 2655.197,
+        "min_bytes": 1042378752,
+        "padded_flops": 1120986464256
+      },
+      {
+        "dims": [
+          [
+            34816,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            34816,
+            4096
+          ],
+          [
+            34816,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            34816
+          ],
+          []
+        ],
+        "us": 3285.597,
+        "min_bytes": 1305231360,
+        "padded_flops": 1752346656768
+      },
+      {
+        "dims": [
+          [
+            34816,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            34816,
+            6144
+          ],
+          [
+            34816,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            34816
+          ],
+          []
+        ],
+        "us": 2032.158,
+        "min_bytes": 902840320,
+        "padded_flops": 876173328384
+      },
+      {
+        "dims": [
+          [
+            27904,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            27904,
+            4096
+          ],
+          [
+            27904,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            27904
+          ],
+          []
+        ],
+        "us": 2707.997,
+        "min_bytes": 1206085632,
+        "padded_flops": 1404454305792
+      },
+      {
+        "dims": [
+          [
+            27904,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            27904,
+            6144
+          ],
+          [
+            27904,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            27904
+          ],
+          []
+        ],
+        "us": 1637.598,
+        "min_bytes": 803694592,
+        "padded_flops": 702227152896
+      },
+      {
+        "dims": [
+          [
+            37888,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            37888,
+            4096
+          ],
+          [
+            37888,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            37888
+          ],
+          []
+        ],
+        "us": 3579.357,
+        "min_bytes": 1349296128,
+        "padded_flops": 1906965479424
+      },
+      {
+        "dims": [
+          [
+            37888,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            37888,
+            6144
+          ],
+          [
+            37888,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            37888
+          ],
+          []
+        ],
+        "us": 2237.758,
+        "min_bytes": 946905088,
+        "padded_flops": 953482739712
+      },
+      {
+        "dims": [
+          [
+            54528,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            54528,
+            4096
+          ],
+          [
+            54528,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            54528
+          ],
+          []
+        ],
+        "us": 5211.995,
+        "min_bytes": 1587980288,
+        "padded_flops": 2744484102144
+      },
+      {
+        "dims": [
+          [
+            54528,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            54528,
+            6144
+          ],
+          [
+            54528,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            54528
+          ],
+          []
+        ],
+        "us": 3200.477,
+        "min_bytes": 1185589248,
+        "padded_flops": 1372242051072
+      },
+      {
+        "dims": [
+          [
+            30976,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            30976,
+            4096
+          ],
+          [
+            30976,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            30976
+          ],
+          []
+        ],
+        "us": 2997.917,
+        "min_bytes": 1250150400,
+        "padded_flops": 1559073128448
+      },
+      {
+        "dims": [
+          [
+            30976,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            30976,
+            6144
+          ],
+          [
+            30976,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            30976
+          ],
+          []
+        ],
+        "us": 1834.558,
+        "min_bytes": 847759360,
+        "padded_flops": 779536564224
+      },
+      {
+        "dims": [
+          [
+            35328,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            35328,
+            4096
+          ],
+          [
+            35328,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            35328
+          ],
+          []
+        ],
+        "us": 3381.596,
+        "min_bytes": 1312575488,
+        "padded_flops": 1778116460544
+      },
+      {
+        "dims": [
+          [
+            35328,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            35328,
+            6144
+          ],
+          [
+            35328,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            35328
+          ],
+          []
+        ],
+        "us": 2073.117,
+        "min_bytes": 910184448,
+        "padded_flops": 889058230272
+      },
+      {
+        "dims": [
+          [
+            25600,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            25600,
+            4096
+          ],
+          [
+            25600,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            25600
+          ],
+          []
+        ],
+        "us": 2422.877,
+        "min_bytes": 1173037056,
+        "padded_flops": 1288490188800
+      },
+      {
+        "dims": [
+          [
+            25600,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            25600,
+            6144
+          ],
+          [
+            25600,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            25600
+          ],
+          []
+        ],
+        "us": 1518.558,
+        "min_bytes": 770646016,
+        "padded_flops": 644245094400
+      },
+      {
+        "dims": [
+          [
+            39936,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39936,
+            4096
+          ],
+          [
+            39936,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            39936
+          ],
+          []
+        ],
+        "us": 3767.836,
+        "min_bytes": 1378672640,
+        "padded_flops": 2010044694528
+      },
+      {
+        "dims": [
+          [
+            39936,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39936,
+            6144
+          ],
+          [
+            39936,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            39936
+          ],
+          []
+        ],
+        "us": 2364.317,
+        "min_bytes": 976281600,
+        "padded_flops": 1005022347264
+      },
+      {
+        "dims": [
+          [
+            26112,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            26112,
+            4096
+          ],
+          [
+            26112,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            26112
+          ],
+          []
+        ],
+        "us": 2517.117,
+        "min_bytes": 1180381184,
+        "padded_flops": 1314259992576
+      },
+      {
+        "dims": [
+          [
+            26112,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            26112,
+            6144
+          ],
+          [
+            26112,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            26112
+          ],
+          []
+        ],
+        "us": 1558.078,
+        "min_bytes": 777990144,
+        "padded_flops": 657129996288
+      },
+      {
+        "dims": [
+          [
+            27648,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            27648,
+            4096
+          ],
+          [
+            27648,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            27648
+          ],
+          []
+        ],
+        "us": 2617.117,
+        "min_bytes": 1202413568,
+        "padded_flops": 1391569403904
+      },
+      {
+        "dims": [
+          [
+            27648,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            27648,
+            6144
+          ],
+          [
+            27648,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            27648
+          ],
+          []
+        ],
+        "us": 1640.318,
+        "min_bytes": 800022528,
+        "padded_flops": 695784701952
+      },
+      {
+        "dims": [
+          [
+            36864,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            36864,
+            4096
+          ],
+          [
+            36864,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            36864
+          ],
+          []
+        ],
+        "us": 3483.677,
+        "min_bytes": 1334607872,
+        "padded_flops": 1855425871872
+      },
+      {
+        "dims": [
+          [
+            36864,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            36864,
+            6144
+          ],
+          [
+            36864,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            36864
+          ],
+          []
+        ],
+        "us": 2155.678,
+        "min_bytes": 932216832,
+        "padded_flops": 927712935936
+      },
+      {
+        "dims": [
+          [
+            25344,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            25344,
+            4096
+          ],
+          [
+            25344,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            25344
+          ],
+          []
+        ],
+        "us": 2424.957,
+        "min_bytes": 1169364992,
+        "padded_flops": 1275605286912
+      },
+      {
+        "dims": [
+          [
+            25344,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            25344,
+            6144
+          ],
+          [
+            25344,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            25344
+          ],
+          []
+        ],
+        "us": 1518.558,
+        "min_bytes": 766973952,
+        "padded_flops": 637802643456
+      },
+      {
+        "dims": [
+          [
+            20224,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            20224,
+            4096
+          ],
+          [
+            20224,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            20224
+          ],
+          []
+        ],
+        "us": 1940.318,
+        "min_bytes": 1095923712,
+        "padded_flops": 1017907249152
+      },
+      {
+        "dims": [
+          [
+            20224,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            20224,
+            6144
+          ],
+          [
+            20224,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            20224
+          ],
+          []
+        ],
+        "us": 1200.958,
+        "min_bytes": 693532672,
+        "padded_flops": 508953624576
+      },
+      {
+        "dims": [
+          [
+            62976,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            62976,
+            4096
+          ],
+          [
+            62976,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            62976
+          ],
+          []
+        ],
+        "us": 6014.075,
+        "min_bytes": 1709158400,
+        "padded_flops": 3169685864448
+      },
+      {
+        "dims": [
+          [
+            62976,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            62976,
+            6144
+          ],
+          [
+            62976,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            62976
+          ],
+          []
+        ],
+        "us": 3731.036,
+        "min_bytes": 1306767360,
+        "padded_flops": 1584842932224
+      },
+      {
+        "dims": [
+          [
+            23552,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            23552,
+            4096
+          ],
+          [
+            23552,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            23552
+          ],
+          []
+        ],
+        "us": 2233.278,
+        "min_bytes": 1143660544,
+        "padded_flops": 1185410973696
+      },
+      {
+        "dims": [
+          [
+            23552,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            23552,
+            6144
+          ],
+          [
+            23552,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            23552
+          ],
+          []
+        ],
+        "us": 1398.238,
+        "min_bytes": 741269504,
+        "padded_flops": 592705486848
+      },
+      {
+        "dims": [
+          [
+            67584,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            67584,
+            4096
+          ],
+          [
+            67584,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            67584
+          ],
+          []
+        ],
+        "us": 6393.755,
+        "min_bytes": 1775255552,
+        "padded_flops": 3401614098432
+      },
+      {
+        "dims": [
+          [
+            67584,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            67584,
+            6144
+          ],
+          [
+            67584,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            67584
+          ],
+          []
+        ],
+        "us": 3952.636,
+        "min_bytes": 1372864512,
+        "padded_flops": 1700807049216
+      },
+      {
+        "dims": [
+          [
+            30976,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            30976,
+            4096
+          ],
+          [
+            30976,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            30976
+          ],
+          []
+        ],
+        "us": 2996.157,
+        "min_bytes": 1250150400,
+        "padded_flops": 1559073128448
+      },
+      {
+        "dims": [
+          [
+            30976,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            30976,
+            6144
+          ],
+          [
+            30976,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            30976
+          ],
+          []
+        ],
+        "us": 1836.477,
+        "min_bytes": 847759360,
+        "padded_flops": 779536564224
+      },
+      {
+        "dims": [
+          [
+            40192,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            40192,
+            4096
+          ],
+          [
+            40192,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            40192
+          ],
+          []
+        ],
+        "us": 3862.877,
+        "min_bytes": 1382344704,
+        "padded_flops": 2022929596416
+      },
+      {
+        "dims": [
+          [
+            40192,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            40192,
+            6144
+          ],
+          [
+            40192,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            40192
+          ],
+          []
+        ],
+        "us": 2355.358,
+        "min_bytes": 979953664,
+        "padded_flops": 1011464798208
+      },
+      {
+        "dims": [
+          [
+            30720,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            30720,
+            4096
+          ],
+          [
+            30720,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            30720
+          ],
+          []
+        ],
+        "us": 2903.997,
+        "min_bytes": 1246478336,
+        "padded_flops": 1546188226560
+      },
+      {
+        "dims": [
+          [
+            30720,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            30720,
+            6144
+          ],
+          [
+            30720,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            30720
+          ],
+          []
+        ],
+        "us": 1797.917,
+        "min_bytes": 844087296,
+        "padded_flops": 773094113280
+      },
+      {
+        "dims": [
+          [
+            34816,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            34816,
+            4096
+          ],
+          [
+            34816,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            34816
+          ],
+          []
+        ],
+        "us": 3287.356,
+        "min_bytes": 1305231360,
+        "padded_flops": 1752346656768
+      },
+      {
+        "dims": [
+          [
+            34816,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            34816,
+            6144
+          ],
+          [
+            34816,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            34816
+          ],
+          []
+        ],
+        "us": 2031.998,
+        "min_bytes": 902840320,
+        "padded_flops": 876173328384
+      },
+      {
+        "dims": [
+          [
+            42752,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            42752,
+            4096
+          ],
+          [
+            42752,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            42752
+          ],
+          []
+        ],
+        "us": 4058.396,
+        "min_bytes": 1419065344,
+        "padded_flops": 2151778615296
+      },
+      {
+        "dims": [
+          [
+            42752,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            42752,
+            6144
+          ],
+          [
+            42752,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            42752
+          ],
+          []
+        ],
+        "us": 2515.997,
+        "min_bytes": 1016674304,
+        "padded_flops": 1075889307648
+      },
+      {
+        "dims": [
+          [
+            44800,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            44800,
+            4096
+          ],
+          [
+            44800,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            44800
+          ],
+          []
+        ],
+        "us": 4248.636,
+        "min_bytes": 1448441856,
+        "padded_flops": 2254857830400
+      },
+      {
+        "dims": [
+          [
+            44800,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            44800,
+            6144
+          ],
+          [
+            44800,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            44800
+          ],
+          []
+        ],
+        "us": 2635.837,
+        "min_bytes": 1046050816,
+        "padded_flops": 1127428915200
+      },
+      {
+        "dims": [
+          [
+            34048,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            34048,
+            4096
+          ],
+          [
+            34048,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            34048
+          ],
+          []
+        ],
+        "us": 3285.277,
+        "min_bytes": 1294215168,
+        "padded_flops": 1713691951104
+      },
+      {
+        "dims": [
+          [
+            34048,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            34048,
+            6144
+          ],
+          [
+            34048,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            34048
+          ],
+          []
+        ],
+        "us": 1994.078,
+        "min_bytes": 891824128,
+        "padded_flops": 856845975552
+      },
+      {
+        "dims": [
+          [
+            37632,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            37632,
+            4096
+          ],
+          [
+            37632,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            37632
+          ],
+          []
+        ],
+        "us": 3573.117,
+        "min_bytes": 1345624064,
+        "padded_flops": 1894080577536
+      },
+      {
+        "dims": [
+          [
+            37632,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            37632,
+            6144
+          ],
+          [
+            37632,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            37632
+          ],
+          []
+        ],
+        "us": 2233.917,
+        "min_bytes": 943233024,
+        "padded_flops": 947040288768
+      },
+      {
+        "dims": [
+          [
+            40192,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            40192,
+            4096
+          ],
+          [
+            40192,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            40192
+          ],
+          []
+        ],
+        "us": 3866.876,
+        "min_bytes": 1382344704,
+        "padded_flops": 2022929596416
+      },
+      {
+        "dims": [
+          [
+            40192,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            40192,
+            6144
+          ],
+          [
+            40192,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            40192
+          ],
+          []
+        ],
+        "us": 2351.517,
+        "min_bytes": 979953664,
+        "padded_flops": 1011464798208
+      },
+      {
+        "dims": [
+          [
+            18944,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            18944,
+            4096
+          ],
+          [
+            18944,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            18944
+          ],
+          []
+        ],
+        "us": 1844.638,
+        "min_bytes": 1077563392,
+        "padded_flops": 953482739712
+      },
+      {
+        "dims": [
+          [
+            18944,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            18944,
+            6144
+          ],
+          [
+            18944,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            18944
+          ],
+          []
+        ],
+        "us": 1121.118,
+        "min_bytes": 675172352,
+        "padded_flops": 476741369856
+      },
+      {
+        "dims": [
+          [
+            57600,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            57600,
+            4096
+          ],
+          [
+            57600,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            57600
+          ],
+          []
+        ],
+        "us": 5514.075,
+        "min_bytes": 1632045056,
+        "padded_flops": 2899102924800
+      },
+      {
+        "dims": [
+          [
+            57600,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            57600,
+            6144
+          ],
+          [
+            57600,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            57600
+          ],
+          []
+        ],
+        "us": 3395.996,
+        "min_bytes": 1229654016,
+        "padded_flops": 1449551462400
+      },
+      {
+        "dims": [
+          [
+            39424,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39424,
+            4096
+          ],
+          [
+            39424,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            39424
+          ],
+          []
+        ],
+        "us": 3765.437,
+        "min_bytes": 1371328512,
+        "padded_flops": 1984274890752
+      },
+      {
+        "dims": [
+          [
+            39424,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39424,
+            6144
+          ],
+          [
+            39424,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            39424
+          ],
+          []
+        ],
+        "us": 2312.317,
+        "min_bytes": 968937472,
+        "padded_flops": 992137445376
+      },
+      {
+        "dims": [
+          [
+            47104,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            47104,
+            4096
+          ],
+          [
+            47104,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            47104
+          ],
+          []
+        ],
+        "us": 4444.796,
+        "min_bytes": 1481490432,
+        "padded_flops": 2370821947392
+      },
+      {
+        "dims": [
+          [
+            47104,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            47104,
+            6144
+          ],
+          [
+            47104,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            47104
+          ],
+          []
+        ],
+        "us": 2750.397,
+        "min_bytes": 1079099392,
+        "padded_flops": 1185410973696
+      },
+      {
+        "dims": [
+          [
+            22016,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            22016,
+            4096
+          ],
+          [
+            22016,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            22016
+          ],
+          []
+        ],
+        "us": 2134.397,
+        "min_bytes": 1121628160,
+        "padded_flops": 1108101562368
+      },
+      {
+        "dims": [
+          [
+            22016,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            22016,
+            6144
+          ],
+          [
+            22016,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            22016
+          ],
+          []
+        ],
+        "us": 1317.438,
+        "min_bytes": 719237120,
+        "padded_flops": 554050781184
+      },
+      {
+        "dims": [
+          [
+            25856,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            25856,
+            4096
+          ],
+          [
+            25856,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            25856
+          ],
+          []
+        ],
+        "us": 2517.597,
+        "min_bytes": 1176709120,
+        "padded_flops": 1301375090688
+      },
+      {
+        "dims": [
+          [
+            25856,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            25856,
+            6144
+          ],
+          [
+            25856,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            25856
+          ],
+          []
+        ],
+        "us": 1518.398,
+        "min_bytes": 774318080,
+        "padded_flops": 650687545344
+      },
+      {
+        "dims": [
+          [
+            39680,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39680,
+            4096
+          ],
+          [
+            39680,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            39680
+          ],
+          []
+        ],
+        "us": 3767.676,
+        "min_bytes": 1375000576,
+        "padded_flops": 1997159792640
+      },
+      {
+        "dims": [
+          [
+            39680,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39680,
+            6144
+          ],
+          [
+            39680,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            39680
+          ],
+          []
+        ],
+        "us": 2358.877,
+        "min_bytes": 972609536,
+        "padded_flops": 998579896320
+      },
+      {
+        "dims": [
+          [
+            42752,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            42752,
+            4096
+          ],
+          [
+            42752,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            42752
+          ],
+          []
+        ],
+        "us": 4056.156,
+        "min_bytes": 1419065344,
+        "padded_flops": 2151778615296
+      },
+      {
+        "dims": [
+          [
+            42752,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            42752,
+            6144
+          ],
+          [
+            42752,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            42752
+          ],
+          []
+        ],
+        "us": 2515.517,
+        "min_bytes": 1016674304,
+        "padded_flops": 1075889307648
+      },
+      {
+        "dims": [
+          [
+            66816,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            66816,
+            4096
+          ],
+          [
+            66816,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            66816
+          ],
+          []
+        ],
+        "us": 6367.195,
+        "min_bytes": 1764239360,
+        "padded_flops": 3362959392768
+      },
+      {
+        "dims": [
+          [
+            66816,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            66816,
+            6144
+          ],
+          [
+            66816,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            66816
+          ],
+          []
+        ],
+        "us": 3910.556,
+        "min_bytes": 1361848320,
+        "padded_flops": 1681479696384
+      },
+      {
+        "dims": [
+          [
+            31488,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            31488,
+            4096
+          ],
+          [
+            31488,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            31488
+          ],
+          []
+        ],
+        "us": 2998.717,
+        "min_bytes": 1257494528,
+        "padded_flops": 1584842932224
+      },
+      {
+        "dims": [
+          [
+            31488,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            31488,
+            6144
+          ],
+          [
+            31488,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            31488
+          ],
+          []
+        ],
+        "us": 1876.798,
+        "min_bytes": 855103488,
+        "padded_flops": 792421466112
+      },
+      {
+        "dims": [
+          [
+            49920,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            49920,
+            4096
+          ],
+          [
+            49920,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            49920
+          ],
+          []
+        ],
+        "us": 4731.996,
+        "min_bytes": 1521883136,
+        "padded_flops": 2512555868160
+      },
+      {
+        "dims": [
+          [
+            49920,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            49920,
+            6144
+          ],
+          [
+            49920,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            49920
+          ],
+          []
+        ],
+        "us": 2945.437,
+        "min_bytes": 1119492096,
+        "padded_flops": 1256277934080
+      },
+      {
+        "dims": [
+          [
+            39936,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39936,
+            4096
+          ],
+          [
+            39936,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            39936
+          ],
+          []
+        ],
+        "us": 3768.476,
+        "min_bytes": 1378672640,
+        "padded_flops": 2010044694528
+      },
+      {
+        "dims": [
+          [
+            39936,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39936,
+            6144
+          ],
+          [
+            39936,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            39936
+          ],
+          []
+        ],
+        "us": 2361.597,
+        "min_bytes": 976281600,
+        "padded_flops": 1005022347264
+      },
+      {
+        "dims": [
+          [
+            41472,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            41472,
+            4096
+          ],
+          [
+            41472,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            41472
+          ],
+          []
+        ],
+        "us": 3961.597,
+        "min_bytes": 1400705024,
+        "padded_flops": 2087354105856
+      },
+      {
+        "dims": [
+          [
+            41472,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            41472,
+            6144
+          ],
+          [
+            41472,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            41472
+          ],
+          []
+        ],
+        "us": 2437.117,
+        "min_bytes": 998313984,
+        "padded_flops": 1043677052928
+      },
+      {
+        "dims": [
+          [
+            54016,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            54016,
+            4096
+          ],
+          [
+            54016,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            54016
+          ],
+          []
+        ],
+        "us": 5114.555,
+        "min_bytes": 1580636160,
+        "padded_flops": 2718714298368
+      },
+      {
+        "dims": [
+          [
+            54016,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            54016,
+            6144
+          ],
+          [
+            54016,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            54016
+          ],
+          []
+        ],
+        "us": 3184.157,
+        "min_bytes": 1178245120,
+        "padded_flops": 1359357149184
+      },
+      {
+        "dims": [
+          [
+            32512,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            32512,
+            4096
+          ],
+          [
+            32512,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            32512
+          ],
+          []
+        ],
+        "us": 3094.557,
+        "min_bytes": 1272182784,
+        "padded_flops": 1636382539776
+      },
+      {
+        "dims": [
+          [
+            32512,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            32512,
+            6144
+          ],
+          [
+            32512,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            32512
+          ],
+          []
+        ],
+        "us": 1915.997,
+        "min_bytes": 869791744,
+        "padded_flops": 818191269888
+      },
+      {
+        "dims": [
+          [
+            30720,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            30720,
+            4096
+          ],
+          [
+            30720,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            30720
+          ],
+          []
+        ],
+        "us": 2907.197,
+        "min_bytes": 1246478336,
+        "padded_flops": 1546188226560
+      },
+      {
+        "dims": [
+          [
+            30720,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            30720,
+            6144
+          ],
+          [
+            30720,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            30720
+          ],
+          []
+        ],
+        "us": 1801.118,
+        "min_bytes": 844087296,
+        "padded_flops": 773094113280
+      },
+      {
+        "dims": [
+          [
+            30976,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            30976,
+            4096
+          ],
+          [
+            30976,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            30976
+          ],
+          []
+        ],
+        "us": 2997.277,
+        "min_bytes": 1250150400,
+        "padded_flops": 1559073128448
+      },
+      {
+        "dims": [
+          [
+            30976,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            30976,
+            6144
+          ],
+          [
+            30976,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            30976
+          ],
+          []
+        ],
+        "us": 1836.958,
+        "min_bytes": 847759360,
+        "padded_flops": 779536564224
+      },
+      {
+        "dims": [
+          [
+            40192,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            40192,
+            4096
+          ],
+          [
+            40192,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            40192
+          ],
+          []
+        ],
+        "us": 3862.397,
+        "min_bytes": 1382344704,
+        "padded_flops": 2022929596416
+      },
+      {
+        "dims": [
+          [
+            40192,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            40192,
+            6144
+          ],
+          [
+            40192,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            40192
+          ],
+          []
+        ],
+        "us": 2366.238,
+        "min_bytes": 979953664,
+        "padded_flops": 1011464798208
+      },
+      {
+        "dims": [
+          [
+            23040,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            23040,
+            4096
+          ],
+          [
+            23040,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            23040
+          ],
+          []
+        ],
+        "us": 2228.637,
+        "min_bytes": 1136316416,
+        "padded_flops": 1159641169920
+      },
+      {
+        "dims": [
+          [
+            23040,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            23040,
+            6144
+          ],
+          [
+            23040,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            23040
+          ],
+          []
+        ],
+        "us": 1361.758,
+        "min_bytes": 733925376,
+        "padded_flops": 579820584960
+      },
+      {
+        "dims": [
+          [
+            58368,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            58368,
+            4096
+          ],
+          [
+            58368,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            58368
+          ],
+          []
+        ],
+        "us": 5496.635,
+        "min_bytes": 1643061248,
+        "padded_flops": 2937757630464
+      },
+      {
+        "dims": [
+          [
+            58368,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            58368,
+            6144
+          ],
+          [
+            58368,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            58368
+          ],
+          []
+        ],
+        "us": 3426.877,
+        "min_bytes": 1240670208,
+        "padded_flops": 1468878815232
+      },
+      {
+        "dims": [
+          [
+            32256,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            32256,
+            4096
+          ],
+          [
+            32256,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            32256
+          ],
+          []
+        ],
+        "us": 3095.996,
+        "min_bytes": 1268510720,
+        "padded_flops": 1623497637888
+      },
+      {
+        "dims": [
+          [
+            32256,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            32256,
+            6144
+          ],
+          [
+            32256,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            32256
+          ],
+          []
+        ],
+        "us": 1912.798,
+        "min_bytes": 866119680,
+        "padded_flops": 811748818944
+      },
+      {
+        "dims": [
+          [
+            59648,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            59648,
+            4096
+          ],
+          [
+            59648,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            59648
+          ],
+          []
+        ],
+        "us": 5692.635,
+        "min_bytes": 1661421568,
+        "padded_flops": 3002182139904
+      },
+      {
+        "dims": [
+          [
+            59648,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            59648,
+            6144
+          ],
+          [
+            59648,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            59648
+          ],
+          []
+        ],
+        "us": 3536.476,
+        "min_bytes": 1259030528,
+        "padded_flops": 1501091069952
+      },
+      {
+        "dims": [
+          [
+            22272,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            22272,
+            4096
+          ],
+          [
+            22272,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            22272
+          ],
+          []
+        ],
+        "us": 2135.678,
+        "min_bytes": 1125300224,
+        "padded_flops": 1120986464256
+      },
+      {
+        "dims": [
+          [
+            22272,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            22272,
+            6144
+          ],
+          [
+            22272,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            22272
+          ],
+          []
+        ],
+        "us": 1317.438,
+        "min_bytes": 722909184,
+        "padded_flops": 560493232128
+      },
+      {
+        "dims": [
+          [
+            37120,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            37120,
+            4096
+          ],
+          [
+            37120,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            37120
+          ],
+          []
+        ],
+        "us": 3575.517,
+        "min_bytes": 1338279936,
+        "padded_flops": 1868310773760
+      },
+      {
+        "dims": [
+          [
+            37120,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            37120,
+            6144
+          ],
+          [
+            37120,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            37120
+          ],
+          []
+        ],
+        "us": 2189.918,
+        "min_bytes": 935888896,
+        "padded_flops": 934155386880
+      },
+      {
+        "dims": [
+          [
+            29184,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            29184,
+            4096
+          ],
+          [
+            29184,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            29184
+          ],
+          []
+        ],
+        "us": 2811.037,
+        "min_bytes": 1224445952,
+        "padded_flops": 1468878815232
+      },
+      {
+        "dims": [
+          [
+            29184,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            29184,
+            6144
+          ],
+          [
+            29184,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            29184
+          ],
+          []
+        ],
+        "us": 1719.838,
+        "min_bytes": 822054912,
+        "padded_flops": 734439407616
+      },
+      {
+        "dims": [
+          [
+            39936,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39936,
+            4096
+          ],
+          [
+            39936,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            39936
+          ],
+          []
+        ],
+        "us": 3768.157,
+        "min_bytes": 1378672640,
+        "padded_flops": 2010044694528
+      },
+      {
+        "dims": [
+          [
+            39936,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39936,
+            6144
+          ],
+          [
+            39936,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            39936
+          ],
+          []
+        ],
+        "us": 2359.518,
+        "min_bytes": 976281600,
+        "padded_flops": 1005022347264
+      },
+      {
+        "dims": [
+          [
+            31744,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            31744,
+            4096
+          ],
+          [
+            31744,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            31744
+          ],
+          []
+        ],
+        "us": 3001.917,
+        "min_bytes": 1261166592,
+        "padded_flops": 1597727834112
+      },
+      {
+        "dims": [
+          [
+            31744,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            31744,
+            6144
+          ],
+          [
+            31744,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            31744
+          ],
+          []
+        ],
+        "us": 1873.758,
+        "min_bytes": 858775552,
+        "padded_flops": 798863917056
+      },
+      {
+        "dims": [
+          [
+            27648,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            27648,
+            4096
+          ],
+          [
+            27648,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            27648
+          ],
+          []
+        ],
+        "us": 2616.797,
+        "min_bytes": 1202413568,
+        "padded_flops": 1391569403904
+      },
+      {
+        "dims": [
+          [
+            27648,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            27648,
+            6144
+          ],
+          [
+            27648,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            27648
+          ],
+          []
+        ],
+        "us": 1640.478,
+        "min_bytes": 800022528,
+        "padded_flops": 695784701952
+      },
+      {
+        "dims": [
+          [
+            24320,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            24320,
+            4096
+          ],
+          [
+            24320,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            24320
+          ],
+          []
+        ],
+        "us": 2327.997,
+        "min_bytes": 1154676736,
+        "padded_flops": 1224065679360
+      },
+      {
+        "dims": [
+          [
+            24320,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            24320,
+            6144
+          ],
+          [
+            24320,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            24320
+          ],
+          []
+        ],
+        "us": 1439.198,
+        "min_bytes": 752285696,
+        "padded_flops": 612032839680
+      },
+      {
+        "dims": [
+          [
+            32256,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            32256,
+            4096
+          ],
+          [
+            32256,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            32256
+          ],
+          []
+        ],
+        "us": 3093.597,
+        "min_bytes": 1268510720,
+        "padded_flops": 1623497637888
+      },
+      {
+        "dims": [
+          [
+            32256,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            32256,
+            6144
+          ],
+          [
+            32256,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            32256
+          ],
+          []
+        ],
+        "us": 1917.437,
+        "min_bytes": 866119680,
+        "padded_flops": 811748818944
+      },
+      {
+        "dims": [
+          [
+            37632,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            37632,
+            4096
+          ],
+          [
+            37632,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            37632
+          ],
+          []
+        ],
+        "us": 3576.956,
+        "min_bytes": 1345624064,
+        "padded_flops": 1894080577536
+      },
+      {
+        "dims": [
+          [
+            37632,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            37632,
+            6144
+          ],
+          [
+            37632,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            37632
+          ],
+          []
+        ],
+        "us": 2235.517,
+        "min_bytes": 943233024,
+        "padded_flops": 947040288768
+      },
+      {
+        "dims": [
+          [
+            37376,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            37376,
+            4096
+          ],
+          [
+            37376,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            37376
+          ],
+          []
+        ],
+        "us": 3575.837,
+        "min_bytes": 1341952000,
+        "padded_flops": 1881195675648
+      },
+      {
+        "dims": [
+          [
+            37376,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            37376,
+            6144
+          ],
+          [
+            37376,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            37376
+          ],
+          []
+        ],
+        "us": 2192.157,
+        "min_bytes": 939560960,
+        "padded_flops": 940597837824
+      },
+      {
+        "dims": [
+          [
+            30976,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            30976,
+            4096
+          ],
+          [
+            30976,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            30976
+          ],
+          []
+        ],
+        "us": 2997.757,
+        "min_bytes": 1250150400,
+        "padded_flops": 1559073128448
+      },
+      {
+        "dims": [
+          [
+            30976,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            30976,
+            6144
+          ],
+          [
+            30976,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            30976
+          ],
+          []
+        ],
+        "us": 1835.838,
+        "min_bytes": 847759360,
+        "padded_flops": 779536564224
+      },
+      {
+        "dims": [
+          [
+            53504,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            53504,
+            4096
+          ],
+          [
+            53504,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            53504
+          ],
+          []
+        ],
+        "us": 5112.636,
+        "min_bytes": 1573292032,
+        "padded_flops": 2692944494592
+      },
+      {
+        "dims": [
+          [
+            53504,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            53504,
+            6144
+          ],
+          [
+            53504,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            53504
+          ],
+          []
+        ],
+        "us": 3167.997,
+        "min_bytes": 1170900992,
+        "padded_flops": 1346472247296
+      },
+      {
+        "dims": [
+          [
+            35840,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            35840,
+            4096
+          ],
+          [
+            35840,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            35840
+          ],
+          []
+        ],
+        "us": 3386.397,
+        "min_bytes": 1319919616,
+        "padded_flops": 1803886264320
+      },
+      {
+        "dims": [
+          [
+            35840,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            35840,
+            6144
+          ],
+          [
+            35840,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            35840
+          ],
+          []
+        ],
+        "us": 2115.997,
+        "min_bytes": 917528576,
+        "padded_flops": 901943132160
+      },
+      {
+        "dims": [
+          [
+            27392,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            27392,
+            4096
+          ],
+          [
+            27392,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            27392
+          ],
+          []
+        ],
+        "us": 2614.397,
+        "min_bytes": 1198741504,
+        "padded_flops": 1378684502016
+      },
+      {
+        "dims": [
+          [
+            27392,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            27392,
+            6144
+          ],
+          [
+            27392,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            27392
+          ],
+          []
+        ],
+        "us": 1638.238,
+        "min_bytes": 796350464,
+        "padded_flops": 689342251008
+      },
+      {
+        "dims": [
+          [
+            40192,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            40192,
+            4096
+          ],
+          [
+            40192,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            40192
+          ],
+          []
+        ],
+        "us": 3862.556,
+        "min_bytes": 1382344704,
+        "padded_flops": 2022929596416
+      },
+      {
+        "dims": [
+          [
+            40192,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            40192,
+            6144
+          ],
+          [
+            40192,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            40192
+          ],
+          []
+        ],
+        "us": 2358.718,
+        "min_bytes": 979953664,
+        "padded_flops": 1011464798208
+      },
+      {
+        "dims": [
+          [
+            48640,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            48640,
+            4096
+          ],
+          [
+            48640,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            48640
+          ],
+          []
+        ],
+        "us": 4631.996,
+        "min_bytes": 1503522816,
+        "padded_flops": 2448131358720
+      },
+      {
+        "dims": [
+          [
+            48640,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            48640,
+            6144
+          ],
+          [
+            48640,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            48640
+          ],
+          []
+        ],
+        "us": 2866.877,
+        "min_bytes": 1101131776,
+        "padded_flops": 1224065679360
+      },
+      {
+        "dims": [
+          [
+            39680,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39680,
+            4096
+          ],
+          [
+            39680,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            39680
+          ],
+          []
+        ],
+        "us": 3770.557,
+        "min_bytes": 1375000576,
+        "padded_flops": 1997159792640
+      },
+      {
+        "dims": [
+          [
+            39680,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39680,
+            6144
+          ],
+          [
+            39680,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            39680
+          ],
+          []
+        ],
+        "us": 2350.718,
+        "min_bytes": 972609536,
+        "padded_flops": 998579896320
+      },
+      {
+        "dims": [
+          [
+            25856,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            25856,
+            4096
+          ],
+          [
+            25856,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            25856
+          ],
+          []
+        ],
+        "us": 2519.037,
+        "min_bytes": 1176709120,
+        "padded_flops": 1301375090688
+      },
+      {
+        "dims": [
+          [
+            25856,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            25856,
+            6144
+          ],
+          [
+            25856,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            25856
+          ],
+          []
+        ],
+        "us": 1517.918,
+        "min_bytes": 774318080,
+        "padded_flops": 650687545344
+      },
+      {
+        "dims": [
+          [
+            21248,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            21248,
+            4096
+          ],
+          [
+            21248,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            21248
+          ],
+          []
+        ],
+        "us": 2040.478,
+        "min_bytes": 1110611968,
+        "padded_flops": 1069446856704
+      },
+      {
+        "dims": [
+          [
+            21248,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            21248,
+            6144
+          ],
+          [
+            21248,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            21248
+          ],
+          []
+        ],
+        "us": 1281.118,
+        "min_bytes": 708220928,
+        "padded_flops": 534723428352
+      },
+      {
+        "dims": [
+          [
+            57856,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            57856,
+            4096
+          ],
+          [
+            57856,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            57856
+          ],
+          []
+        ],
+        "us": 5526.875,
+        "min_bytes": 1635717120,
+        "padded_flops": 2911987826688
+      },
+      {
+        "dims": [
+          [
+            57856,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            57856,
+            6144
+          ],
+          [
+            57856,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            57856
+          ],
+          []
+        ],
+        "us": 3386.877,
+        "min_bytes": 1233326080,
+        "padded_flops": 1455993913344
+      },
+      {
+        "dims": [
+          [
+            22016,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            22016,
+            4096
+          ],
+          [
+            22016,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            22016
+          ],
+          []
+        ],
+        "us": 2131.678,
+        "min_bytes": 1121628160,
+        "padded_flops": 1108101562368
+      },
+      {
+        "dims": [
+          [
+            22016,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            22016,
+            6144
+          ],
+          [
+            22016,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            22016
+          ],
+          []
+        ],
+        "us": 1318.399,
+        "min_bytes": 719237120,
+        "padded_flops": 554050781184
+      },
+      {
+        "dims": [
+          [
+            43264,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            43264,
+            4096
+          ],
+          [
+            43264,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            43264
+          ],
+          []
+        ],
+        "us": 4151.996,
+        "min_bytes": 1426409472,
+        "padded_flops": 2177548419072
+      },
+      {
+        "dims": [
+          [
+            43264,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            43264,
+            6144
+          ],
+          [
+            43264,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            43264
+          ],
+          []
+        ],
+        "us": 2552.957,
+        "min_bytes": 1024018432,
+        "padded_flops": 1088774209536
+      },
+      {
+        "dims": [
+          [
+            17152,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            17152,
+            4096
+          ],
+          [
+            17152,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            17152
+          ],
+          []
+        ],
+        "us": 1653.438,
+        "min_bytes": 1051858944,
+        "padded_flops": 863288426496
+      },
+      {
+        "dims": [
+          [
+            17152,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            17152,
+            6144
+          ],
+          [
+            17152,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            17152
+          ],
+          []
+        ],
+        "us": 1040.799,
+        "min_bytes": 649467904,
+        "padded_flops": 431644213248
+      },
+      {
+        "dims": [
+          [
+            49152,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            49152,
+            4096
+          ],
+          [
+            49152,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            49152
+          ],
+          []
+        ],
+        "us": 4637.596,
+        "min_bytes": 1510866944,
+        "padded_flops": 2473901162496
+      },
+      {
+        "dims": [
+          [
+            49152,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            49152,
+            6144
+          ],
+          [
+            49152,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            49152
+          ],
+          []
+        ],
+        "us": 2874.557,
+        "min_bytes": 1108475904,
+        "padded_flops": 1236950581248
+      },
+      {
+        "dims": [
+          [
+            29440,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            29440,
+            4096
+          ],
+          [
+            29440,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            29440
+          ],
+          []
+        ],
+        "us": 2810.077,
+        "min_bytes": 1228118016,
+        "padded_flops": 1481763717120
+      },
+      {
+        "dims": [
+          [
+            29440,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            29440,
+            6144
+          ],
+          [
+            29440,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            29440
+          ],
+          []
+        ],
+        "us": 1759.038,
+        "min_bytes": 825726976,
+        "padded_flops": 740881858560
+      }
+    ]
+  },
+  "fusion_trace_summary": {
+    "case": "P08",
+    "step": {
+      "ph": "X",
+      "cat": "gpu_user_annotation",
+      "name": "step[EXTEND bs=6 toks=32768]",
+      "pid": 0,
+      "tid": 151,
+      "ts": 2941322516834.357,
+      "dur": 3274368.68,
+      "args": {
+        "External id": 35909
+      }
+    },
+    "all_kernel_names": {
+      "void gfx93::fwd::sparse_attn_fwd_kernel<gfx93::fwd::KernelTemplate_B_H_64<576, true, true, false, false, false, false> >(SparseAttnFwdParams)": {
+        "count": 78,
+        "sum_us": 777861.95
+      },
+      "void m_grouped_fp8_gemm_nt_contiguous_wasp_pair32_bm256_bn256_nloop4::fp8_pair32_wasp_kernel<__hip_bfloat16>(m_grouped_fp8_gemm_nt_contiguous_wasp_pair32_bm256_bn256_nloop4::DeepGemm_params)": {
+        "count": 150,
+        "sum_us": 432497.1549999998
+      },
+      "void at::native::_mqa_logits_32x128x128_TN_impl_fp8<32, 128, 32, 128, 128, true, true>(unsigned char*, unsigned char*, float*, float*, unsigned int*, unsigned int*, int, int, float const*)": {
+        "count": 126,
+        "sum_us": 372955.9360000001
+      },
+      "void deep_ep::intranode::cached_notify_combine_kernel<8, true>(void**, int*, int, int, int, int**, int)": {
+        "count": 75,
+        "sum_us": 349565.60099999985
+      },
+      "void deep_ep::intranode::combine<hip_bfloat16, 8, 1024, true>(hip_bfloat16*, float*, hip_bfloat16 const*, float const*, hip_bfloat16 const*, hip_bfloat16 const*, int const*, int const*, int const*, int*, int, int, int, int, void**, int, int, int)": {
+        "count": 75,
+        "sum_us": 232208.5640000001
+      },
+      "Cijk_Alik_Bljk_F8BS_MT256x256x128_TT16_8_WG16_32_1_MFWGS768_AddDepth64_StoreUseLds_WGM8_bias_channelwise": {
+        "count": 156,
+        "sum_us": 141018.31500000006
+      },
+      "void at::native::adaptive_topk_kernel<2048, false>(float const*, long, int, int const*, int const*, int const*, long, int, int const*, int, int*, int*, int*, bool, unsigned int, int const*)": {
+        "count": 126,
+        "sum_us": 138040.58200000002
+      },
+      "void deep_ep::intranode::dispatch<8, 1024, true>(HIP_vector_type<int, 4u>*, float*, int*, long*, float*, int*, int*, HIP_vector_type<int, 4u> const*, float const*, long const*, float const*, bool const*, int const*, int, int, int, int, int, int, int, int, void**, int, int, int)": {
+        "count": 75,
+        "sum_us": 98862.41899999998
+      },
+      "Cijk_Alik_Bljk_BBH_MT128x128x32_SE_AMAS3_BW_DTL1_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS1_FL0_GRVW8_GSU1_ISA938_IU1_KME_GRCMn2_K1_KLA_LDL1_LRVW8_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR0_PGR1_PLR1_RK0_SU0_SUM0_SUS256_SVW4_TT8_8_TLM1_ULDSWM1_USFGRO0_USSB1_VAW2_VSn1_VW8_WG16_16_1_WGM1": {
+        "count": 78,
+        "sum_us": 70452.514
+      },
+      "_dequantize_k_cache_paged_tiled_kernel": {
+        "count": 78,
+        "sum_us": 61755.409999999996
+      },
+      "Cijk_Alik_Bljk_F8BS_MT256x256x128_TT16_8_WG16_32_1_MFWGS768_structbuffer1024_AddDepth64_StoreUseLds_WGM5_bias_channelwise": {
+        "count": 156,
+        "sum_us": 59019.32599999997
+      },
+      "Cijk_Alik_Bljk_BBH_MT128x256x16_SE_AMAS3_BW_DTL0_BL1_DRB16_ALT_KME1_DRMT_NMZ0_ETSP_EPS0_FL0_GRVW8_GSU1_ISA938_IU1_KME_GRCMn2_K1_KLA_LDL1_LRVW8_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR1_PGR2_PLR1_RK0_SU0_SUM0_SUS256_SVW4_TT8_8_TLM0_ULDSWM0_USFGRO0_USSB0_VAW2_VSn1_VW8_WG16_32_1_WGM1": {
+        "count": 78,
+        "sum_us": 58002.29799999999
+      },
+      "Cijk_Alik_Bljk_F8BS_MT256x256x128_TT16_8_WG16_32_1_MFWGS768_AddDepth64_StoreUseLds_WGM1_bias_channelwise": {
+        "count": 78,
+        "sum_us": 48489.639
+      },
+      "void at::native::fused_add_rms_kernel_opt<c10::BFloat16, float, 8, 1024, false, false>(c10::BFloat16*, c10::BFloat16*, c10::BFloat16*, int, float, int, float)": {
+        "count": 156,
+        "sum_us": 46922.69099999997
+      },
+      "void at::native::ep_gather_kernel<c10::BFloat16, long, 8>(c10::BFloat16 const*, long const*, float const*, int const*, int const*, c10::BFloat16*, int, int, int, bool, int)": {
+        "count": 75,
+        "sum_us": 44406.621000000014
+      },
+      "void at::native::ep_scatter_kernel<signed char, float, long, 128, 8>(signed char const*, float const*, long const*, int const*, int*, signed char*, float*, int*, int*, int, int, int, int, int, int, bool)": {
+        "count": 75,
+        "sum_us": 43927.24999999999
+      },
+      "void at::native::act_and_mul_fp8_quant_kernel_opt1_one<c10::BFloat16, 8, true, 256>(long, int, unsigned char*, c10::BFloat16 const*, float*, int, int, int*)": {
+        "count": 75,
+        "sum_us": 43557.019
+      },
+      "ncclDevKernel_AllGather_Ring_Simple_Sum_i8(ncclDevKernelArgsStorage<1024ul>)": {
+        "count": 101,
+        "sum_us": 39742.898
+      },
+      "(anonymous namespace)::concat_mla_absorb_q_hcu_kernel(c10::BFloat16 const*, c10::BFloat16 const*, c10::BFloat16*, long, long, long, long, long, long, long, long)": {
+        "count": 78,
+        "sum_us": 32738.77899999999
+      },
+      "void rotary_embedding_kernel<c10::BFloat16, false>(long const*, c10::BFloat16*, c10::BFloat16*, c10::BFloat16 const*, int, long, long, long, int, int, int)": {
+        "count": 624,
+        "sum_us": 15627.36799999991
+      },
+      "void at::native::per_token_quant_fp8_kernel<c10::BFloat16, float, 16, 512, true>(c10::BFloat16 const*, unsigned char*, float*, int)": {
+        "count": 252,
+        "sum_us": 15283.741000000009
+      },
+      "void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, long, long, long, long, bool)": {
+        "count": 103,
+        "sum_us": 13343.078999999996
+      },
+      "void at::native::per_token_quant_fp8_kernel<c10::BFloat16, float, 16, 1024, true>(c10::BFloat16 const*, unsigned char*, float*, int)": {
+        "count": 81,
+        "sum_us": 12426.789999999995
+      },
+      "void at::native::elementwise_kernel_manual_unroll<128, 8, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int, bool)#1})": {
+        "count": 314,
+        "sum_us": 11094.237
+      },
+      "_fused_gate_scale_kernel": {
+        "count": 21,
+        "sum_us": 10256.609
+      },
+      "Cijk_Alik_Bljk_BBH_MT128x128x32_SE_AMAS3_BW_DTL0_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS1_FL0_GRVW8_GSU1_ISA938_IU1_KME_GRCMn1_K1_KLA_LDL1_LRVW8_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR0_PGR1_PLR1_RK1_SU0_SUM0_SUS256_SVW4_TT8_8_TLM0_ULDSWM0_USFGRO0_USSB1_VAW2_VSn1_VW8_WG16_16_1_WGM1": {
+        "count": 75,
+        "sum_us": 8463.437000000002
+      },
+      "void deep_ep::layout::get_dispatch_layout<256, 4, 8>(long const*, int*, int*, int*, bool*, int, int, int, int)": {
+        "count": 75,
+        "sum_us": 6774.151000000001
+      },
+      "void at::native::vectorized_elementwise_kernel<8, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul>)": {
+        "count": 75,
+        "sum_us": 6588.563
+      },
+      "void at::native::ep_scan_fill_m_indices_kernel<1024, false>(int const*, int*, int*, int, int)": {
+        "count": 75,
+        "sum_us": 6321.838
+      },
+      "void deep_ep::intranode::notify_dispatch<8>(int const*, int*, int const*, int*, long*, int, int, int, bool const*, int*, int*, int, int, void**, int**, int)": {
+        "count": 75,
+        "sum_us": 5366.482000000001
+      },
+      "void at::native::act_and_mul_fp8_quant_kernel_opt1<c10::BFloat16, 8, true, 256, true>(long, int, unsigned char*, c10::BFloat16 const*, float*, int, int, int*)": {
+        "count": 75,
+        "sum_us": 5336.401999999999
+      },
+      "void at::native::opt_layernorm_rope_split_kernel<float, c10::BFloat16, c10::BFloat16, float, false, false, 8, 16>(long const*, c10::BFloat16*, c10::BFloat16*, c10::BFloat16 const*, int, int, long, long, long, long, float const*, float const*, float const*, float const*, c10::BFloat16*, c10::BFloat16*, c10::BFloat16, int, int, int, int, int, int, int)": {
+        "count": 21,
+        "sum_us": 4447.017
+      },
+      "void at::native::fused_quantize_and_store_mla_kv_kernel<c10::BFloat16, true>(c10::BFloat16 const*, c10::BFloat16 const*, unsigned char*, long const*, long, float, int, int)": {
+        "count": 78,
+        "sum_us": 3371.6010000000006
+      },
+      "Cijk_Alik_Bljk_F8BS_MT256x256x128_TT16_8_WG16_32_1_MFWGS768_AddDepth64_StoreUseLds_WGM5_bias_channelwise": {
+        "count": 21,
+        "sum_us": 3348.9370000000004
+      },
+      "void at::native::(anonymous namespace)::CatArrayBatchedCopy<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 3, 64, 64>(at::native::(anonymous namespace)::OpaqueType<2u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 64, 64>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int)": {
+        "count": 78,
+        "sum_us": 3337.36
+      },
+      "void at::native::fused_rms_kernel_opt<c10::BFloat16, float, 8, 256, false, false>(c10::BFloat16*, c10::BFloat16*, c10::BFloat16*, int, float, int, float)": {
+        "count": 78,
+        "sum_us": 2842.6389999999988
+      },
+      "void at::native::moe_fused_gate_kernel_gourp1<__hip_bfloat16, float, at::native::KernelParams<8, 256, 32, 2, 4, 2>, 8, 256, 8>(void*, void*, float*, void*, long, long, double, bool, bool, at::native::KernelParams<8, 256, 32, 2, 4, 2>)": {
+        "count": 75,
+        "sum_us": 2315.443000000001
+      },
+      "void at::native::per_token_quant_fp8_kernel<c10::BFloat16, float, 16, 128, true>(c10::BFloat16 const*, unsigned char*, float*, int)": {
+        "count": 99,
+        "sum_us": 2246.298000000001
+      },
+      "Cijk_Alik_Bljk_BBH_MT128x128x32_SE_AMAS3_BW_DTL0_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS0_FL0_GRVW4_GSU1_ISA938_IU1_KME_GRCMn1_K1_KLA_LDL1_LRVW4_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR1_PGR2_PLR1_RK0_SU32_SUM0_SUS256_SVW4_TT8_4_TLM0_ULDSWM0_USFGRO0_USSB0_VAW2_VSn1_VW4_WG16_32_1_WGM8": {
+        "count": 21,
+        "sum_us": 1964.136
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul> >(int, at::native::FillFunctor<int>, std::array<char*, 1ul>)": {
+        "count": 187,
+        "sum_us": 1516.2920000000004
+      },
+      "void at::native::fused_qk_quant_weight_mul_and_store_index_k_cache<c10::BFloat16, true>(c10::BFloat16 const*, unsigned char*, float*, c10::BFloat16 const*, c10::BFloat16*, float, float, int, int, c10::BFloat16 const*, unsigned char*, long const*, int, int, int, long, long, float, bool, long, long, int)": {
+        "count": 21,
+        "sum_us": 1475.9790000000003
+      },
+      "_get_k_and_s_triton_kernel": {
+        "count": 21,
+        "sum_us": 1404.1390000000004
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)": {
+        "count": 252,
+        "sum_us": 1357.9879999999996
+      },
+      "Cijk_Alik_Bljk_BBH_MT32x64x128_SE_AMAS3_BW_DTL0_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS1_FL0_GRVW4_GSU1_ISA938_IU1_KME_GRCMn1_K1_KLA_LDL1_LRVW4_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR0_PGR1_PLR1_RK1_SU0_SUM0_SUS256_SVW4_TT4_8_TLM0_ULDSWM0_USFGRO0_USSB0_VAW2_VSn1_VW4_WG8_8_1_WGM1": {
+        "count": 21,
+        "sum_us": 1135.1789999999999
+      },
+      "void at::native::rms_kernel_small_hidden_multi_token<c10::BFloat16, float, 512, 64, 256, false, false>(c10::BFloat16*, c10::BFloat16*, c10::BFloat16*, float, int, float)": {
+        "count": 78,
+        "sum_us": 941.6810000000004
+      },
+      "void at::native::silu_and_mul_kernel_opt2<c10::BFloat16, 8>(c10::BFloat16*, c10::BFloat16 const*, int)": {
+        "count": 3,
+        "sum_us": 912.4769999999999
+      },
+      "Cijk_Alik_Bljk_F8BS_MT64x128x256_TT4_8_WG16_16_1_MFWGS512_WGM8_bias_channelwise": {
+        "count": 21,
+        "sum_us": 893.2579999999999
+      },
+      "void at::native::vectorized_elementwise_kernel<8, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul> >(int, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul>)": {
+        "count": 100,
+        "sum_us": 643.4189999999996
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::BUnaryFunctor<long, long, long, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long, long)#1}>, std::array<char*, 2ul> >(int, at::native::BUnaryFunctor<long, long, long, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long, long)#1}>, std::array<char*, 2ul>)": {
+        "count": 100,
+        "sum_us": 614.9389999999997
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::BUnaryFunctor<long, long, long, at::native::remainder_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long, long)#1}>, std::array<char*, 2ul> >(int, at::native::BUnaryFunctor<long, long, long, at::native::remainder_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long, long)#1}>, std::array<char*, 2ul>)": {
+        "count": 100,
+        "sum_us": 577.02
+      },
+      "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>::result_type*)": {
+        "count": 100,
+        "sum_us": 546.459
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::AUnaryFunctor<long, long, long, at::native::binary_internal::MulFunctor<long> >, std::array<char*, 2ul> >(int, at::native::AUnaryFunctor<long, long, long, at::native::binary_internal::MulFunctor<long> >, std::array<char*, 2ul>)": {
+        "count": 100,
+        "sum_us": 545.818
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<long>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<long>, std::array<char*, 3ul>)": {
+        "count": 100,
+        "sum_us": 545.6590000000001
+      },
+      "triton_poi_fused__to_copy_arange_ge_index_put_lift_fresh_0": {
+        "count": 75,
+        "sum_us": 408.245
+      },
+      "void at::native::(anonymous namespace)::CatArrayBatchedCopy_contig<at::native::(anonymous namespace)::OpaqueType<4u>, unsigned int, 1, 128, 1>(at::native::(anonymous namespace)::OpaqueType<4u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<4u>, unsigned int, 128, 1>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int, bool, long, long)": {
+        "count": 5,
+        "sum_us": 335.835
+      },
+      "Cijk_Alik_Bljk_BBH_MT32x32x32_SE_AMAS3_BW_DTL1_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS0_FL0_GRVW2_GSU1_ISA938_IU1_KME_GRCMn2_K1_KLA_LDL1_LRVW2_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR0_PGR2_PLR1_RK0_SU0_SUM0_SUS256_SVW4_TT2_2_TLM1_ULDSWM1_USFGRO0_USSB1_VAW2_VSn1_VW2_WG16_16_1_WGM1": {
+        "count": 1,
+        "sum_us": 294.399
+      },
+      "Cijk_Alik_Bljk_BBH_MT64x64x32_SE_AMAS3_BW_DTL0_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS0_FL0_GRVW4_GSU1_ISA938_IU1_KME_GRCMn1_K1_KLA_LDL1_LRVW4_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR1_PGR2_PLR1_RK0_SU32_SUM0_SUS256_SVW4_TT4_4_TLM0_ULDSWM0_USFGRO0_USSB0_VAW2_VSn1_VW4_WG16_16_1_WGM1": {
+        "count": 21,
+        "sum_us": 166.85899999999998
+      },
+      "void at::native::fused_rms_kernel_opt<c10::BFloat16, float, 8, 1024, false, false>(c10::BFloat16*, c10::BFloat16*, c10::BFloat16*, int, float, int, float)": {
+        "count": 1,
+        "sum_us": 126.079
+      },
+      "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1} const&)::{lambda(int, bool)#1})": {
+        "count": 6,
+        "sum_us": 40.95399999999999
+      },
+      "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1})": {
+        "count": 3,
+        "sum_us": 37.597
+      },
+      "void at::native::(anonymous namespace)::CatArrayBatchedCopy<at::native::(anonymous namespace)::OpaqueType<8u>, unsigned int, 1, 64, 64>(at::native::(anonymous namespace)::OpaqueType<8u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<8u>, unsigned int, 64, 64>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int)": {
+        "count": 5,
+        "sum_us": 33.434999999999995
+      },
+      "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1})": {
+        "count": 4,
+        "sum_us": 26.715999999999998
+      },
+      "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>::result_type*)": {
+        "count": 13,
+        "sum_us": 26.547000000000004
+      },
+      "void at::native::(anonymous namespace)::multi_tensor_apply_kernel<at::native::(anonymous namespace)::TensorListMetadata<2>, at::native::(anonymous namespace)::UnaryOpFunctor<long, 2, 1, 1>, at::native::Copy<long, long> >(at::native::(anonymous namespace)::TensorListMetadata<2>, at::native::(anonymous namespace)::UnaryOpFunctor<long, 2, 1, 1>, at::native::Copy<long, long>)": {
+        "count": 1,
+        "sum_us": 18.559
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<int>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<int>, std::array<char*, 3ul>)": {
+        "count": 6,
+        "sum_us": 15.674000000000003
+      },
+      "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<int, at::native::func_wrapper_t<int, at::native::MaxNanFunctor<int> >, unsigned int, int, 4, 4> >(at::native::ReduceOp<int, at::native::func_wrapper_t<int, at::native::MaxNanFunctor<int> >, unsigned int, int, 4, 4>)": {
+        "count": 1,
+        "sum_us": 14.879
+      },
+      "void rocprim::detail::single_scan_kernel<false, rocprim::detail::wrapped_scan_config<rocprim::default_config, int>, int const*, int*, std::plus<int>, int, int>(int const*, unsigned long, int, int*, std::plus<int>)": {
+        "count": 3,
+        "sum_us": 14.876999999999999
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::compare_scalar_kernel<int>(at::TensorIteratorBase&, at::native::(anonymous namespace)::OpType, int)::{lambda(int)#1}, std::array<char*, 2ul> >(int, at::native::compare_scalar_kernel<int>(at::TensorIteratorBase&, at::native::(anonymous namespace)::OpType, int)::{lambda(int)#1}, std::array<char*, 2ul>)": {
+        "count": 1,
+        "sum_us": 10.239
+      },
+      "void rocprim::detail::single_scan_kernel<false, rocprim::detail::wrapped_scan_config<rocprim::default_config, long>, long const*, long*, std::plus<long>, long, long>(long const*, unsigned long, long, long*, std::plus<long>)": {
+        "count": 2,
+        "sum_us": 10.238
+      },
+      "void rocprim::detail::lookback_scan_kernel<(rocprim::detail::lookback_scan_determinism)0, false, rocprim::detail::wrapped_scan_config<rocprim::default_config, int>, int const*, int*, std::plus<int>, int, int, rocprim::detail::lookback_scan_state<int, false, true> >(int const*, int*, unsigned long, int, std::plus<int>, rocprim::detail::lookback_scan_state<int, false, true>, unsigned int, int*, int*, bool, bool)": {
+        "count": 1,
+        "sum_us": 9.759
+      },
+      "void at::native::(anonymous namespace)::CatArrayBatchedCopy<at::native::(anonymous namespace)::OpaqueType<4u>, unsigned int, 1, 64, 64>(at::native::(anonymous namespace)::OpaqueType<4u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<4u>, unsigned int, 64, 64>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int)": {
+        "count": 2,
+        "sum_us": 9.758
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<long>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<long>, std::array<char*, 2ul>)": {
+        "count": 2,
+        "sum_us": 9.278
+      },
+      "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1} const&)::{lambda(int, bool)#1})": {
+        "count": 1,
+        "sum_us": 8.159
+      },
+      "void at::native::_scatter_gather_elementwise_kernel<256, 4, at::native::_cuda_scatter_gather_internal_kernel<false, at::native::OpaqueType<4>, int>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1}>(int, at::native::_cuda_scatter_gather_internal_kernel<false, at::native::OpaqueType<4>, int>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1})": {
+        "count": 1,
+        "sum_us": 7.839
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::bfloat16_to_float_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul> >(int, at::native::bfloat16_to_float_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>)": {
+        "count": 1,
+        "sum_us": 7.518
+      },
+      "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1})": {
+        "count": 1,
+        "sum_us": 7.039
+      },
+      "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1})": {
+        "count": 1,
+        "sum_us": 5.919
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)": {
+        "count": 1,
+        "sum_us": 5.919
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::BUnaryFunctor<int, int, int, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int, int)#1}>, std::array<char*, 2ul> >(int, at::native::BUnaryFunctor<int, int, int, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int, int)#1}>, std::array<char*, 2ul>)": {
+        "count": 1,
+        "sum_us": 4.959
+      },
+      "void compute_cuda_kernel<int>(int const*, long const*, int*, long, long)": {
+        "count": 1,
+        "sum_us": 4.799
+      },
+      "dsa_cp_round_robin_split_q_seqs_kernel": {
+        "count": 1,
+        "sum_us": 4.319
+      },
+      "void rocprim::detail::init_lookback_scan_state_kernel<rocprim::detail::lookback_scan_state<int, false, true> >(rocprim::detail::lookback_scan_state<int, false, true>, unsigned int, unsigned int, rocprim::detail::lookback_scan_state<int, false, true>::value_type*)": {
+        "count": 1,
+        "sum_us": 4.319
+      },
+      "at::native::and_kernel_continuous_small(bool*, bool*, long, long, long)": {
+        "count": 1,
+        "sum_us": 3.679
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::launch_clamp_scalar(at::TensorIteratorBase&, c10::Scalar, c10::Scalar, at::native::detail::ClampLimits)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}, std::array<char*, 2ul> >(int, at::native::(anonymous namespace)::launch_clamp_scalar(at::TensorIteratorBase&, c10::Scalar, c10::Scalar, at::native::detail::ClampLimits)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}, std::array<char*, 2ul>)": {
+        "count": 1,
+        "sum_us": 3.519
+      }
+    },
+    "fusion_gpu_annotations": {
+      "glm_prefill_shared_swiglu_quant": {
+        "count": 75,
+        "sum_us": 22675.746999999996
+      }
+    },
+    "timing_limit": "Each sum is GPU duration within the main-model 32K step. Overlapping kernels/annotations are not additive wall time or causal savings. No HBM PMC counters captured."
+  },
+  "native_fused_kernel": {
+    "count": 75,
+    "sum_us": 5336.401999999999
+  },
+  "old_shared_SiLU": {
+    "count": 75,
+    "sum_us": 4082.964000000002
+  },
+  "quant128_before": {
+    "count": 174,
+    "sum_us": 3925.5840000000044
+  },
+  "quant128_after": {
+    "count": 99,
+    "sum_us": 2246.298000000001
+  },
+  "same_kernel_class_sum_difference_us": 425.8480000000063,
+  "timing_scope_warning": "glm_prefill_shared_swiglu_quant GPU annotation includes down-projection GEMM; its22.676ms is not fused activation-only kernel time. Fused activation kernel alone is5.336ms. Cross-class sum differences are not causal wall savings.",
+  "effective_bandwidth_estimate": {
+    "M": 4096,
+    "intermediate": 2048,
+    "calls": 75,
+    "minimum_logical_bytes": 3146956800,
+    "GB_s": 589.7150926785501,
+    "scope": "Read BF16 gate+up, write FP8 and FP32 row scale. Includes cache effects, omits extra passes; not HBM PMC bandwidth."
+  },
+  "cleanup": "owned PID/start-time stop after terminal formal/profile clients; all8cards2MiB separately verified before P10 launch",
+  "remote_root": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P08",
+  "conclusion": "GSM8K19/20 and explicit fused activation/consumer path verified. TTFT delta -0.071%, main32K step slightly slower; no stable e2e speedup. Keep default OFF; no automatic inclusion in performance combination."
+}

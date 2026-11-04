@@ -52,7 +52,7 @@
 | 历史 KV 下一层预取 | 分支已有 `maybe_prefetch_next_full_attention_kv`，依赖 layer split；B0 的 IFB layer split 关闭 | 普通IFB不允许启用LayerSplit，server_args限定PD prefill；本协议不直接加flag，详见COVERAGE.md |
 | P11 shared expert overlap | `forward_deepep` 已有 alt_stream + event；B0未开 `SGLANG_ROCM_USE_MULTI_STREAM`，MoE将alt_stream置None。P11复用已有组织，只对GLM普通prefill启用一条缓存stream，显式记录跨stream生命周期 | 单项两轮TTFT低1.58%，GSM8K19/20，shared stream命中；稳定收益尚未确立，见P11.md |
 | P12 Q projection / indexer overlap | 原 `q_b_proj` / indexer重叠只在capture decode门控内；新增独立prefill开关，只在indexer确实执行时启动非collective投影并join | GSM8K19/20、并行命中，TTFT低0.52%但无稳定收益，默认关闭，见P12.md |
-| P08 shared expert SwiGLU + quant | 旧融合核带最小scale，基线per-token量化不带；已改为要求显式SGLang SwiGLU FP8 ABI v1，保持BF16激活/乘法中间舍入，再按amax直接量化 | 框架已接入；B2 SwiGLU的8组FP8字节/scale逐位一致，B0原包不满足；模型待验 |
+| P08 shared expert SwiGLU + quant | 旧融合核带最小scale，基线per-token量化不带；已改为要求显式SGLang SwiGLU FP8 ABI v1，保持BF16激活/乘法中间舍入，再按amax直接量化 | B2原生8组逐位一致；GSM19/20、75次融合/消费者命中，TTFT低0.071%无稳定收益，默认关闭，见P08.md |
 | indexer overlap / TopK reuse | 基线21个full/57个shared层，已有21次Indexer-K AG与query Hadamard重叠；FP8量化/store融合也已命中 | 覆盖核验已完成，详见COVERAGE.md；不计新增收益 |
 
 P03 与 Q projection 的 overlap 是不同候选，不合并记账。P01 MQA beta 和 P02 FlashMLA 的已有实测保持独立，见 README 和 results.csv。
