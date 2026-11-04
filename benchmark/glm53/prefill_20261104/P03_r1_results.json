@@ -1,0 +1,91 @@
+{
+  "candidate": "P03-r1",
+  "deployed_commit": "9b7870b450624414da1524cc497a60521fd55bab",
+  "remote_root": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P03",
+  "repeats": [
+    {
+      "repeat": 1,
+      "ttft_ms": 10657.986413344588,
+      "new_input_tok_s": 4112.126162558692,
+      "duration": 43.82744907998131
+    },
+    {
+      "repeat": 2,
+      "ttft_ms": 10409.464589781237,
+      "new_input_tok_s": 4206.779619177069,
+      "duration": 42.84132194099948
+    }
+  ],
+  "gsm8k_20": {
+    "accuracy": 0.95,
+    "invalid": 0.0,
+    "latency": 188.2107451990014,
+    "output_throughput": 11.348980090066256
+  },
+  "mean_ttft_ms": 10533.725501562913,
+  "mean_new_input_tok_s": 4159.45289086788,
+  "relative_to_historical_B0_percent": 110.17974690703905,
+  "attribution": "matched current control and P03-r2 pending; no causal claim",
+  "trace": {
+    "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P03/traces/1793784952.0946445/1793784952.1045315-TP-0-EP-0.trace.json.gz",
+    "bytes": 90780065,
+    "sha256": "66ac2942c38371e63f8efaa4a6b121821c690f4dc281c59322375797a53cfb8b"
+  },
+  "overlap": {
+    "step": {
+      "ph": "X",
+      "cat": "gpu_user_annotation",
+      "name": "step[EXTEND bs=6 toks=32768]",
+      "pid": 0,
+      "tid": 300,
+      "ts": 2927928568781.774,
+      "dur": 5647810.763,
+      "args": {
+        "External id": 35918
+      }
+    },
+    "allgather_count": 101,
+    "allgather_stream_count": 32,
+    "allgather_stream_counts": {
+      "301": 23,
+      "451": 3,
+      "600": 3,
+      "601": 3,
+      "602": 3,
+      "603": 3,
+      "604": 3,
+      "605": 3,
+      "606": 3,
+      "607": 3,
+      "608": 3,
+      "609": 3,
+      "610": 3,
+      "611": 3,
+      "612": 3,
+      "613": 2,
+      "614": 2,
+      "615": 2,
+      "616": 2,
+      "617": 2,
+      "618": 2,
+      "619": 2,
+      "620": 2,
+      "621": 2,
+      "149": 2,
+      "298": 2,
+      "300": 4,
+      "622": 2,
+      "623": 2,
+      "299": 2,
+      "624": 2,
+      "625": 2
+    },
+    "allgather_kernel_ms_sum": 534.4964160000001,
+    "bmm_kernel_count_via_external_id": 156,
+    "bmm_kernel_ms_sum": 152.83496899999994,
+    "allgather_bmm_intersection_union_ms": 42.974306640625,
+    "note": "Interval overlap is not an A/B saving. Phase timing/attribution still requires matched control and P03-r2."
+  },
+  "P03_r2_code_commit": "a64d22b963",
+  "P03_r2_measured": false
+}

@@ -42,7 +42,7 @@
 
 | 项目 | 静态核验与实际适用性 | 验证状态 |
 | --- | --- | --- |
-| P03 主 KV AllGather / Q absorb BMM overlap | CPv2 interleave 已接入，保持 logical/physical padding；配置只启用此新增开关 | 已启动隔离服务；未取得性能结果 |
+| P03 主 KV AllGather / Q absorb BMM overlap | CPv2 interleave 已接入，保持 logical/physical padding；配置只启用此新增开关 | r1 已完成两轮与profile，明显慢于历史B0；当前control和r2待验证，详见P03_r1.md |
 | P04 直写 Q buffer | 新增开关独立，保持 BF16 absorb 权重/scale | 待独立验证 |
 | P05 Q RMSNorm + FP8 quant | 基线有 `rms_norm_fp8_quant`，尚需验证归约/量化结果及消费者调用 | 待独立验证 |
 | P06 native KV gather/dequant | 基线有 kernel 符号，但缺少 `PREFILL_GATHER_TRITON_NAN_COMPAT_VERSION`，不能只凭符号开启 | 基线包不满足接入契约，需兼容候选包及匹配对照 |
