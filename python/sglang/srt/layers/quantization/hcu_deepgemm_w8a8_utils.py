@@ -107,28 +107,28 @@ def prepare_w8a8_int8_deepgemm_weights(layer: torch.nn.Module) -> None:
         from deepgemm import marlin_i8_contiguous_weight
 
         def pack_weight(weight: torch.Tensor) -> torch.Tensor:
-            return marlin_i8_contiguous_weight(
-                weight,
-                shuffle_unique=0,
-                low_memory=True,
-            )
+            # Pass only the documented ``shuffle_unique`` kwarg. ``low_memory``
+            # is deepgemm-version specific (defaults to True where present) and
+            # is not part of the stable ``marlin_i8_contiguous_weight`` API.
+            return marlin_i8_contiguous_weight(weight, shuffle_unique=0)
     elif use_asm:
         need_contiguous_layout = deepep_mode.enable_normal()
         need_masked_layout = deepep_mode.enable_low_latency()
         from deepgemm import marlin_i8_contiguous_weight
 
         def pack_weight(weight: torch.Tensor) -> torch.Tensor:
-            return marlin_i8_contiguous_weight(
-                weight,
-                shuffle_unique=0,
-                low_memory=True,
-            )
+            # Pass only the documented ``shuffle_unique`` kwarg. ``low_memory``
+            # is deepgemm-version specific (defaults to True where present) and
+            # is not part of the stable ``marlin_i8_contiguous_weight`` API.
+            return marlin_i8_contiguous_weight(weight, shuffle_unique=0)
 
         from deepgemm import marlin_i8_masked_weight
+
         def pack_masked_weight(weight: torch.Tensor) -> torch.Tensor:
-            return marlin_i8_masked_weight(
-                weight, shuffle_unique=0, backend="cooperative", low_memory=True
-            )
+            # Pass only the documented ``shuffle_unique`` kwarg. ``backend`` and
+            # ``low_memory`` are deepgemm-version specific; ``backend="cooperative"``
+            # is gfx936-only and raises ValueError on gfx938 (e.g. bw1100).
+            return marlin_i8_masked_weight(weight, shuffle_unique=0)
     elif arch == "gfx936":
         from deepgemm import pack_w8a8_gfx936_weight_to_w6 as pack_weight
     else:
