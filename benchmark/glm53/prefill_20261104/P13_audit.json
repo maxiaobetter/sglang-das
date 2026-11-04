@@ -94,7 +94,7 @@
     "Future strict-compatible reuse needs explicit GLM K2 rounding/floor and post-L2 routing semantics, a genuine HSA-enabled native build validated independently, and raw/packed parameter lifetime plus buffer memory accounting. These library/framework changes are not implemented or represented as completed optimizations.",
     "After those changes, require native correctness, cross-host full-rank communication and matched-source/package model accuracy/performance before any gain claim."
   ],
-  "source_question_status": "Native sources found shipped in wheel; user was told no need to find build directory for now",
+  "source_question_status": "Resolved by user source URL; defaultmain91cdff7 independently checked against frozen shipped files; P13_source_audit.json. This resolves provenance, not the fixed-GLM compatibility findings.",
   "raw_local": "/Users/better/Desktop/SGLang相关/sglang_dcu_github_origin/dcu-sglang/profiles/glm53-prefill-opt-20261104/mega-build",
   "fixed_package_snapshot": {
     "source_package": "/usr/local/lib/python3.10/dist-packages/megamoe",
@@ -225,5 +225,6 @@
     "interpretation": "Native imports RPC fabric and/or HIP IPC symbols as listed; this is binary support evidence, not a successful cross-host fabric test."
   },
   "fabric_interpretation": "Source HSA_RPC branch is conditional on DG_HIP_USE_HSA_FABRIC, with256-byte handle from platform header. Actual native returned64bytes and imports HIP IPC but no RPC symbols; evidence matches compile-time HIP IPC fallback. The environment flag alone does not enable the observed source HSA branch. No peer attach/RW/system-atomic test was run; no claim HyLink hardware lacks support.",
-  "conclusion_scope": "Applies only to frozen installed content fingerprint15d2f290d14b on p2c1, fixed GLM FP8 pipeline and8-card comparison. Does not exclude MegaMoE algorithms, other builds, future compatible APIs or other models."
+  "conclusion_scope": "Applies only to frozen installed content fingerprint15d2f290d14b on p2c1, fixed GLM FP8 pipeline and8-card comparison. Does not exclude MegaMoE algorithms, other builds, future compatible APIs or other models.",
+  "user_supplied_source_audit": "P13_source_audit.json"
 }
