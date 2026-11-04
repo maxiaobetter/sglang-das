@@ -73,3 +73,5 @@ R01按关闭A→候选→关闭B，每组两轮无profiler正式性能及既有2
 ## 尚未完成的交付门槛
 
 后置关闭B的正式性能与100题、完整前后对照和收益漂移判断／必要补测；最终源码15文件与PR内容再次核对；按项目当前CI配置跑最终diff lint、Python语法／脚本语法及diff检查；向`fix/dsa-hicache-index-k-layer-mapping`提PR并处理相关GitHub CI。其他模型、拓扑、Graph、PD和完整准确率套件不在本次已验证范围，不声称普遍加速。
+
+针对复测4.23%与筛选6.88%的差异，另准备同包同源码的单组beta-only参考，协议见[BETA_REFERENCE.md](BETA_REFERENCE.md)。当前尚未启动，增量结论等待该补测及R01完整前后对照。

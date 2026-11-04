@@ -96,3 +96,5 @@ R01阶段结果见 [R01.md](R01.md)：关闭A已完成，两轮5019.05／5020.10
 固定配置、选定开关、包位置、逐项结论及交付门槛汇总在 [DELIVERY.md](DELIVERY.md)，当前R01关闭B、完整收益漂移判断及PR／CI仍待完成。
 
 原始B0／P01／P02引用保留核验见 `BASELINE_PRESERVATION.json`：baseline.json及四份命令快照与最初提交字节一致，成绩账本三行的原始字段未改。该核验不代表R01或CI已完成。
+
+针对候选复测收益低于筛选、框架增量尚未确认，已预先记录单组beta-only补测协议 [BETA_REFERENCE.md](BETA_REFERENCE.md)；R02当前仅准备，须待R01结束及8卡释放后启动。
