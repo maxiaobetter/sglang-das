@@ -51,7 +51,7 @@
 | MegaMoE | 新 adapter 对应 develop 的 `deepgemm.mega`，不是容器原有 `deepgemm.op` 接口 | 同宿主 IPC 入口，跨节点可用性尚未证明 |
 | 历史 KV 下一层预取 | 分支已有 `maybe_prefetch_next_full_attention_kv`，依赖 layer split；B0 的 IFB layer split 关闭 | 需作为独立配置实验，不能记作新实现收益 |
 | shared expert overlap | `forward_deepep` 已有 alt_stream + event 路径；需核对 B0 的实际 stream/trace | 不重复宣称为新增实现 |
-| shared expert SwiGLU + quant | 有 LightOp FP8 API，但需要核对 BF16 中间舍入、FP8 scale 及 consuming linear | 待实现与独立验证 |
+| P08 shared expert SwiGLU + quant | 已新增 DeepEP 普通 prefill 的独立开关及 down projection 预量化消费，需核对 BF16 中间舍入与 FP8 scale | 已接入，待独立数值和性能验证 |
 | indexer overlap / TopK reuse | 实现已存在多个门控分支，需结合实际 B0 kernel/stream 确认 | 待覆盖核验 |
 
 P03 与 Q projection 的 overlap 是不同候选，不合并记账。P01 MQA beta 和 P02 FlashMLA 的已有实测保持独立，见 README 和 results.csv。

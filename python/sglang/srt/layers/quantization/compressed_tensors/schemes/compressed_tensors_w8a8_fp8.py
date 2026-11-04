@@ -283,3 +283,21 @@ class CompressedTensorsW8A8Fp8(CompressedTensorsLinearScheme):
                 use_per_token_if_dynamic=True,
                 compressed_tensor_quant=True,
             )
+
+
+def supports_hcu_channelwise_prequant(layer):
+    """Whether a BF16 producer can supply per-token FP8 to this linear ABI."""
+    from sglang.srt.utils import is_hcu
+
+    if layer is None or not is_hcu() or _use_aiter:
+        return False
+    scheme = getattr(layer, "scheme", None)
+    return (
+        isinstance(scheme, CompressedTensorsW8A8Fp8)
+        and scheme.strategy == QuantizationStrategy.CHANNEL
+        and scheme.weight_block_size is None
+        and not scheme.is_static_input_scheme
+        and getattr(layer, "input_scale", None) is None
+        and layer.weight.dtype == torch.float8_e4m3fn
+        and layer.weight_scale.dtype == torch.float32
+    )

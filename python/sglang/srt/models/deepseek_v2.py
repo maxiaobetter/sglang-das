@@ -373,6 +373,15 @@ class DeepseekV2MLP(nn.Module):
                 x = (x, None, y)
 
             gate_up, _ = self.gate_up_proj(x)
+        if envs.SGLANG_GLM_PREFILL_SHARED_QUANT.get():
+            from sglang.srt.models.deepseek_common.glm_prefill_mlp import (
+                try_shared_swiglu_quant,
+            )
+
+            fused_output = try_shared_swiglu_quant(self, forward_batch, gate_up)
+            if fused_output is not None:
+                return fused_output
+
         # Fast path: fused silu+clamp+fp8_quant+deepgemm when conditions met.
         # Only valid when down_proj does NOT need an all-reduce and its weights
         # are fp8 (uint8 storage with weight_scale_inv).
@@ -815,6 +824,12 @@ class DeepseekV2MoE(nn.Module):
                 swiglu_limit=getattr(config, "swiglu_limit", None),
                 prefix=add_prefix("shared_experts", prefix),
                 **(dict(tp_rank=0, tp_size=1) if _shared_expert_use_tp1 else {}),
+            )
+            self.shared_experts._glm_prefill_shared_quant = (
+                _is_hcu
+                and not is_nextn
+                and "GlmMoeDsaForCausalLM"
+                in (getattr(config, "architectures", None) or ())
             )
             # Flags must be set before weight load so
             # process_weights_after_loading sees them and builds the
@@ -1351,7 +1366,9 @@ class DeepseekV2MoE(nn.Module):
                 if self.alt_stream is not None:
                     self.alt_stream.wait_stream(torch.cuda.current_stream())
                     with torch.cuda.stream(self.alt_stream):
-                        shared_output = self._forward_shared_experts(hidden_states)
+                        shared_output = self._forward_shared_experts(
+                            hidden_states, forward_batch=forward_batch
+                        )
                         shared_output.record_stream(self.alt_stream)
                         shared_event = self.alt_stream.record_event()
                     if is_in_breakable_cuda_graph():
@@ -1362,7 +1379,9 @@ class DeepseekV2MoE(nn.Module):
                         # allocator recycles shared_output across the break.
                         torch.cuda.current_stream().wait_event(shared_event)
                 else:
-                    shared_output = self._forward_shared_experts(hidden_states)
+                    shared_output = self._forward_shared_experts(
+                        hidden_states, forward_batch=forward_batch
+                    )
             topk_kwargs = (
                 {"input_ids": input_ids_global}
                 if getattr(self, "is_hash", False)
@@ -1391,7 +1410,9 @@ class DeepseekV2MoE(nn.Module):
 
             def _deepep_dispatch_hook(dispatcher: BaseDispatcher):
                 nonlocal shared_output
-                shared_output = self._forward_shared_experts(hidden_states)
+                shared_output = self._forward_shared_experts(
+                    hidden_states, forward_batch=forward_batch
+                )
                 for handle in deepep_dispatch_hook_handle:
                     handle.remove()
 
@@ -1467,7 +1488,9 @@ class DeepseekV2MoE(nn.Module):
                 with deep_gemm_wrapper.configure_deep_gemm_num_sms(
                     dispatcher.meta_overlap_args["compute_num_sms"]
                 ):
-                    shared_output = self._forward_shared_experts(hidden_states)
+                    shared_output = self._forward_shared_experts(
+                        hidden_states, forward_batch=forward_batch
+                    )
 
                 pre_combine_hook_handle.remove()
 
@@ -1570,6 +1593,7 @@ class DeepseekV2MoE(nn.Module):
         hidden_states,
         gemm_output_zero_allocator: BumpAllocator = None,
         pre_quant_input: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+        forward_batch: Optional[ForwardBatch] = None,
     ):
         if (hidden_states.shape[0] > 0) and (self.num_fused_shared_experts == 0):
             if pre_quant_input is not None:
@@ -1577,11 +1601,15 @@ class DeepseekV2MoE(nn.Module):
                 # multiple of 4; the padded rows flow through the MLP (all ops
                 # are row-local) and are sliced off here.
                 out = self.shared_experts(
-                    hidden_states, gateup_pre_quant=pre_quant_input
+                    hidden_states,
+                    forward_batch=forward_batch,
+                    gateup_pre_quant=pre_quant_input,
                 )
                 return out[: hidden_states.shape[0]]
             return self.shared_experts(
-                hidden_states, gemm_output_zero_allocator=gemm_output_zero_allocator
+                hidden_states,
+                forward_batch=forward_batch,
+                gemm_output_zero_allocator=gemm_output_zero_allocator,
             )
         else:
             return None

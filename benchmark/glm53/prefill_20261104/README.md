@@ -33,6 +33,7 @@ P01 没有换 LightOp 包。P02 只通过隔离 PYTHONPATH 加载候选 FlashMLA
 | P04 | `SGLANG_GLM_PREFILL_DIRECT_Q=1` | BF16 absorb BMM 写最终 Q buffer，避免拼接复制；保持权重与 scale，排除 DCP/LoRA/graph 等不兼容路径 |
 | P05 | `SGLANG_GLM_PREFILL_NORM_QUANT=1` | Q RMSNorm + per-token FP8 quant，Q projection 消费预量化输入，BF16 Q 仍供 indexer；不包含 residual norm，不适用 AITER shuffled weight |
 | P06 | `SGLANG_GLM_PREFILL_NATIVE_KV=1` | LightOp native prefix KV gather/dequant；需 NaN 兼容能力标记，缺失时报错，不能静默换旧 ABI |
+| P08 | `SGLANG_GLM_PREFILL_SHARED_QUANT=1` | DeepEP GLM shared expert 的 SwiGLU + per-token FP8 量化，交给 down projection 消费；普通 eager prefill，channelwise 动态 FP8；需独立数值和性能验证 |
 | P07 | `SGLANG_HCU_MEGA_MOE_RUNTIME=deepgemm_mega` + MegaMoE backend | 接入 DeepGEMM 的合并版 runtime，保留 checkpoint FP8 权重与 SwiGLU；仅 gfx938、eager、同宿主 HIP IPC；当前两节点基线暂不能直接使用 |
 
 P03–P06 限 GLM 普通 prefill。每项必须确认日志和 trace 命中，未命中标记“不适用”，不能填写性能收益。
@@ -45,7 +46,7 @@ P07 是独立实验入口，不是本次两节点 DeepEP 的已验证替换。�
 
 - KV RMSNorm + Q/K RoPE + quant/store 大融合：现有接口涉及 CP 全局 cache location 和 Q head stride，尚未在此分支接入，不能直接启用 decode 的融合路径。
 - residual/input norm + quant：旧 LightOp residual 累加的 BF16 舍入与原路径不同，尚未启用。
-- shared-expert activation/quant 融合及 overlap：保持 GLM SwiGLU 语义，尚未新增；不复制 Spark GELU/INT8 模型分支。
+- shared-expert SwiGLU/quant 已新增独立开关 P08；overlap 先审计已有路径，普通 prefill 的数值/性能仍待验证。不复制 Spark GELU/INT8 模型分支。
 - 历史 KV 下一层预取、indexer overlap、TopK reuse：代码中已有部分路径；先核对基线是否已启用，再决定是否能作为新的单项。
 - FlashMLA / MQA beta 已有实测，不重复记成新优化；GEMM 选优按用户要求暂不处理。
 

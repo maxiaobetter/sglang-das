@@ -1939,7 +1939,10 @@ def apply_fp8_linear(
     if input_prequantized:
         per_token_prequantized = (
             _is_hcu
-            and envs.SGLANG_GLM_PREFILL_NORM_QUANT.get()
+            and (
+                envs.SGLANG_GLM_PREFILL_NORM_QUANT.get()
+                or envs.SGLANG_GLM_PREFILL_SHARED_QUANT.get()
+            )
             and input_scale is not None
             and input_scale.dtype == torch.float32
             and input_scale.device == input.device
