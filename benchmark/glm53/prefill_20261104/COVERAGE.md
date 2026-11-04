@@ -34,3 +34,5 @@
 Mega原生扩展SHA256 `8e900c9894fea6b080ec3c3946d41a7fdfbede8151a39e9ef36f400096dcff18`，基线deepgemm.op保留原哈希。双宿主probe仅验证2MiB uncached分配/64-byte句柄交换和打开，不是MoE正确性或性能测试；两端在open阶段都报invalid device pointer。命令与结果保留于远端本轮目录 `mega_hip_ipc_probe/`、本地 `mega-build/ipc_probe/`。未改阈值，未新增仓库单测。
 
 LightOp B1 `8c2b40a818fd`已编译、wheel ZIP完整性通过；B2 `c3881932743e`包含SwiGLU显式兼容入口，已完成编译、ZIP及原生数值检查，P06性能断言失败，P05/P08/P09/P10的独立模型结果已记录，P06模型回退已确认，拟交付组合仍须分别验收。编译成功不代表原生数值正确、模型准确率通过或性能提升。仍待验收的适用项不得记作完成。
+
+独立MegaMoE的用户补充源码已固定到默认main的91cdff7，并与冻结包附带文件核对：54份相同，现有文件仅W4A8入口不同，关键FP8／fabric源码一致；来源补齐不等于GLM兼容问题已解决，见 `P13_source_audit.json`。

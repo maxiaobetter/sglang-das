@@ -7,7 +7,7 @@
 | F-control | 5018.46 | +0.00% | 8713.11 | 19/20 | 97/100；77/80 | 3276.91 |
 | F-beta | 4786.69 | -4.62% | 9126.46 | 19/20 | 96/100；76/80 | 3116.19 |
 | F-beta-shared | 4733.11 | -5.69% | 9223.48 | 19/20 | 未执行 | 3079.72 |
-| F-beta-comm-copy-shared | 待验 | — | — | — | — | — |
+| F-beta-comm-copy-shared | 4673.05 | -6.88% | 9344.17 | 19/20 | 未执行 | 3026.76 |
 | F-beta-kv-shared | 待验 | — | — | — | — | — |
 
 长评测复用原解析器、20-shot／100题、greedy／parallel4／max512；前20题包含在示例中，单列其正确数并重点报告余下80题。实际prompt token数和prompt／数据集／评测代码哈希保留于对应JSON及原始目录，短sanity不作完整准确率保证。
@@ -21,3 +21,6 @@ Beta-only：两轮4789.29／4784.08ms，TTFT低4.62%；主32K整步3276.91→311
 
 
 Beta＋shared overlap：TTFT比beta-only再低1.12%，主32K step 3116.19→3079.72ms。shared独立stream含150次GEMM、150次quant和75次SiLU，累计121.23ms，与routed区间交集102.14ms；交集不是可直接相加的端到端节省。8rank各726次beta事件，源码／包／开关及日志匹配。当前仅GSM20为19/20，尚无本组合长100题或重复验收，后续须配对确认。
+
+
+Beta＋shared＋CP overlap＋Q直写：TTFT两轮4672.91／4673.19ms，比F-control低6.88%，比beta＋shared再低1.27%。主32K step 3079.72→3026.76ms；78次主KV AllGather落在同一独立通信stream，与Q/V BMM区间交集35.09ms。78次full Q concat消失，改为78次RoPE尾部copy累计5.29ms；strided Q absorb BMM累计68.22ms。跨stream交集不等同于端到端收益，组合交互也不拆成未经A/B证明的单项收益。8rank运行身份／beta kernel核验和完整trace齐全，精确清理后8卡释放。GSM20为19/20，长100题及交替重复仍待验收。

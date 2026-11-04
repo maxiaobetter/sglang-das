@@ -78,7 +78,7 @@ P07当前pin已排除，见 `P07.md`：实际L1→L2使用groupwise激活scale�
 ## 每项记录格式
 
 每项新建独立运行目录，保留 `command.sh`、`manifest.json`、服务日志、原始 benchmark JSONL、核验结果、profile 和分析。
-manifest 包含：对照 ID、实际 SGLang commit/dirty patch、所有 rank 的包路径/.so 哈希、节点/设备、模型与映射哈希、全部环境变量、客户端版本、种子、唯一变化、开始结束时间。
+manifest 包含：对照 ID、实际 SGLang commit/dirty patch、所有 rank 的包路径/.so 哈希、节点/设备、模型与映射哈希、相关环境字段（排除凭据）、客户端版本、种子、唯一变化、开始结束时间。
 
 先固定已有 B0 的脚本与包。源代码分支基点不是“已测容器版本”的证明：候选部署前保存容器源码快照并确认本次差异，若有无关框架漂移需单独记录，不能归为优化收益。
 性能正式跑测不启 profiler；每轮按原协议清缓存、预热共享前缀，使用相同种子，保留逐请求 input/cached/output 核验。
