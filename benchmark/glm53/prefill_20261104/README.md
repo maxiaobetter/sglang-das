@@ -39,7 +39,7 @@ Fresh control 平均 TTFT **5019.78 ms**，与历史 B0 相差 +0.16%；P03-r1 �
 | P10 | `SGLANG_GLM_PREFILL_KV_ROPE_STORE=1` | prefix prefill 的 KV norm + Q/K RoPE + FP8 store + Q concat；CPv2 interleave 交换完整656-byte cache行并写全局loc，避免重复量化；原包无GLM Q stride能力声明，需兼容候选包；框架已实现、尚未实测 |
 | P11 | `SGLANG_GLM_PREFILL_SHARED_OVERLAP=1` | 复用现有 DeepEP shared/routed 双stream组织，普通GLM prefill显式开启；全模型复用一条shared stream，保持decode原门控，独立于P08量化融合；待测 |
 | P12 | `SGLANG_GLM_PREFILL_Q_PROJ_OVERLAP=1` | Q-B projection 与实际执行的DSA indexer重叠；独立compute stream，排除collective/LoRA，不复用indexer通信stream；不是P03的absorb BMM overlap；待测 |
-| P08 | `SGLANG_GLM_PREFILL_SHARED_QUANT=1` | DeepEP GLM shared expert 的 SwiGLU + per-token FP8 量化，交给 down projection 消费；普通 eager prefill，channelwise 动态 FP8；需独立数值和性能验证 |
+| P08 | `SGLANG_GLM_PREFILL_SHARED_QUANT=1` | DeepEP GLM shared expert 的 SwiGLU + per-token FP8 量化，交给 down projection 消费；普通 eager prefill、channelwise动态FP8；要求显式SGLang SwiGLU FP8 ABI v1，旧融合核scale下限不同，不能直接替换；待测 |
 | P07 | `SGLANG_HCU_MEGA_MOE_RUNTIME=deepgemm_mega` + MegaMoE backend | 接入 DeepGEMM 的合并版 runtime，保留 checkpoint FP8 权重与 SwiGLU；仅 gfx938、eager、同宿主 HIP IPC；当前两节点基线暂不能直接使用 |
 
 P03–P06 限 GLM 普通 prefill。每项必须确认日志和 trace 命中，未命中标记“不适用”，不能填写性能收益。

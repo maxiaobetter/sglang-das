@@ -73,11 +73,17 @@ def try_shared_swiglu_quant(mlp, batch, gate_up):
 
     if not supports_hcu_channelwise_prequant(mlp.down_proj):
         return None
-    from lightop.fuse_silu_mul_quant import fuse_silu_mul_fp8_quant
+    from lightop import op
+
+    if getattr(op, "SILU_MUL_FP8_MATCH_SGLANG_ABI_VERSION", 0) < 1:
+        raise RuntimeError("GLM shared quant requires LightOp SGLang SwiGLU FP8 ABI v1")
+    if gate_up.shape[1] // 2 not in getattr(op, "SILU_MUL_FP8_MATCH_SGLANG_WIDTHS", ()):
+        return None
+    from lightop.fuse_silu_mul_quant import fuse_silu_mul_fp8_quant_sglang
 
     # Use the existing HCU SwiGLU ordering: [gate, up], BF16 activation output,
     # then row-wise E4M3FN quantization. No clamp or Spark GELU substitution.
     with torch.profiler.record_function("glm_prefill_shared_swiglu_quant"):
-        quant, scale = fuse_silu_mul_fp8_quant(gate_up, fp8type=0)
+        quant, scale = fuse_silu_mul_fp8_quant_sglang(gate_up)
         _report_shared_quant()
         return mlp.down_proj((quant, scale, gate_up.dtype))[0]

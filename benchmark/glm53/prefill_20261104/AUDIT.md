@@ -52,7 +52,7 @@
 | 历史 KV 下一层预取 | 分支已有 `maybe_prefetch_next_full_attention_kv`，依赖 layer split；B0 的 IFB layer split 关闭 | 需作为独立配置实验，不能记作新实现收益 |
 | P11 shared expert overlap | `forward_deepep` 已有 alt_stream + event；B0未开 `SGLANG_ROCM_USE_MULTI_STREAM`，MoE将alt_stream置None。P11复用已有组织，只对GLM普通prefill启用一条缓存stream，显式记录跨stream生命周期 | 框架已实现；是已有能力的prefill限定接入，不是新通信算法；待测 |
 | P12 Q projection / indexer overlap | 原 `q_b_proj` / indexer重叠只在capture decode门控内；新增独立prefill开关，只在indexer确实执行时启动非collective投影并join | 已实现；独立于P03，待正确性/运行命中/性能验证 |
-| P08 shared expert SwiGLU + quant | 已新增 DeepEP 普通 prefill 的独立开关及 down projection 预量化消费，需核对 BF16 中间舍入与 FP8 scale | 已接入，待独立数值和性能验证 |
+| P08 shared expert SwiGLU + quant | 旧融合核带最小scale，基线per-token量化不带；已改为要求显式SGLang SwiGLU FP8 ABI v1，保持BF16激活/乘法中间舍入，再按amax直接量化 | 框架已接入；兼容候选正在实现，B0原包不满足；待独立验证 |
 | indexer overlap / TopK reuse | 实现已存在多个门控分支，需结合实际 B0 kernel/stream 确认 | 待覆盖核验 |
 
 P03 与 Q projection 的 overlap 是不同候选，不合并记账。P01 MQA beta 和 P02 FlashMLA 的已有实测保持独立，见 README 和 results.csv。
