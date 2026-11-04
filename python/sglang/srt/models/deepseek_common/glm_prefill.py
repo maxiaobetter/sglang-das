@@ -1,6 +1,7 @@
 """Opt-in GLM sparse prefill optimizations; preserve all fallback paths."""
 
 import logging
+from functools import lru_cache
 
 import torch
 
@@ -20,6 +21,13 @@ from sglang.srt.model_executor.forward_context import get_attn_backend
 from sglang.srt.runtime_context import get_exec, get_parallel
 
 logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=None)
+def _cp_comm_stream(device):
+    # Every attention layer uses the same communicator in forward order.
+    # Reuse one queue per device rather than allocating a HIP queue per layer.
+    return torch.cuda.Stream(device=device)
 
 
 def eligible(attn, batch):
@@ -104,11 +112,7 @@ def launch_cp_kv_gather(attn, batch, positions, q_pe, k_nope, k_pe):
         padded_kv = packed_kv.new_zeros((physical_rank_len, packed_kv.shape[-1]))
         padded_kv[:local_logical_len] = packed_kv[:local_logical_len]
         packed_kv = padded_kv
-    stream = getattr(attn, "_glm_prefill_cp_stream", None)
-    if stream is None:
-        stream = attn._glm_prefill_cp_stream = torch.cuda.Stream(
-            device=packed_kv.device
-        )
+    stream = _cp_comm_stream(packed_kv.device)
     with torch.profiler.record_function("glm_prefill_cp_kv_launch"):
         handle = cp_all_gather_rerange_launch(
             packed_kv, attn.cp_size, stream, ("glm_prefill_kv", attn.layer_id)
