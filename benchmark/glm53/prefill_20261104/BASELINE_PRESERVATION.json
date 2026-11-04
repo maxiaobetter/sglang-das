@@ -1,0 +1,81 @@
+{
+  "scope": "Only immutable original B0/P01/P02 reference files/fields. This does not prove R01, final performance, code acceptance or CI completion.",
+  "initial_reference_commit": "8bd4129713",
+  "initial_ledger_commit": "e605e4553c44bc22d4b2dbef730843c99939d6ad",
+  "current_HEAD": "dc69a0ce47fd3e2dda05f4c1a6fdb6d04de39707",
+  "files": [
+    {
+      "path": "benchmark/glm53/prefill_20261104/baseline.json",
+      "sha256": "8946241e36ade794fa85380a8038a4ffda919878176da03d31da7f6628d037d9",
+      "byte_identical_to_initial": true
+    },
+    {
+      "path": "benchmark/glm53/prefill_20261104/bench_bs8.sh.txt",
+      "sha256": "88550c12d56256ab2771799fe117bc8f51b7c45e624458ea33626d9a4d0951ba",
+      "byte_identical_to_initial": true
+    },
+    {
+      "path": "benchmark/glm53/prefill_20261104/serve_baseline.sh.txt",
+      "sha256": "447f2caee51dce4b27a9d7ed1f364b34eacbd5e948538b28fc073060df591907",
+      "byte_identical_to_initial": true
+    },
+    {
+      "path": "benchmark/glm53/prefill_20261104/serve_beta.sh.txt",
+      "sha256": "7f8c9b3d9a4c9adda94a671e55a04bd613b13432bf9f160bdf4cb94b45307161",
+      "byte_identical_to_initial": true
+    },
+    {
+      "path": "benchmark/glm53/prefill_20261104/serve_flash.sh.txt",
+      "sha256": "2d14262d461a6b4674390bb64b9fdb164aad4e91f57de8fe354e41e3ce05b768",
+      "byte_identical_to_initial": true
+    }
+  ],
+  "historical_ledger_rows": [
+    {
+      "id": "B0",
+      "initial_fields_unchanged": true,
+      "row": {
+        "id": "B0",
+        "change": "original image",
+        "status": "measured",
+        "ttft_round1_ms": "5006.97",
+        "ttft_round2_ms": "5016.57",
+        "mean_ttft_ms": "5011.77",
+        "new_input_tok_s": "8724.79",
+        "ttft_change_percent": "0",
+        "evidence": "baseline/"
+      }
+    },
+    {
+      "id": "P01",
+      "initial_fields_unchanged": true,
+      "row": {
+        "id": "P01",
+        "change": "LIGHTOP_MQA_LOGITS_BETA=1",
+        "status": "measured",
+        "ttft_round1_ms": "4811.02",
+        "ttft_round2_ms": "4793.83",
+        "mean_ttft_ms": "4802.42",
+        "new_input_tok_s": "9036.83",
+        "ttft_change_percent": "-4.18",
+        "evidence": "beta/"
+      }
+    },
+    {
+      "id": "P02",
+      "initial_fields_unchanged": true,
+      "row": {
+        "id": "P02",
+        "change": "candidate FlashMLA only",
+        "status": "measured",
+        "ttft_round1_ms": "4984.04",
+        "ttft_round2_ms": "4962.52",
+        "mean_ttft_ms": "4973.28",
+        "new_input_tok_s": "8734.4",
+        "ttft_change_percent": "-0.77",
+        "evidence": "flash/"
+      }
+    }
+  ],
+  "time": 1793809958.034867
+}
