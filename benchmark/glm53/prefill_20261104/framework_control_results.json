@@ -1,0 +1,5960 @@
+{
+  "case": "framework-control",
+  "deployed_source": {
+    "commit": "69fbccd6ed8d0ac9614c71203fd9c9c7d6c8d699",
+    "base_commit": "086ff10241",
+    "base_snapshot": "baseline_source",
+    "patched_files_sha256": {
+      "sglang/srt/distributed/bootstrap.py": "225362938ccb577e5bb717c58c485d1af8854e5ad17e42e0c3665d1cee9475d7",
+      "sglang/srt/environ.py": "2e79a37f63ff4271f29811c83e1979dcfa37fc78e25546c90dcca3328bfc642d",
+      "sglang/srt/layers/attention/dsa/glm_prefill_kv.py": "2ba3f293e193cb398e54d96bfd7bd50f0f877f3e9665cc5b754578af9c29ff61",
+      "sglang/srt/layers/attention/dsa_backend.py": "0943f5970d06971a584ef21442611af66efce7e185e45c95d24d5130e81a8174",
+      "sglang/srt/layers/communicator.py": "a2f0cb8bafe9782ee0fea4340e2b3cc572f0688189f4fd773f665336c2048b6e",
+      "sglang/srt/layers/layernorm.py": "cd8b8e3038ebe311623573f58a6ee355db848fe597c0db4ba0f378dcc5d89ebb",
+      "sglang/srt/layers/moe/deepgemm_mega.py": "db1fe63a1550916721dd4a18db3df042a1691cf92ce74c2513bcc00a50b52908",
+      "sglang/srt/layers/moe/mega_moe.py": "2d8b655eccbe22665203f24bd35c008a4a4986163e239843fdc4da3f52dcc25c",
+      "sglang/srt/layers/quantization/compressed_tensors/schemes/compressed_tensors_w8a8_fp8.py": "afd3e9928346e6fbdcc9c7f4f1755ec7d3f13eed532dfa6566e0ea94affc9253",
+      "sglang/srt/layers/quantization/fp8_utils.py": "8520a9ca47ae3e16733f892607b86e50fc73239ce5c0b53641c6a2cf80bc3dde",
+      "sglang/srt/layers/quantization/prefill_input.py": "fe0babcc4f7cce14eb811127ef998c83f0da8e207f1e8d1bfbb4b1bdffc6eab8",
+      "sglang/srt/models/deepseek_common/attention_forward_methods/forward_mla_rocm.py": "9739a102167dd8a4d58fc2b2b8a0df63b7b20940d72df3b05a0409dc7d2aae9f",
+      "sglang/srt/models/deepseek_common/glm_prefill.py": "0a08b9bdddcf7f214d292303e4ca9e22ab2e0d6cac34f43fd57719af4b3e7a5e",
+      "sglang/srt/models/deepseek_common/glm_prefill_kv_fusion.py": "4430e7df7ea995826d925b48c5caf236a7b84f4371fc59bfa1444e1095342aa0",
+      "sglang/srt/models/deepseek_common/glm_prefill_mlp.py": "36c729f2587c20238efecbac058bc75f2adc34171da138fcc704771cd5347666",
+      "sglang/srt/models/deepseek_v2.py": "e2977761687722d8822baa7c8cfc5713fb69ab3f536a747d1e503a7553a28e67"
+    },
+    "package_directory": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/candidate_framework_69fbccd6ed8d0ac9614c71203fd9c9c7d6c8d699",
+    "native_packages": "original B0; no replacement",
+    "known_installed_kv_cache_configurator_difference_preserved": true,
+    "case": "framework-control",
+    "only_enabled_new_optimization": null,
+    "comparison": "framework-control on identical source and original B0 native packages"
+  },
+  "repeats": [
+    {
+      "repeat": 1,
+      "ttft_ms": 5062.011545374844,
+      "new_input_tok_s": 8639.72636454908,
+      "duration": 20.859919908980373
+    },
+    {
+      "repeat": 2,
+      "ttft_ms": 5022.368851781721,
+      "new_input_tok_s": 8711.922641179986,
+      "duration": 20.68705237901304
+    }
+  ],
+  "gsm8k_20": {
+    "accuracy": 0.95,
+    "invalid": 0.0,
+    "latency": 73.87922891898779,
+    "output_throughput": 28.91205053510005
+  },
+  "mean_ttft_ms": 5042.190198578282,
+  "mean_new_input_tok_s": 8675.824502864532,
+  "relative_to_historical_B0_percent": 0.6069751520576983,
+  "relative_to_original_source_fresh_control_percent": 0.4464805659837756,
+  "trace": {
+    "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/framework-control/traces/1793789867.5288403/1793789867.5388482-TP-0-EP-0.trace.json.gz",
+    "bytes": 85310294,
+    "sha256": "66bee5e9c96400e62d9d56280e7666d36308ea6f4253f3819d2e3eb8f5c93aca"
+  },
+  "trace_summary": [
+    {
+      "step": {
+        "ph": "X",
+        "cat": "gpu_user_annotation",
+        "name": "step[EXTEND bs=6 toks=32768]",
+        "pid": 0,
+        "tid": 151,
+        "ts": 2932842567871.785,
+        "dur": 3275475.932,
+        "args": {
+          "External id": 35864
+        }
+      },
+      "groups": {
+        "Other": [
+          339238.7100000012,
+          3889
+        ],
+        "Other GEMM": [
+          393444.5800000005,
+          727
+        ],
+        "RCCL": [
+          38604.352999999996,
+          101
+        ],
+        "MQA logits": [
+          372975.43,
+          126
+        ],
+        "TopK": [
+          139268.79,
+          126
+        ],
+        "KV dequantize": [
+          61724.869000000006,
+          78
+        ],
+        "FlashMLA sparse attention": [
+          777779.035,
+          78
+        ],
+        "DeepEP dispatch/other": [
+          110921.81799999996,
+          225
+        ],
+        "DeepGEMM MoE": [
+          431485.78,
+          150
+        ],
+        "DeepEP combine notify/wait": [
+          352570.52899999986,
+          75
+        ],
+        "DeepEP combine data": [
+          230762.40000000008,
+          75
+        ]
+      },
+      "top_kernels": [
+        [
+          "void gfx93::fwd::sparse_attn_fwd_kernel<gfx93::fwd::KernelTemplate_B_H_64<576, true, true, false, false, false, false> >(SparseAttnFwdParams)",
+          [
+            777779.035,
+            78
+          ]
+        ],
+        [
+          "void m_grouped_fp8_gemm_nt_contiguous_wasp_pair32_bm256_bn256_nloop4::fp8_pair32_wasp_kernel<__hip_bfloat16>(m_grouped_fp8_gemm_nt_contiguous_wasp_pair32_bm256_bn256_nloop4::DeepGemm_params)",
+          [
+            431485.78,
+            150
+          ]
+        ],
+        [
+          "void at::native::_mqa_logits_32x128x128_TN_impl_fp8<32, 128, 32, 128, 128, true, true>(unsigned char*, unsigned char*, float*, float*, unsigned int*, unsigned int*, int, int, float const*)",
+          [
+            372975.43,
+            126
+          ]
+        ],
+        [
+          "void deep_ep::intranode::cached_notify_combine_kernel<8, true>(void**, int*, int, int, int, int**, int)",
+          [
+            352570.52899999986,
+            75
+          ]
+        ],
+        [
+          "void deep_ep::intranode::combine<hip_bfloat16, 8, 1024, true>(hip_bfloat16*, float*, hip_bfloat16 const*, float const*, hip_bfloat16 const*, hip_bfloat16 const*, int const*, int const*, int const*, int*, int, int, int, int, void**, int, int, int)",
+          [
+            230762.40000000008,
+            75
+          ]
+        ],
+        [
+          "Cijk_Alik_Bljk_F8BS_MT256x256x128_TT16_8_WG16_32_1_MFWGS768_AddDepth64_StoreUseLds_WGM8_bias_channelwise",
+          [
+            141172.92399999994,
+            156
+          ]
+        ],
+        [
+          "void at::native::adaptive_topk_kernel<2048, false>(float const*, long, int, int const*, int const*, int const*, long, int, int const*, int, int*, int*, int*, bool, unsigned int, int const*)",
+          [
+            139268.79,
+            126
+          ]
+        ],
+        [
+          "void deep_ep::intranode::dispatch<8, 1024, true>(HIP_vector_type<int, 4u>*, float*, int*, long*, float*, int*, int*, HIP_vector_type<int, 4u> const*, float const*, long const*, float const*, bool const*, int const*, int, int, int, int, int, int, int, int, void**, int, int, int)",
+          [
+            98985.024,
+            75
+          ]
+        ],
+        [
+          "Cijk_Alik_Bljk_BBH_MT128x128x32_SE_AMAS3_BW_DTL1_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS1_FL0_GRVW8_GSU1_ISA938_IU1_KME_GRCMn2_K1_KLA_LDL1_LRVW8_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR0_PGR1_PLR1_RK0_SU0_SUM0_SUS256_SVW4_TT8_8_TLM1_ULDSWM1_USFGRO0_USSB1_VAW2_VSn1_VW8_WG16_16_1_WGM1",
+          [
+            70338.917,
+            78
+          ]
+        ],
+        [
+          "_dequantize_k_cache_paged_tiled_kernel",
+          [
+            61724.869000000006,
+            78
+          ]
+        ],
+        [
+          "Cijk_Alik_Bljk_F8BS_MT256x256x128_TT16_8_WG16_32_1_MFWGS768_structbuffer1024_AddDepth64_StoreUseLds_WGM5_bias_channelwise",
+          [
+            59117.584000000024,
+            156
+          ]
+        ],
+        [
+          "Cijk_Alik_Bljk_BBH_MT128x256x16_SE_AMAS3_BW_DTL0_BL1_DRB16_ALT_KME1_DRMT_NMZ0_ETSP_EPS0_FL0_GRVW8_GSU1_ISA938_IU1_KME_GRCMn2_K1_KLA_LDL1_LRVW8_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR1_PGR2_PLR1_RK0_SU0_SUM0_SUS256_SVW4_TT8_8_TLM0_ULDSWM0_USFGRO0_USSB0_VAW2_VSn1_VW8_WG16_32_1_WGM1",
+          [
+            57964.712000000014,
+            78
+          ]
+        ],
+        [
+          "Cijk_Alik_Bljk_F8BS_MT256x256x128_TT16_8_WG16_32_1_MFWGS768_AddDepth64_StoreUseLds_WGM1_bias_channelwise",
+          [
+            48512.07,
+            78
+          ]
+        ],
+        [
+          "void at::native::fused_add_rms_kernel_opt<c10::BFloat16, float, 8, 1024, false, false>(c10::BFloat16*, c10::BFloat16*, c10::BFloat16*, int, float, int, float)",
+          [
+            46908.794,
+            156
+          ]
+        ],
+        [
+          "void at::native::ep_gather_kernel<c10::BFloat16, long, 8>(c10::BFloat16 const*, long const*, float const*, int const*, int const*, c10::BFloat16*, int, int, int, bool, int)",
+          [
+            44418.149,
+            75
+          ]
+        ],
+        [
+          "void at::native::ep_scatter_kernel<signed char, float, long, 128, 8>(signed char const*, float const*, long const*, int const*, int*, signed char*, float*, int*, int*, int, int, int, int, int, int, bool)",
+          [
+            43942.156,
+            75
+          ]
+        ],
+        [
+          "void at::native::act_and_mul_fp8_quant_kernel_opt1_one<c10::BFloat16, 8, true, 256>(long, int, unsigned char*, c10::BFloat16 const*, float*, int, int, int*)",
+          [
+            43481.66899999997,
+            75
+          ]
+        ],
+        [
+          "ncclDevKernel_AllGather_Ring_Simple_Sum_i8(ncclDevKernelArgsStorage<1024ul>)",
+          [
+            38604.352999999996,
+            101
+          ]
+        ],
+        [
+          "(anonymous namespace)::concat_mla_absorb_q_hcu_kernel(c10::BFloat16 const*, c10::BFloat16 const*, c10::BFloat16*, long, long, long, long, long, long, long, long)",
+          [
+            32631.910999999996,
+            78
+          ]
+        ],
+        [
+          "void rotary_embedding_kernel<c10::BFloat16, false>(long const*, c10::BFloat16*, c10::BFloat16*, c10::BFloat16 const*, int, long, long, long, int, int, int)",
+          [
+            15647.849999999877,
+            624
+          ]
+        ],
+        [
+          "void at::native::per_token_quant_fp8_kernel<c10::BFloat16, float, 16, 512, true>(c10::BFloat16 const*, unsigned char*, float*, int)",
+          [
+            15300.862000000008,
+            252
+          ]
+        ],
+        [
+          "void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, long, long, long, long, bool)",
+          [
+            13308.040999999996,
+            103
+          ]
+        ],
+        [
+          "void at::native::per_token_quant_fp8_kernel<c10::BFloat16, float, 16, 1024, true>(c10::BFloat16 const*, unsigned char*, float*, int)",
+          [
+            12429.676999999994,
+            81
+          ]
+        ],
+        [
+          "void at::native::elementwise_kernel_manual_unroll<128, 8, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int, bool)#1})",
+          [
+            11134.402000000004,
+            314
+          ]
+        ],
+        [
+          "_fused_gate_scale_kernel",
+          [
+            10255.332999999999,
+            21
+          ]
+        ],
+        [
+          "Cijk_Alik_Bljk_BBH_MT128x128x32_SE_AMAS3_BW_DTL0_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS1_FL0_GRVW8_GSU1_ISA938_IU1_KME_GRCMn1_K1_KLA_LDL1_LRVW8_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR0_PGR1_PLR1_RK1_SU0_SUM0_SUS256_SVW4_TT8_8_TLM0_ULDSWM0_USFGRO0_USSB1_VAW2_VSn1_VW8_WG16_16_1_WGM1",
+          [
+            8550.322,
+            75
+          ]
+        ],
+        [
+          "void deep_ep::layout::get_dispatch_layout<256, 4, 8>(long const*, int*, int*, int*, bool*, int, int, int, int)",
+          [
+            6779.2699999999995,
+            75
+          ]
+        ],
+        [
+          "void at::native::vectorized_elementwise_kernel<8, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul>)",
+          [
+            6603.125000000001,
+            75
+          ]
+        ],
+        [
+          "void at::native::ep_scan_fill_m_indices_kernel<1024, false>(int const*, int*, int*, int, int)",
+          [
+            6337.363000000002,
+            75
+          ]
+        ],
+        [
+          "void deep_ep::intranode::notify_dispatch<8>(int const*, int*, int const*, int*, long*, int, int, int, bool const*, int*, int*, int, int, void**, int**, int)",
+          [
+            5157.524,
+            75
+          ]
+        ],
+        [
+          "void at::native::opt_layernorm_rope_split_kernel<float, c10::BFloat16, c10::BFloat16, float, false, false, 8, 16>(long const*, c10::BFloat16*, c10::BFloat16*, c10::BFloat16 const*, int, int, long, long, long, long, float const*, float const*, float const*, float const*, c10::BFloat16*, c10::BFloat16*, c10::BFloat16, int, int, int, int, int, int, int)",
+          [
+            4429.097,
+            21
+          ]
+        ],
+        [
+          "void at::native::silu_and_mul_kernel_opt1<c10::BFloat16, 8>(c10::BFloat16*, c10::BFloat16 const*, int)",
+          [
+            4080.7230000000004,
+            75
+          ]
+        ],
+        [
+          "void at::native::per_token_quant_fp8_kernel<c10::BFloat16, float, 16, 128, true>(c10::BFloat16 const*, unsigned char*, float*, int)",
+          [
+            3935.023000000004,
+            174
+          ]
+        ],
+        [
+          "void at::native::fused_quantize_and_store_mla_kv_kernel<c10::BFloat16, true>(c10::BFloat16 const*, c10::BFloat16 const*, unsigned char*, long const*, long, float, int, int)",
+          [
+            3381.2019999999993,
+            78
+          ]
+        ],
+        [
+          "void at::native::(anonymous namespace)::CatArrayBatchedCopy<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 3, 64, 64>(at::native::(anonymous namespace)::OpaqueType<2u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 64, 64>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int)",
+          [
+            3349.2020000000016,
+            78
+          ]
+        ],
+        [
+          "Cijk_Alik_Bljk_F8BS_MT256x256x128_TT16_8_WG16_32_1_MFWGS768_AddDepth64_StoreUseLds_WGM5_bias_channelwise",
+          [
+            3347.4979999999996,
+            21
+          ]
+        ],
+        [
+          "void at::native::fused_rms_kernel_opt<c10::BFloat16, float, 8, 256, false, false>(c10::BFloat16*, c10::BFloat16*, c10::BFloat16*, int, float, int, float)",
+          [
+            2832.402000000001,
+            78
+          ]
+        ],
+        [
+          "void at::native::moe_fused_gate_kernel_gourp1<__hip_bfloat16, float, at::native::KernelParams<8, 256, 32, 2, 4, 2>, 8, 256, 8>(void*, void*, float*, void*, long, long, double, bool, bool, at::native::KernelParams<8, 256, 32, 2, 4, 2>)",
+          [
+            2469.363,
+            75
+          ]
+        ],
+        [
+          "Cijk_Alik_Bljk_BBH_MT128x128x32_SE_AMAS3_BW_DTL0_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS0_FL0_GRVW4_GSU1_ISA938_IU1_KME_GRCMn1_K1_KLA_LDL1_LRVW4_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR1_PGR2_PLR1_RK0_SU32_SUM0_SUS256_SVW4_TT8_4_TLM0_ULDSWM0_USFGRO0_USSB0_VAW2_VSn1_VW4_WG16_32_1_WGM8",
+          [
+            1953.5770000000002,
+            21
+          ]
+        ],
+        [
+          "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul> >(int, at::native::FillFunctor<int>, std::array<char*, 1ul>)",
+          [
+            1522.8520000000017,
+            187
+          ]
+        ]
+      ],
+      "gemm_shapes": [
+        {
+          "dims": [
+            [
+              59392,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              59392,
+              4096
+            ],
+            [
+              59392,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              59392
+            ],
+            []
+          ],
+          "us": 5618.078,
+          "min_bytes": 1657749504,
+          "padded_flops": 2989297238016
+        },
+        {
+          "dims": [
+            [
+              59392,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              59392,
+              6144
+            ],
+            [
+              59392,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              59392
+            ],
+            []
+          ],
+          "us": 3496.798,
+          "min_bytes": 1255358464,
+          "padded_flops": 1494648619008
+        },
+        {
+          "dims": [
+            [
+              37888,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              37888,
+              4096
+            ],
+            [
+              37888,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              37888
+            ],
+            []
+          ],
+          "us": 3576.958,
+          "min_bytes": 1349296128,
+          "padded_flops": 1906965479424
+        },
+        {
+          "dims": [
+            [
+              37888,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              37888,
+              6144
+            ],
+            [
+              37888,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              37888
+            ],
+            []
+          ],
+          "us": 2234.559,
+          "min_bytes": 946905088,
+          "padded_flops": 953482739712
+        },
+        {
+          "dims": [
+            [
+              44800,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              44800,
+              4096
+            ],
+            [
+              44800,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              44800
+            ],
+            []
+          ],
+          "us": 4249.278,
+          "min_bytes": 1448441856,
+          "padded_flops": 2254857830400
+        },
+        {
+          "dims": [
+            [
+              44800,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              44800,
+              6144
+            ],
+            [
+              44800,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              44800
+            ],
+            []
+          ],
+          "us": 2653.438,
+          "min_bytes": 1046050816,
+          "padded_flops": 1127428915200
+        },
+        {
+          "dims": [
+            [
+              34304,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              34304,
+              4096
+            ],
+            [
+              34304,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              34304
+            ],
+            []
+          ],
+          "us": 3286.877,
+          "min_bytes": 1297887232,
+          "padded_flops": 1726576852992
+        },
+        {
+          "dims": [
+            [
+              34304,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              34304,
+              6144
+            ],
+            [
+              34304,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              34304
+            ],
+            []
+          ],
+          "us": 2035.359,
+          "min_bytes": 895496192,
+          "padded_flops": 863288426496
+        },
+        {
+          "dims": [
+            [
+              27904,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              27904,
+              4096
+            ],
+            [
+              27904,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              27904
+            ],
+            []
+          ],
+          "us": 2710.238,
+          "min_bytes": 1206085632,
+          "padded_flops": 1404454305792
+        },
+        {
+          "dims": [
+            [
+              27904,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              27904,
+              6144
+            ],
+            [
+              27904,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              27904
+            ],
+            []
+          ],
+          "us": 1639.038,
+          "min_bytes": 803694592,
+          "padded_flops": 702227152896
+        },
+        {
+          "dims": [
+            [
+              37888,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              37888,
+              4096
+            ],
+            [
+              37888,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              37888
+            ],
+            []
+          ],
+          "us": 3577.757,
+          "min_bytes": 1349296128,
+          "padded_flops": 1906965479424
+        },
+        {
+          "dims": [
+            [
+              37888,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              37888,
+              6144
+            ],
+            [
+              37888,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              37888
+            ],
+            []
+          ],
+          "us": 2232.959,
+          "min_bytes": 946905088,
+          "padded_flops": 953482739712
+        },
+        {
+          "dims": [
+            [
+              54528,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              54528,
+              4096
+            ],
+            [
+              54528,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              54528
+            ],
+            []
+          ],
+          "us": 5213.277,
+          "min_bytes": 1587980288,
+          "padded_flops": 2744484102144
+        },
+        {
+          "dims": [
+            [
+              54528,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              54528,
+              6144
+            ],
+            [
+              54528,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              54528
+            ],
+            []
+          ],
+          "us": 3196.638,
+          "min_bytes": 1185589248,
+          "padded_flops": 1372242051072
+        },
+        {
+          "dims": [
+            [
+              30976,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              30976,
+              4096
+            ],
+            [
+              30976,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              30976
+            ],
+            []
+          ],
+          "us": 2999.678,
+          "min_bytes": 1250150400,
+          "padded_flops": 1559073128448
+        },
+        {
+          "dims": [
+            [
+              30976,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              30976,
+              6144
+            ],
+            [
+              30976,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              30976
+            ],
+            []
+          ],
+          "us": 1836.158,
+          "min_bytes": 847759360,
+          "padded_flops": 779536564224
+        },
+        {
+          "dims": [
+            [
+              35328,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              35328,
+              4096
+            ],
+            [
+              35328,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              35328
+            ],
+            []
+          ],
+          "us": 3380.638,
+          "min_bytes": 1312575488,
+          "padded_flops": 1778116460544
+        },
+        {
+          "dims": [
+            [
+              35328,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              35328,
+              6144
+            ],
+            [
+              35328,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              35328
+            ],
+            []
+          ],
+          "us": 2074.399,
+          "min_bytes": 910184448,
+          "padded_flops": 889058230272
+        },
+        {
+          "dims": [
+            [
+              25856,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              25856,
+              4096
+            ],
+            [
+              25856,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              25856
+            ],
+            []
+          ],
+          "us": 2517.918,
+          "min_bytes": 1176709120,
+          "padded_flops": 1301375090688
+        },
+        {
+          "dims": [
+            [
+              25856,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              25856,
+              6144
+            ],
+            [
+              25856,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              25856
+            ],
+            []
+          ],
+          "us": 1519.838,
+          "min_bytes": 774318080,
+          "padded_flops": 650687545344
+        },
+        {
+          "dims": [
+            [
+              39936,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              39936,
+              4096
+            ],
+            [
+              39936,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              39936
+            ],
+            []
+          ],
+          "us": 3768.157,
+          "min_bytes": 1378672640,
+          "padded_flops": 2010044694528
+        },
+        {
+          "dims": [
+            [
+              39936,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              39936,
+              6144
+            ],
+            [
+              39936,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              39936
+            ],
+            []
+          ],
+          "us": 2351.999,
+          "min_bytes": 976281600,
+          "padded_flops": 1005022347264
+        },
+        {
+          "dims": [
+            [
+              26368,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              26368,
+              4096
+            ],
+            [
+              26368,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              26368
+            ],
+            []
+          ],
+          "us": 2524.798,
+          "min_bytes": 1184053248,
+          "padded_flops": 1327144894464
+        },
+        {
+          "dims": [
+            [
+              26368,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              26368,
+              6144
+            ],
+            [
+              26368,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              26368
+            ],
+            []
+          ],
+          "us": 1558.558,
+          "min_bytes": 781662208,
+          "padded_flops": 663572447232
+        },
+        {
+          "dims": [
+            [
+              27392,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              27392,
+              4096
+            ],
+            [
+              27392,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              27392
+            ],
+            []
+          ],
+          "us": 2617.918,
+          "min_bytes": 1198741504,
+          "padded_flops": 1378684502016
+        },
+        {
+          "dims": [
+            [
+              27392,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              27392,
+              6144
+            ],
+            [
+              27392,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              27392
+            ],
+            []
+          ],
+          "us": 1637.118,
+          "min_bytes": 796350464,
+          "padded_flops": 689342251008
+        },
+        {
+          "dims": [
+            [
+              36864,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              36864,
+              4096
+            ],
+            [
+              36864,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              36864
+            ],
+            []
+          ],
+          "us": 3483.678,
+          "min_bytes": 1334607872,
+          "padded_flops": 1855425871872
+        },
+        {
+          "dims": [
+            [
+              36864,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              36864,
+              6144
+            ],
+            [
+              36864,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              36864
+            ],
+            []
+          ],
+          "us": 2155.519,
+          "min_bytes": 932216832,
+          "padded_flops": 927712935936
+        },
+        {
+          "dims": [
+            [
+              25600,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              25600,
+              4096
+            ],
+            [
+              25600,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              25600
+            ],
+            []
+          ],
+          "us": 2424.638,
+          "min_bytes": 1173037056,
+          "padded_flops": 1288490188800
+        },
+        {
+          "dims": [
+            [
+              25600,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              25600,
+              6144
+            ],
+            [
+              25600,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              25600
+            ],
+            []
+          ],
+          "us": 1518.078,
+          "min_bytes": 770646016,
+          "padded_flops": 644245094400
+        },
+        {
+          "dims": [
+            [
+              20736,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              20736,
+              4096
+            ],
+            [
+              20736,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              20736
+            ],
+            []
+          ],
+          "us": 2037.279,
+          "min_bytes": 1103267840,
+          "padded_flops": 1043677052928
+        },
+        {
+          "dims": [
+            [
+              20736,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              20736,
+              6144
+            ],
+            [
+              20736,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              20736
+            ],
+            []
+          ],
+          "us": 1238.558,
+          "min_bytes": 700876800,
+          "padded_flops": 521838526464
+        },
+        {
+          "dims": [
+            [
+              62720,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              62720,
+              4096
+            ],
+            [
+              62720,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              62720
+            ],
+            []
+          ],
+          "us": 5983.517,
+          "min_bytes": 1705486336,
+          "padded_flops": 3156800962560
+        },
+        {
+          "dims": [
+            [
+              62720,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              62720,
+              6144
+            ],
+            [
+              62720,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              62720
+            ],
+            []
+          ],
+          "us": 3660.478,
+          "min_bytes": 1303095296,
+          "padded_flops": 1578400481280
+        },
+        {
+          "dims": [
+            [
+              23808,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              23808,
+              4096
+            ],
+            [
+              23808,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              23808
+            ],
+            []
+          ],
+          "us": 2327.838,
+          "min_bytes": 1147332608,
+          "padded_flops": 1198295875584
+        },
+        {
+          "dims": [
+            [
+              23808,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              23808,
+              6144
+            ],
+            [
+              23808,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              23808
+            ],
+            []
+          ],
+          "us": 1398.398,
+          "min_bytes": 744941568,
+          "padded_flops": 599147937792
+        },
+        {
+          "dims": [
+            [
+              67328,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              67328,
+              4096
+            ],
+            [
+              67328,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              67328
+            ],
+            []
+          ],
+          "us": 6395.676,
+          "min_bytes": 1771583488,
+          "padded_flops": 3388729196544
+        },
+        {
+          "dims": [
+            [
+              67328,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              67328,
+              6144
+            ],
+            [
+              67328,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              67328
+            ],
+            []
+          ],
+          "us": 3941.918,
+          "min_bytes": 1369192448,
+          "padded_flops": 1694364598272
+        },
+        {
+          "dims": [
+            [
+              30720,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              30720,
+              4096
+            ],
+            [
+              30720,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              30720
+            ],
+            []
+          ],
+          "us": 2904.318,
+          "min_bytes": 1246478336,
+          "padded_flops": 1546188226560
+        },
+        {
+          "dims": [
+            [
+              30720,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              30720,
+              6144
+            ],
+            [
+              30720,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              30720
+            ],
+            []
+          ],
+          "us": 1796.478,
+          "min_bytes": 844087296,
+          "padded_flops": 773094113280
+        },
+        {
+          "dims": [
+            [
+              39936,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              39936,
+              4096
+            ],
+            [
+              39936,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              39936
+            ],
+            []
+          ],
+          "us": 3766.877,
+          "min_bytes": 1378672640,
+          "padded_flops": 2010044694528
+        },
+        {
+          "dims": [
+            [
+              39936,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              39936,
+              6144
+            ],
+            [
+              39936,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              39936
+            ],
+            []
+          ],
+          "us": 2352.478,
+          "min_bytes": 976281600,
+          "padded_flops": 1005022347264
+        },
+        {
+          "dims": [
+            [
+              30720,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              30720,
+              4096
+            ],
+            [
+              30720,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              30720
+            ],
+            []
+          ],
+          "us": 2905.438,
+          "min_bytes": 1246478336,
+          "padded_flops": 1546188226560
+        },
+        {
+          "dims": [
+            [
+              30720,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              30720,
+              6144
+            ],
+            [
+              30720,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              30720
+            ],
+            []
+          ],
+          "us": 1797.278,
+          "min_bytes": 844087296,
+          "padded_flops": 773094113280
+        },
+        {
+          "dims": [
+            [
+              34816,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              34816,
+              4096
+            ],
+            [
+              34816,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              34816
+            ],
+            []
+          ],
+          "us": 3287.038,
+          "min_bytes": 1305231360,
+          "padded_flops": 1752346656768
+        },
+        {
+          "dims": [
+            [
+              34816,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              34816,
+              6144
+            ],
+            [
+              34816,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              34816
+            ],
+            []
+          ],
+          "us": 2033.119,
+          "min_bytes": 902840320,
+          "padded_flops": 876173328384
+        },
+        {
+          "dims": [
+            [
+              42752,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              42752,
+              4096
+            ],
+            [
+              42752,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              42752
+            ],
+            []
+          ],
+          "us": 4056.477,
+          "min_bytes": 1419065344,
+          "padded_flops": 2151778615296
+        },
+        {
+          "dims": [
+            [
+              42752,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              42752,
+              6144
+            ],
+            [
+              42752,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              42752
+            ],
+            []
+          ],
+          "us": 2521.118,
+          "min_bytes": 1016674304,
+          "padded_flops": 1075889307648
+        },
+        {
+          "dims": [
+            [
+              44800,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              44800,
+              4096
+            ],
+            [
+              44800,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              44800
+            ],
+            []
+          ],
+          "us": 4251.038,
+          "min_bytes": 1448441856,
+          "padded_flops": 2254857830400
+        },
+        {
+          "dims": [
+            [
+              44800,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              44800,
+              6144
+            ],
+            [
+              44800,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              44800
+            ],
+            []
+          ],
+          "us": 2644.958,
+          "min_bytes": 1046050816,
+          "padded_flops": 1127428915200
+        },
+        {
+          "dims": [
+            [
+              34048,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              34048,
+              4096
+            ],
+            [
+              34048,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              34048
+            ],
+            []
+          ],
+          "us": 3286.398,
+          "min_bytes": 1294215168,
+          "padded_flops": 1713691951104
+        },
+        {
+          "dims": [
+            [
+              34048,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              34048,
+              6144
+            ],
+            [
+              34048,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              34048
+            ],
+            []
+          ],
+          "us": 1994.239,
+          "min_bytes": 891824128,
+          "padded_flops": 856845975552
+        },
+        {
+          "dims": [
+            [
+              37888,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              37888,
+              4096
+            ],
+            [
+              37888,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              37888
+            ],
+            []
+          ],
+          "us": 3576.318,
+          "min_bytes": 1349296128,
+          "padded_flops": 1906965479424
+        },
+        {
+          "dims": [
+            [
+              37888,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              37888,
+              6144
+            ],
+            [
+              37888,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              37888
+            ],
+            []
+          ],
+          "us": 2234.398,
+          "min_bytes": 946905088,
+          "padded_flops": 953482739712
+        },
+        {
+          "dims": [
+            [
+              40448,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              40448,
+              4096
+            ],
+            [
+              40448,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              40448
+            ],
+            []
+          ],
+          "us": 3865.597,
+          "min_bytes": 1386016768,
+          "padded_flops": 2035814498304
+        },
+        {
+          "dims": [
+            [
+              40448,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              40448,
+              6144
+            ],
+            [
+              40448,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              40448
+            ],
+            []
+          ],
+          "us": 2394.238,
+          "min_bytes": 983625728,
+          "padded_flops": 1017907249152
+        },
+        {
+          "dims": [
+            [
+              18688,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              18688,
+              4096
+            ],
+            [
+              18688,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              18688
+            ],
+            []
+          ],
+          "us": 1842.879,
+          "min_bytes": 1073891328,
+          "padded_flops": 940597837824
+        },
+        {
+          "dims": [
+            [
+              18688,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              18688,
+              6144
+            ],
+            [
+              18688,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              18688
+            ],
+            []
+          ],
+          "us": 1121.438,
+          "min_bytes": 671500288,
+          "padded_flops": 470298918912
+        },
+        {
+          "dims": [
+            [
+              57856,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              57856,
+              4096
+            ],
+            [
+              57856,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              57856
+            ],
+            []
+          ],
+          "us": 5502.717,
+          "min_bytes": 1635717120,
+          "padded_flops": 2911987826688
+        },
+        {
+          "dims": [
+            [
+              57856,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              57856,
+              6144
+            ],
+            [
+              57856,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              57856
+            ],
+            []
+          ],
+          "us": 3392.958,
+          "min_bytes": 1233326080,
+          "padded_flops": 1455993913344
+        },
+        {
+          "dims": [
+            [
+              39680,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              39680,
+              4096
+            ],
+            [
+              39680,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              39680
+            ],
+            []
+          ],
+          "us": 3767.358,
+          "min_bytes": 1375000576,
+          "padded_flops": 1997159792640
+        },
+        {
+          "dims": [
+            [
+              39680,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              39680,
+              6144
+            ],
+            [
+              39680,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              39680
+            ],
+            []
+          ],
+          "us": 2353.918,
+          "min_bytes": 972609536,
+          "padded_flops": 998579896320
+        },
+        {
+          "dims": [
+            [
+              46848,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              46848,
+              4096
+            ],
+            [
+              46848,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              46848
+            ],
+            []
+          ],
+          "us": 4443.038,
+          "min_bytes": 1477818368,
+          "padded_flops": 2357937045504
+        },
+        {
+          "dims": [
+            [
+              46848,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              46848,
+              6144
+            ],
+            [
+              46848,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              46848
+            ],
+            []
+          ],
+          "us": 2755.358,
+          "min_bytes": 1075427328,
+          "padded_flops": 1178968522752
+        },
+        {
+          "dims": [
+            [
+              22272,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              22272,
+              4096
+            ],
+            [
+              22272,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              22272
+            ],
+            []
+          ],
+          "us": 2134.238,
+          "min_bytes": 1125300224,
+          "padded_flops": 1120986464256
+        },
+        {
+          "dims": [
+            [
+              22272,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              22272,
+              6144
+            ],
+            [
+              22272,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              22272
+            ],
+            []
+          ],
+          "us": 1318.238,
+          "min_bytes": 722909184,
+          "padded_flops": 560493232128
+        },
+        {
+          "dims": [
+            [
+              26112,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              26112,
+              4096
+            ],
+            [
+              26112,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              26112
+            ],
+            []
+          ],
+          "us": 2517.278,
+          "min_bytes": 1180381184,
+          "padded_flops": 1314259992576
+        },
+        {
+          "dims": [
+            [
+              26112,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              26112,
+              6144
+            ],
+            [
+              26112,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              26112
+            ],
+            []
+          ],
+          "us": 1555.519,
+          "min_bytes": 777990144,
+          "padded_flops": 657129996288
+        },
+        {
+          "dims": [
+            [
+              39680,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              39680,
+              4096
+            ],
+            [
+              39680,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              39680
+            ],
+            []
+          ],
+          "us": 3766.078,
+          "min_bytes": 1375000576,
+          "padded_flops": 1997159792640
+        },
+        {
+          "dims": [
+            [
+              39680,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              39680,
+              6144
+            ],
+            [
+              39680,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              39680
+            ],
+            []
+          ],
+          "us": 2357.119,
+          "min_bytes": 972609536,
+          "padded_flops": 998579896320
+        },
+        {
+          "dims": [
+            [
+              42752,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              42752,
+              4096
+            ],
+            [
+              42752,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              42752
+            ],
+            []
+          ],
+          "us": 4056.958,
+          "min_bytes": 1419065344,
+          "padded_flops": 2151778615296
+        },
+        {
+          "dims": [
+            [
+              42752,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              42752,
+              6144
+            ],
+            [
+              42752,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              42752
+            ],
+            []
+          ],
+          "us": 2519.678,
+          "min_bytes": 1016674304,
+          "padded_flops": 1075889307648
+        },
+        {
+          "dims": [
+            [
+              66816,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              66816,
+              4096
+            ],
+            [
+              66816,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              66816
+            ],
+            []
+          ],
+          "us": 6369.117,
+          "min_bytes": 1764239360,
+          "padded_flops": 3362959392768
+        },
+        {
+          "dims": [
+            [
+              66816,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              66816,
+              6144
+            ],
+            [
+              66816,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              66816
+            ],
+            []
+          ],
+          "us": 3903.358,
+          "min_bytes": 1361848320,
+          "padded_flops": 1681479696384
+        },
+        {
+          "dims": [
+            [
+              31744,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              31744,
+              4096
+            ],
+            [
+              31744,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              31744
+            ],
+            []
+          ],
+          "us": 2997.278,
+          "min_bytes": 1261166592,
+          "padded_flops": 1597727834112
+        },
+        {
+          "dims": [
+            [
+              31744,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              31744,
+              6144
+            ],
+            [
+              31744,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              31744
+            ],
+            []
+          ],
+          "us": 1873.599,
+          "min_bytes": 858775552,
+          "padded_flops": 798863917056
+        },
+        {
+          "dims": [
+            [
+              50432,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              50432,
+              4096
+            ],
+            [
+              50432,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              50432
+            ],
+            []
+          ],
+          "us": 4825.917,
+          "min_bytes": 1529227264,
+          "padded_flops": 2538325671936
+        },
+        {
+          "dims": [
+            [
+              50432,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              50432,
+              6144
+            ],
+            [
+              50432,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              50432
+            ],
+            []
+          ],
+          "us": 2952.158,
+          "min_bytes": 1126836224,
+          "padded_flops": 1269162835968
+        },
+        {
+          "dims": [
+            [
+              39936,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              39936,
+              4096
+            ],
+            [
+              39936,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              39936
+            ],
+            []
+          ],
+          "us": 3768.318,
+          "min_bytes": 1378672640,
+          "padded_flops": 2010044694528
+        },
+        {
+          "dims": [
+            [
+              39936,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              39936,
+              6144
+            ],
+            [
+              39936,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              39936
+            ],
+            []
+          ],
+          "us": 2357.439,
+          "min_bytes": 976281600,
+          "padded_flops": 1005022347264
+        },
+        {
+          "dims": [
+            [
+              40448,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              40448,
+              4096
+            ],
+            [
+              40448,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              40448
+            ],
+            []
+          ],
+          "us": 3865.117,
+          "min_bytes": 1386016768,
+          "padded_flops": 2035814498304
+        },
+        {
+          "dims": [
+            [
+              40448,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              40448,
+              6144
+            ],
+            [
+              40448,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              40448
+            ],
+            []
+          ],
+          "us": 2395.358,
+          "min_bytes": 983625728,
+          "padded_flops": 1017907249152
+        },
+        {
+          "dims": [
+            [
+              52992,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              52992,
+              4096
+            ],
+            [
+              52992,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              52992
+            ],
+            []
+          ],
+          "us": 5018.557,
+          "min_bytes": 1565947904,
+          "padded_flops": 2667174690816
+        },
+        {
+          "dims": [
+            [
+              52992,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              52992,
+              6144
+            ],
+            [
+              52992,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              52992
+            ],
+            []
+          ],
+          "us": 3106.878,
+          "min_bytes": 1163556864,
+          "padded_flops": 1333587345408
+        },
+        {
+          "dims": [
+            [
+              33024,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              33024,
+              4096
+            ],
+            [
+              33024,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              33024
+            ],
+            []
+          ],
+          "us": 3189.758,
+          "min_bytes": 1279526912,
+          "padded_flops": 1662152343552
+        },
+        {
+          "dims": [
+            [
+              33024,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              33024,
+              6144
+            ],
+            [
+              33024,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              33024
+            ],
+            []
+          ],
+          "us": 1956.479,
+          "min_bytes": 877135872,
+          "padded_flops": 831076171776
+        },
+        {
+          "dims": [
+            [
+              31488,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              31488,
+              4096
+            ],
+            [
+              31488,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              31488
+            ],
+            []
+          ],
+          "us": 3002.718,
+          "min_bytes": 1257494528,
+          "padded_flops": 1584842932224
+        },
+        {
+          "dims": [
+            [
+              31488,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              31488,
+              6144
+            ],
+            [
+              31488,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              31488
+            ],
+            []
+          ],
+          "us": 1875.359,
+          "min_bytes": 855103488,
+          "padded_flops": 792421466112
+        },
+        {
+          "dims": [
+            [
+              30464,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              30464,
+              4096
+            ],
+            [
+              30464,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              30464
+            ],
+            []
+          ],
+          "us": 2901.118,
+          "min_bytes": 1242806272,
+          "padded_flops": 1533303324672
+        },
+        {
+          "dims": [
+            [
+              30464,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              30464,
+              6144
+            ],
+            [
+              30464,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              30464
+            ],
+            []
+          ],
+          "us": 1796.318,
+          "min_bytes": 840415232,
+          "padded_flops": 766651662336
+        },
+        {
+          "dims": [
+            [
+              38912,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              38912,
+              4096
+            ],
+            [
+              38912,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              38912
+            ],
+            []
+          ],
+          "us": 3675.037,
+          "min_bytes": 1363984384,
+          "padded_flops": 1958505086976
+        },
+        {
+          "dims": [
+            [
+              38912,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              38912,
+              6144
+            ],
+            [
+              38912,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              38912
+            ],
+            []
+          ],
+          "us": 2271.199,
+          "min_bytes": 961593344,
+          "padded_flops": 979252543488
+        },
+        {
+          "dims": [
+            [
+              22272,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              22272,
+              4096
+            ],
+            [
+              22272,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              22272
+            ],
+            []
+          ],
+          "us": 2132.959,
+          "min_bytes": 1125300224,
+          "padded_flops": 1120986464256
+        },
+        {
+          "dims": [
+            [
+              22272,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              22272,
+              6144
+            ],
+            [
+              22272,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              22272
+            ],
+            []
+          ],
+          "us": 1318.558,
+          "min_bytes": 722909184,
+          "padded_flops": 560493232128
+        },
+        {
+          "dims": [
+            [
+              59648,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              59648,
+              4096
+            ],
+            [
+              59648,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              59648
+            ],
+            []
+          ],
+          "us": 5695.197,
+          "min_bytes": 1661421568,
+          "padded_flops": 3002182139904
+        },
+        {
+          "dims": [
+            [
+              59648,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              59648,
+              6144
+            ],
+            [
+              59648,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              59648
+            ],
+            []
+          ],
+          "us": 3533.278,
+          "min_bytes": 1259030528,
+          "padded_flops": 1501091069952
+        },
+        {
+          "dims": [
+            [
+              31488,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              31488,
+              4096
+            ],
+            [
+              31488,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              31488
+            ],
+            []
+          ],
+          "us": 3000.638,
+          "min_bytes": 1257494528,
+          "padded_flops": 1584842932224
+        },
+        {
+          "dims": [
+            [
+              31488,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              31488,
+              6144
+            ],
+            [
+              31488,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              31488
+            ],
+            []
+          ],
+          "us": 1873.118,
+          "min_bytes": 855103488,
+          "padded_flops": 792421466112
+        },
+        {
+          "dims": [
+            [
+              59392,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              59392,
+              4096
+            ],
+            [
+              59392,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              59392
+            ],
+            []
+          ],
+          "us": 5596.797,
+          "min_bytes": 1657749504,
+          "padded_flops": 2989297238016
+        },
+        {
+          "dims": [
+            [
+              59392,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              59392,
+              6144
+            ],
+            [
+              59392,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              59392
+            ],
+            []
+          ],
+          "us": 3468.158,
+          "min_bytes": 1255358464,
+          "padded_flops": 1494648619008
+        },
+        {
+          "dims": [
+            [
+              21248,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              21248,
+              4096
+            ],
+            [
+              21248,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              21248
+            ],
+            []
+          ],
+          "us": 2038.718,
+          "min_bytes": 1110611968,
+          "padded_flops": 1069446856704
+        },
+        {
+          "dims": [
+            [
+              21248,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              21248,
+              6144
+            ],
+            [
+              21248,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              21248
+            ],
+            []
+          ],
+          "us": 1277.918,
+          "min_bytes": 708220928,
+          "padded_flops": 534723428352
+        },
+        {
+          "dims": [
+            [
+              37888,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              37888,
+              4096
+            ],
+            [
+              37888,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              37888
+            ],
+            []
+          ],
+          "us": 3576.957,
+          "min_bytes": 1349296128,
+          "padded_flops": 1906965479424
+        },
+        {
+          "dims": [
+            [
+              37888,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              37888,
+              6144
+            ],
+            [
+              37888,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              37888
+            ],
+            []
+          ],
+          "us": 2241.758,
+          "min_bytes": 946905088,
+          "padded_flops": 953482739712
+        },
+        {
+          "dims": [
+            [
+              29696,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              29696,
+              4096
+            ],
+            [
+              29696,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              29696
+            ],
+            []
+          ],
+          "us": 2812.158,
+          "min_bytes": 1231790080,
+          "padded_flops": 1494648619008
+        },
+        {
+          "dims": [
+            [
+              29696,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              29696,
+              6144
+            ],
+            [
+              29696,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              29696
+            ],
+            []
+          ],
+          "us": 1755.518,
+          "min_bytes": 829399040,
+          "padded_flops": 747324309504
+        },
+        {
+          "dims": [
+            [
+              41984,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              41984,
+              4096
+            ],
+            [
+              41984,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              41984
+            ],
+            []
+          ],
+          "us": 3960.317,
+          "min_bytes": 1408049152,
+          "padded_flops": 2113123909632
+        },
+        {
+          "dims": [
+            [
+              41984,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              41984,
+              6144
+            ],
+            [
+              41984,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              41984
+            ],
+            []
+          ],
+          "us": 2494.078,
+          "min_bytes": 1005658112,
+          "padded_flops": 1056561954816
+        },
+        {
+          "dims": [
+            [
+              31744,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              31744,
+              4096
+            ],
+            [
+              31744,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              31744
+            ],
+            []
+          ],
+          "us": 3002.558,
+          "min_bytes": 1261166592,
+          "padded_flops": 1597727834112
+        },
+        {
+          "dims": [
+            [
+              31744,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              31744,
+              6144
+            ],
+            [
+              31744,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              31744
+            ],
+            []
+          ],
+          "us": 1877.599,
+          "min_bytes": 858775552,
+          "padded_flops": 798863917056
+        },
+        {
+          "dims": [
+            [
+              24576,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              24576,
+              4096
+            ],
+            [
+              24576,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              24576
+            ],
+            []
+          ],
+          "us": 2327.839,
+          "min_bytes": 1158348800,
+          "padded_flops": 1236950581248
+        },
+        {
+          "dims": [
+            [
+              24576,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              24576,
+              6144
+            ],
+            [
+              24576,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              24576
+            ],
+            []
+          ],
+          "us": 1440.478,
+          "min_bytes": 755957760,
+          "padded_flops": 618475290624
+        },
+        {
+          "dims": [
+            [
+              23808,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              23808,
+              4096
+            ],
+            [
+              23808,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              23808
+            ],
+            []
+          ],
+          "us": 2324.958,
+          "min_bytes": 1147332608,
+          "padded_flops": 1198295875584
+        },
+        {
+          "dims": [
+            [
+              23808,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              23808,
+              6144
+            ],
+            [
+              23808,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              23808
+            ],
+            []
+          ],
+          "us": 1398.718,
+          "min_bytes": 744941568,
+          "padded_flops": 599147937792
+        },
+        {
+          "dims": [
+            [
+              32000,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              32000,
+              4096
+            ],
+            [
+              32000,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              32000
+            ],
+            []
+          ],
+          "us": 3093.118,
+          "min_bytes": 1264838656,
+          "padded_flops": 1610612736000
+        },
+        {
+          "dims": [
+            [
+              32000,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              32000,
+              6144
+            ],
+            [
+              32000,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              32000
+            ],
+            []
+          ],
+          "us": 1878.238,
+          "min_bytes": 862447616,
+          "padded_flops": 805306368000
+        },
+        {
+          "dims": [
+            [
+              37888,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              37888,
+              4096
+            ],
+            [
+              37888,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              37888
+            ],
+            []
+          ],
+          "us": 3576.478,
+          "min_bytes": 1349296128,
+          "padded_flops": 1906965479424
+        },
+        {
+          "dims": [
+            [
+              37888,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              37888,
+              6144
+            ],
+            [
+              37888,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              37888
+            ],
+            []
+          ],
+          "us": 2234.559,
+          "min_bytes": 946905088,
+          "padded_flops": 953482739712
+        },
+        {
+          "dims": [
+            [
+              36096,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              36096,
+              4096
+            ],
+            [
+              36096,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              36096
+            ],
+            []
+          ],
+          "us": 3477.117,
+          "min_bytes": 1323591680,
+          "padded_flops": 1816771166208
+        },
+        {
+          "dims": [
+            [
+              36096,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              36096,
+              6144
+            ],
+            [
+              36096,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              36096
+            ],
+            []
+          ],
+          "us": 2115.199,
+          "min_bytes": 921200640,
+          "padded_flops": 908385583104
+        },
+        {
+          "dims": [
+            [
+              31232,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              31232,
+              4096
+            ],
+            [
+              31232,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              31232
+            ],
+            []
+          ],
+          "us": 2999.518,
+          "min_bytes": 1253822464,
+          "padded_flops": 1571958030336
+        },
+        {
+          "dims": [
+            [
+              31232,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              31232,
+              6144
+            ],
+            [
+              31232,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              31232
+            ],
+            []
+          ],
+          "us": 1836.478,
+          "min_bytes": 851431424,
+          "padded_flops": 785979015168
+        },
+        {
+          "dims": [
+            [
+              53504,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              53504,
+              4096
+            ],
+            [
+              53504,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              53504
+            ],
+            []
+          ],
+          "us": 5115.517,
+          "min_bytes": 1573292032,
+          "padded_flops": 2692944494592
+        },
+        {
+          "dims": [
+            [
+              53504,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              53504,
+              6144
+            ],
+            [
+              53504,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              53504
+            ],
+            []
+          ],
+          "us": 3167.038,
+          "min_bytes": 1170900992,
+          "padded_flops": 1346472247296
+        },
+        {
+          "dims": [
+            [
+              35584,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              35584,
+              4096
+            ],
+            [
+              35584,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              35584
+            ],
+            []
+          ],
+          "us": 3384.798,
+          "min_bytes": 1316247552,
+          "padded_flops": 1791001362432
+        },
+        {
+          "dims": [
+            [
+              35584,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              35584,
+              6144
+            ],
+            [
+              35584,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              35584
+            ],
+            []
+          ],
+          "us": 2115.358,
+          "min_bytes": 913856512,
+          "padded_flops": 895500681216
+        },
+        {
+          "dims": [
+            [
+              27136,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              27136,
+              4096
+            ],
+            [
+              27136,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              27136
+            ],
+            []
+          ],
+          "us": 2612.478,
+          "min_bytes": 1195069440,
+          "padded_flops": 1365799600128
+        },
+        {
+          "dims": [
+            [
+              27136,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              27136,
+              6144
+            ],
+            [
+              27136,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              27136
+            ],
+            []
+          ],
+          "us": 1594.559,
+          "min_bytes": 792678400,
+          "padded_flops": 682899800064
+        },
+        {
+          "dims": [
+            [
+              42240,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              42240,
+              4096
+            ],
+            [
+              42240,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              42240
+            ],
+            []
+          ],
+          "us": 4062.557,
+          "min_bytes": 1411721216,
+          "padded_flops": 2126008811520
+        },
+        {
+          "dims": [
+            [
+              42240,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              42240,
+              6144
+            ],
+            [
+              42240,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              42240
+            ],
+            []
+          ],
+          "us": 2473.278,
+          "min_bytes": 1009330176,
+          "padded_flops": 1063004405760
+        },
+        {
+          "dims": [
+            [
+              48128,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              48128,
+              4096
+            ],
+            [
+              48128,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              48128
+            ],
+            []
+          ],
+          "us": 4537.598,
+          "min_bytes": 1496178688,
+          "padded_flops": 2422361554944
+        },
+        {
+          "dims": [
+            [
+              48128,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              48128,
+              6144
+            ],
+            [
+              48128,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              48128
+            ],
+            []
+          ],
+          "us": 2831.999,
+          "min_bytes": 1093787648,
+          "padded_flops": 1211180777472
+        },
+        {
+          "dims": [
+            [
+              38144,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              38144,
+              4096
+            ],
+            [
+              38144,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              38144
+            ],
+            []
+          ],
+          "us": 3671.677,
+          "min_bytes": 1352968192,
+          "padded_flops": 1919850381312
+        },
+        {
+          "dims": [
+            [
+              38144,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              38144,
+              6144
+            ],
+            [
+              38144,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              38144
+            ],
+            []
+          ],
+          "us": 2236.799,
+          "min_bytes": 950577152,
+          "padded_flops": 959925190656
+        },
+        {
+          "dims": [
+            [
+              25600,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              25600,
+              4096
+            ],
+            [
+              25600,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              25600
+            ],
+            []
+          ],
+          "us": 2424.958,
+          "min_bytes": 1173037056,
+          "padded_flops": 1288490188800
+        },
+        {
+          "dims": [
+            [
+              25600,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              25600,
+              6144
+            ],
+            [
+              25600,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              25600
+            ],
+            []
+          ],
+          "us": 1517.278,
+          "min_bytes": 770646016,
+          "padded_flops": 644245094400
+        },
+        {
+          "dims": [
+            [
+              22016,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              22016,
+              4096
+            ],
+            [
+              22016,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              22016
+            ],
+            []
+          ],
+          "us": 2133.918,
+          "min_bytes": 1121628160,
+          "padded_flops": 1108101562368
+        },
+        {
+          "dims": [
+            [
+              22016,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              22016,
+              6144
+            ],
+            [
+              22016,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              22016
+            ],
+            []
+          ],
+          "us": 1319.679,
+          "min_bytes": 719237120,
+          "padded_flops": 554050781184
+        },
+        {
+          "dims": [
+            [
+              57600,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              57600,
+              4096
+            ],
+            [
+              57600,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              57600
+            ],
+            []
+          ],
+          "us": 5499.997,
+          "min_bytes": 1632045056,
+          "padded_flops": 2899102924800
+        },
+        {
+          "dims": [
+            [
+              57600,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              57600,
+              6144
+            ],
+            [
+              57600,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              57600
+            ],
+            []
+          ],
+          "us": 3391.997,
+          "min_bytes": 1229654016,
+          "padded_flops": 1449551462400
+        },
+        {
+          "dims": [
+            [
+              21504,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              21504,
+              4096
+            ],
+            [
+              21504,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              21504
+            ],
+            []
+          ],
+          "us": 2038.078,
+          "min_bytes": 1114284032,
+          "padded_flops": 1082331758592
+        },
+        {
+          "dims": [
+            [
+              21504,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              21504,
+              6144
+            ],
+            [
+              21504,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              21504
+            ],
+            []
+          ],
+          "us": 1280.319,
+          "min_bytes": 711892992,
+          "padded_flops": 541165879296
+        },
+        {
+          "dims": [
+            [
+              45824,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              45824,
+              4096
+            ],
+            [
+              45824,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              45824
+            ],
+            []
+          ],
+          "us": 4344.637,
+          "min_bytes": 1463130112,
+          "padded_flops": 2306397437952
+        },
+        {
+          "dims": [
+            [
+              45824,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              45824,
+              6144
+            ],
+            [
+              45824,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              45824
+            ],
+            []
+          ],
+          "us": 2713.278,
+          "min_bytes": 1060739072,
+          "padded_flops": 1153198718976
+        },
+        {
+          "dims": [
+            [
+              17152,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              17152,
+              4096
+            ],
+            [
+              17152,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              17152
+            ],
+            []
+          ],
+          "us": 1651.998,
+          "min_bytes": 1051858944,
+          "padded_flops": 863288426496
+        },
+        {
+          "dims": [
+            [
+              17152,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              17152,
+              6144
+            ],
+            [
+              17152,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              17152
+            ],
+            []
+          ],
+          "us": 1039.199,
+          "min_bytes": 649467904,
+          "padded_flops": 431644213248
+        },
+        {
+          "dims": [
+            [
+              46592,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              46592,
+              4096
+            ],
+            [
+              46592,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              46592
+            ],
+            []
+          ],
+          "us": 4445.117,
+          "min_bytes": 1474146304,
+          "padded_flops": 2345052143616
+        },
+        {
+          "dims": [
+            [
+              46592,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              46592,
+              6144
+            ],
+            [
+              46592,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              46592
+            ],
+            []
+          ],
+          "us": 2751.038,
+          "min_bytes": 1071755264,
+          "padded_flops": 1172526071808
+        },
+        {
+          "dims": [
+            [
+              28928,
+              6144
+            ],
+            [
+              32,
+              96,
+              128,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              28928,
+              4096
+            ],
+            [
+              28928,
+              1
+            ],
+            [
+              32,
+              4096,
+              1
+            ],
+            [
+              28928
+            ],
+            []
+          ],
+          "us": 2807.038,
+          "min_bytes": 1220773888,
+          "padded_flops": 1455993913344
+        },
+        {
+          "dims": [
+            [
+              28928,
+              2048
+            ],
+            [
+              32,
+              32,
+              192,
+              2,
+              4,
+              16,
+              16
+            ],
+            [
+              28928,
+              6144
+            ],
+            [
+              28928,
+              1
+            ],
+            [
+              32,
+              6144,
+              1
+            ],
+            [
+              28928
+            ],
+            []
+          ],
+          "us": 1716.958,
+          "min_bytes": 818382848,
+          "padded_flops": 727996956672
+        }
+      ]
+    }
+  ],
+  "remote_root": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/framework-control",
+  "conclusion": "Same original three native packages, new framework source with every new optimization OFF. Matched reference for P11/P12; does not replace immutable B0.",
+  "cleanup": "exact owned PID/start cleanup followed by all8card2MiB verification"
+}

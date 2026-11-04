@@ -48,18 +48,18 @@
 | P06 native KV gather/dequant | 基线有 kernel 符号，但缺少 `PREFILL_GATHER_TRITON_NAN_COMPAT_VERSION`，不能只凭符号开启 | 基线包不满足接入契约，需兼容候选包及匹配对照 |
 | residual/input norm + quant | 基线无显式 `match_sglang` ABI v1；兼容内核将以 opt-in 保持 FP32 residual 语义，默认 API 保留原行为 | 框架扩展 P09 已接入，兼容算子与实测尚未完成 |
 | P10 KV norm/RoPE/store 融合 | 新增prefix CPv2 interleave入口，先写local656-byte行，再全局byte gather及physical loc store；不重复量化，不改cold BF16路径；限制普通DSA pool | 框架已实现；GLM Q stride256兼容LightOp正在编译，尚未数值/模型/性能验证 |
-| MegaMoE | 新 adapter 对应 develop 的 `deepgemm.mega`，不是容器原有 `deepgemm.op` 接口 | 同宿主 IPC 入口，跨节点可用性尚未证明 |
-| 历史 KV 下一层预取 | 分支已有 `maybe_prefetch_next_full_attention_kv`，依赖 layer split；B0 的 IFB layer split 关闭 | 需作为独立配置实验，不能记作新实现收益 |
+| MegaMoE | 新 adapter 对应 develop 的 `deepgemm.mega`，不是容器原有 `deepgemm.op` 接口 | 原生扩展编译通过；p2c1/p2c9双rank跨宿主HIP IPC打开均报invalid device pointer，需fabric allocator适配；尚无模型收益 |
+| 历史 KV 下一层预取 | 分支已有 `maybe_prefetch_next_full_attention_kv`，依赖 layer split；B0 的 IFB layer split 关闭 | 普通IFB不允许启用LayerSplit，server_args限定PD prefill；本协议不直接加flag，详见COVERAGE.md |
 | P11 shared expert overlap | `forward_deepep` 已有 alt_stream + event；B0未开 `SGLANG_ROCM_USE_MULTI_STREAM`，MoE将alt_stream置None。P11复用已有组织，只对GLM普通prefill启用一条缓存stream，显式记录跨stream生命周期 | 框架已实现；是已有能力的prefill限定接入，不是新通信算法；待测 |
 | P12 Q projection / indexer overlap | 原 `q_b_proj` / indexer重叠只在capture decode门控内；新增独立prefill开关，只在indexer确实执行时启动非collective投影并join | 已实现；独立于P03，待正确性/运行命中/性能验证 |
 | P08 shared expert SwiGLU + quant | 旧融合核带最小scale，基线per-token量化不带；已改为要求显式SGLang SwiGLU FP8 ABI v1，保持BF16激活/乘法中间舍入，再按amax直接量化 | 框架已接入；兼容候选正在实现，B0原包不满足；待独立验证 |
-| indexer overlap / TopK reuse | 实现已存在多个门控分支，需结合实际 B0 kernel/stream 确认 | 待覆盖核验 |
+| indexer overlap / TopK reuse | 基线21个full/57个shared层，已有21次Indexer-K AG与query Hadamard重叠；FP8量化/store融合也已命中 | 覆盖核验已完成，详见COVERAGE.md；不计新增收益 |
 
 P03 与 Q projection 的 overlap 是不同候选，不合并记账。P01 MQA beta 和 P02 FlashMLA 的已有实测保持独立，见 README 和 results.csv。
 任何仅完成静态检查、启动加载或符号探测的项目，均不能填写“正确性通过”或“性能提升”。
 
 ## LightOp 兼容候选
 
-独立 worktree `lightop-glm53-prefill`、分支 `feat/glm53-prefill-fusions`、提交 `8c2b40a8`，基于已核对的 master `cf5b95407474`。P05/P09 要求显式 `match_sglang=True`，原 API 默认行为保留；额外声明 GLM Q head stride 256。尚未编译和进行 DCU 数值/模型验证，不能记作可用包或已测收益。
+独立 worktree `lightop-glm53-prefill`、分支 `feat/glm53-prefill-fusions`、提交 `8c2b40a8`，基于已核对的 master `cf5b95407474`。P05/P09 要求显式 `match_sglang=True`，原 API 默认行为保留；额外声明 GLM Q head stride 256。B1 wheel已编译完成且ZIP完整性通过；后续 c3881932743e 增加P08显式兼容入口的B2正在编译。尚未进行DCU数值/模型验证，不能记作已测收益。
 
 对4个变更文件，已运行仓库 quality-gate v2.0.3 的实际 code-quality/governance 策略与解析器；Ruff 0.12.1 与 CI 镜像一致，使用本地工具代替 Docker，Lizard 1.25.0 为 advisory。两组均0 finding，Python语法及 diff check通过；security gate 和 native build 不在此 lint 结论内。完整报告保存在原工作区 `profiles/glm53-prefill-opt-20261104/lightop-lint/`。

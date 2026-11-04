@@ -29,6 +29,8 @@ P01 没有换 LightOp 包。P02 只通过隔离 PYTHONPATH 加载候选 FlashMLA
 
 Fresh control 平均 TTFT **5019.78 ms**，与历史 B0 相差 +0.16%；P03-r1 为 **10533.73 ms**，较 fresh control 高 **109.84%**，保持关闭。P03-r2 只修订通信 stream 复用后为 **4986.79 ms**，比 fresh control 低 **0.66%**，尚不能确认稳定收益、保持默认关闭。P04 两轮为 **4992.98 ms**，相对fresh control低 **0.53%**，同样保持默认关闭。详见 `P03.md`、`P04.md` 和 `control_results.json`。
 
+扩展框架源码 `69fbccd6ed` 的全部开关关闭对照已完成：TTFT 5062.01/5022.37 ms，均值 **5042.19 ms**，GSM8K 19/20。三库沿用 B0，8 rank 源码与哈希核验、8 trace 完整性通过。P11/P12 使用它作同源码匹配对照；历史 B0 和原源码 fresh control 保留，见 `framework_control_results.json`。
+
 | ID | 仅开启项 | 实现范围 / 前置条件 |
 | --- | --- | --- |
 | P03 | `SGLANG_GLM_PREFILL_CP_OVERLAP=1` | 主 KV AllGather 与 Q absorb BMM 重叠；支持 CP v1 round-robin 和基线 CP v2 interleave，保留逻辑 token 截断与 padding；不是 Q projection overlap |
@@ -43,7 +45,7 @@ Fresh control 平均 TTFT **5019.78 ms**，与历史 B0 相差 +0.16%；P03-r1 �
 | P07 | `SGLANG_HCU_MEGA_MOE_RUNTIME=deepgemm_mega` + MegaMoE backend | 接入 DeepGEMM 的合并版 runtime，保留 checkpoint FP8 权重与 SwiGLU；仅 gfx938、eager、同宿主 HIP IPC；当前两节点基线暂不能直接使用 |
 
 P03–P06 限 GLM 普通 prefill。每项必须确认日志和 trace 命中，未命中标记“不适用”，不能填写性能收益。
-P07 是独立实验入口，不是本次两节点 DeepEP 的已验证替换。当前adapter暂拒绝不同boot_id的rank；跨宿主HyLink HIP IPC尚未验证，这个保护不能证明硬件或库不支持。在线EPLB receive stats尚未接入。
+P07 是独立实验入口，不是本次两节点 DeepEP 的已验证替换。当前adapter暂拒绝不同boot_id的rank；已编译 pin a1efb4e619e2 的原生扩展，并在 p2c1/p2c9 各1 rank、2MiB uncached buffer上实测句柄交换；两端 hipIpcOpenMemHandle 均报 invalid device pointer。因此该 pin 的原样 HIP IPC backend 不能直接用于当前两宿主；这不代表 HyLink fabric 不可用，DeepEP normal MNVL 使用不同的 HSA fabric export/import 路径，仍需核对适配。在线EPLB receive stats尚未接入。
 如果必须改成单宿主或更新 DeepGEMM 包，需要独立的匹配对照，不能把拓扑/包差异计为 P07 单项收益。
 
 基线包不提供 P05/P06 所需接口时，先记录“包能力缺失”。确需升级则隔离安装，并以同一新包、开关关闭作为该单项的匹配对照，同时保留相对 B0 的结果。不能全量更新三个算子库后再声称单项收益。
@@ -53,7 +55,7 @@ P07 是独立实验入口，不是本次两节点 DeepEP 的已验证替换。�
 - KV RMSNorm + Q/K RoPE + quant/store 大融合已新增 P10 框架入口，尚未验证。限定有prefix、普通pool、CPv2 interleave，原始cold prefill继续使用未量化BF16 K；wrapped/compact/HiSparse pool保持原writer。P10消费已完成的Q absorb BMM，不能与P03同时打开；P10已包含Q concat，组合时P04无需重复开启。
 - residual/input norm + quant：框架接入 P09 已补齐，旧 LightOp residual 累加的 BF16 舍入差异仍需兼容算子解决；当前 B0 包尚不满足要求。
 - shared-expert SwiGLU/quant 为 P08；已有 shared/routed overlap 在B0受 `SGLANG_ROCM_USE_MULTI_STREAM` 门控、未开启。新增P11只为普通GLM prefill开启，保持其余模式原有门控，不能与P08合并记账。不复制Spark GELU/INT8模型分支。
-- 历史 KV 下一层预取、indexer overlap、TopK reuse：代码中已有部分路径；先核对基线是否已启用，再决定是否能作为新的单项。
+- 历史 KV 下一层预取、indexer overlap、TopK reuse：覆盖核验见 `COVERAGE.md`。Indexer小窗口重叠和TopK复用已命中；LayerSplit仅支持PD prefill，不能直接加入本组IFB协议。
 - FlashMLA / MQA beta 已有实测，不重复记成新优化；GEMM 选优按用户要求暂不处理。
 
 ## 每项记录格式
