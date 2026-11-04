@@ -7,11 +7,12 @@
 | 主 KV AllGather 与 Q absorb BMM overlap | P03 | r1每层新stream导致回归；r2复用一条stream恢复到基线附近。单项正确性、两轮压测与同种子32K trace齐全；尚无稳定端到端收益，默认关闭 |
 | Q projection 与 indexer overlap | P12 | 单独接入非collective Q-B投影，与P03不同；GSM8K19/20、两轮TTFT低0.52%，32K step仅低5.16ms，未确立稳定收益，默认关闭 |
 | absorb Q 直写最终 buffer | P04 | 78次full concat改为tail copy，strided BMM略慢；两轮TTFT小幅变化，保持关闭 |
-| Q norm + FP8 quant | P05 | 需要显式match_sglang ABI，保留indexer消费的BF16 Q；B2的16组norm/quant原生输出/scale逐位一致；模型/性能待验 |
+| Q norm + FP8 quant | P05 | 需要显式match_sglang ABI，保留indexer消费的BF16 Q；B2原生对照通过；GSM8K19/20、78次融合命中，TTFT高0.15%、32K step基本不变，默认关闭，见P05.md |
 | input/residual norm + FP8 quant | P09 | 需保持FP32 residual累加、norm BF16中间舍入和无scale下限；独立入口已接入，B2原生含residual对照通过，模型/性能待验 |
 | KV norm + Q/K RoPE + quant/store | P10 | 适配GLM Q stride256和CP全局cache loc；交换含scale/rope的656-byte行，cold BF16路径保留；B2原生stride256的168+2组通过，框架/模型待验 |
 | prefix KV gather/dequant替换 | P06 | B2的数值对照通过，但原有速度断言失败，237.10us vs Triton145.93us；保持关闭，模型收益未验 |
-| MegaMoE route/GEMM/combine | P07排除 | 实际L1→L2的groupwise scale不符合GLM per-token约束，新增adapter移除、原有后端保留。双宿主HIP IPC另有失败证据，不能据此认定HyLink硬件不支持；兼容ABI及未实现工作见P07.md |
+| 合并版MegaMoE route/GEMM/combine | P07排除 | 实际L1→L2的groupwise scale不符合GLM per-token约束，新增adapter移除、原有后端保留。双宿主HIP IPC另有失败证据，不能据此认定HyLink硬件不支持；兼容ABI及未实现工作见P07.md |
+| 独立MegaMoE normal | P13审计中 | 容器包实际存在，normal声明支持GLM动态shape而框架guard仍旧；K2舍入/scale下限和route weight位置需核对。与P07分开，不提前排除或算收益，见P13.md |
 | shared激活 + FP8 quant | P08 | GLM使用SwiGLU，旧融合核scale下限不同，新增显式兼容入口；框架与原生实现已提交，8组原生输出/scale逐位一致，模型/性能待验 |
 | shared/routed expert overlap | P11 | B0未开ROCM多流门控；新增普通prefill限定入口，复用一条stream。两轮TTFT低1.58%，GSM8K19/20，32K step低42.15ms；稳定收益尚未确立，见P11.md |
 | 下一层历史Index-K/Main-KV预取 | 已有LayerSplit路径 | 基线LayerSplit关闭，trace无broadcast。当前server_args明确只允许PD prefill，普通IFB还会执行decode，不能只加flag或删除守卫来比较。PD需要独立协议，不计作本次IFB已验证优化 |

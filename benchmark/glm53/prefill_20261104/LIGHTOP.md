@@ -37,3 +37,5 @@ wheel 路径：
 原生正确性通过后，还需使用同一B2包、全部优化关闭的模型匹配对照，再分别开启P05/P06/P08/P09/P10。B1/B2换包不是单项融合收益，原B0继续保留。
 
 提交前已按LightOp quality-gate v2.0.3实际code-quality/governance策略运行本地lint（Ruff0.12.1匹配镜像）；Python语法与diff check通过。security和完整CI留给对应仓库，lint/编译成功不替代GPU数值正确性。
+
+P05模型单项已完成：GSM8K19/20，78次融合命中，TTFT高0.15%而无端到端加速，默认关闭。B2同包全部关闭对照见 `B2-control.md`，其他单项尚待验收。本地wheel已下载至原工作区 `profiles/glm53-prefill-opt-20261104/lightop-build-b2/wheels/`，SHA256及ZIP完整性再次通过。

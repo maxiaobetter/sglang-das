@@ -37,6 +37,10 @@ P12单项也已完成：TTFT均值 **5015.97 ms**，比framework-control低 **0.
 
 LightOp B2全部关闭的匹配对照已完成：TTFT **5017.45 ms**，19/20，32K chunk **3272.20 ms**；换包本身未确立加速。后续融合项分别与此组对照，见 `B2-control.md`。
 
+P05单项已完成：TTFT **5024.89ms**，较同包关闭对照高 **0.15%**；78次融合命中，32K step基本不变，默认关闭，见 `P05.md`。
+
+独立 `megamoe` 已补充为P13单独审计；当前normal接口声明支持GLM shape，但量化/路由时序、fabric和权重内存尚待核对。P07合并版排除结论不涵盖它，见 `P13.md`。
+
 | ID | 仅开启项 | 实现范围 / 前置条件 |
 | --- | --- | --- |
 | P03 | `SGLANG_GLM_PREFILL_CP_OVERLAP=1` | 主 KV AllGather 与 Q absorb BMM 重叠；支持 CP v1 round-robin 和基线 CP v2 interleave，保留逻辑 token 截断与 padding；不是 Q projection overlap |

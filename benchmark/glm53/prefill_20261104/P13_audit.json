@@ -1,0 +1,100 @@
+{
+  "case": "P13",
+  "state": "standalone MegaMoE audit; no code adaptation or GPU MoE/model test yet; distinct from excluded merged P07",
+  "container_scope": "p2c1 sglang_glm_mx; p2c9 package equality not yet checked",
+  "installed_availability": {
+    "megamoe": {
+      "origin": "/usr/local/lib/python3.10/dist-packages/megamoe/__init__.py",
+      "search_locations": [
+        "/usr/local/lib/python3.10/dist-packages/megamoe"
+      ],
+      "distribution_version": "0.1+dtk2604.torch2110.2610081421.g2dee1d.mlnx"
+    },
+    "deep_gemm": {
+      "origin": null,
+      "search_locations": null,
+      "distribution_version": null
+    },
+    "deepgemm": {
+      "origin": "/usr/local/lib/python3.10/dist-packages/deepgemm/__init__.py",
+      "search_locations": [
+        "/usr/local/lib/python3.10/dist-packages/deepgemm"
+      ],
+      "distribution_version": "2.1.0+dtk2604.torch2110.2610202354.g9ab224"
+    }
+  },
+  "python_and_native_hashes": {
+    "_w4a8_staging.py": "cc870e57a4576f50e648966970cd8bbfa069ba03bcf790824705d67be295f9a2",
+    "__init__.py": "103a3067f7a146060f21964b2c86566a1618ca13ebd406f26f5169cad1b03bf7",
+    "w4a8.py": "7c4e7b3ad6d646685ec1f69ee899e16a06e4c2344f6204d406670eb5c2d18cb2",
+    "opt.py": "3d329475ef06dcd29410dbec26ccaf909b65c2fa391fcab698b9eee67b26ee79",
+    "_C.cpython-310-x86_64-linux-gnu.so": "5465b0baabcdaa1f98dc22a749768383d5a220a62be14cfb0d6f0b8f7b302a3d",
+    "envs.py": "1059461b6fb8d175de9db587cfb36ee3502bac1c8b54201fa3edf262abcf6a5c",
+    "dcu_megamoe_opt/v3_config.py": "919dd3470794da671d48a5797f4e87e63edbf471ac689494dc50c0f84d7ea6b0",
+    "dcu_megamoe_opt/__init__.py": "102d024d68d1bfdf655d22a371b55b9158b222641eafa2f319c1166895288d26",
+    "dcu_megamoe_opt/v3_layout.py": "54524cce679ba3197c9e206536b4b3f368b9831ae0f84b9f3bd8ff183f284117",
+    "dcu_megamoe_opt/w4a8_ext.cpython-310-x86_64-linux-gnu.so": "f5a10c46ede24c2979f0ef8fcb3062e5377e86cc002d5fa0a5a566642932982e",
+    "dcu_megamoe_opt/K1_fused/__init__.py": "23d82e6a5cd9785e235f6393e244fb2906c7b70dfe4598b846045c302afc39aa",
+    "dcu_megamoe_opt/K1_fused/k1_fused.py": "4a1e7f6bb437d4e974c973c5b705711107871fdb6193b84cde5a8f4fdf9235fe",
+    "dcu_megamoe_opt/K1_fused/k1_fused_ext.cpython-310-x86_64-linux-gnu.so": "9fe9a07012e7ffd3f7d3351627bd4e21370d160070dc9cf7961b5fe1176d36b6",
+    "dcu_megamoe_opt/tests/test_mega_moe_dcu.py": "797180e3374f722d1bb26bf6f844ac4160efeb85fa1ed00dc00ee1342a853168",
+    "dcu_megamoe_opt/tests/test_dcu_megamoe_v3.py": "73083034445bdaf8a7353b392f187b2386e4b06b1a64c031549405b15d60b42c",
+    "dcu_megamoe_opt/tests/test_mega_moe_int8_baseline.py": "2b074e1a5e9e3033c4d91bd02fd854401f9cb9a2ded791bf6873a6386c0acbaa",
+    "dcu_megamoe_opt/tests/check_ygzp_int8_device_numerics.py": "62b80b098fca70c69098e074facea8008bddb0485731d31208e324b207b4397f",
+    "dcu_megamoe_opt/K2_fused/k2_fused_ext.cpython-310-x86_64-linux-gnu.so": "9f9b49133cb4f0608861fc3d3a126608527f3bfb7ba3d7465598aff5536fe8f8",
+    "dcu_megamoe_opt/K2_fused/__init__.py": "5970d7e7e0036bdf7b7f14505e6056af44f7b883464f2fbe0aeacde557c53c1b",
+    "dcu_megamoe_opt/K2_fused/k2_fused.py": "60ac78102fa66c7f24c161fc63c9a70b5896192849091b60a1c2285716aaef16",
+    "dcu_megamoe_opt/K3_fused/k3_v3_fused_ext.cpython-310-x86_64-linux-gnu.so": "4cac6cfa117b35023b6839de3e8262d5cd7373d5880d07ad4f30e64dc736a0a6",
+    "dcu_megamoe_opt/K3_fused/__init__.py": "e9b6390d0dc3f64c87fdfa06dd6a323e6c0202a7c8b913cab2670b934410e5d9",
+    "dcu_megamoe_opt/K3_fused/k3_fused.py": "724a334a0233f38dbc49c0da9d5060eb6d61a3d5584efff794b548d90c328056",
+    "dcu_megamoe_opt/K3_fused/k3_fused_ext.cpython-310-x86_64-linux-gnu.so": "66c677bac17f55addbb8f0849d969da30b57bfe54aa11e47809b02f4f09867ce"
+  },
+  "native_source_sha256": {
+    "dcu_megamoe_opt/K2_fused/k2_fused_ext.cu": "63999a6809b3bf331e3f12fb9e1bcb44bcd2de333f7de7a3c1f7645d0d964149",
+    "dcu_megamoe_opt/K1_fused/k1_v3_pack5_groupgemm_impl.cuh": "df81aa39a7af893f676b50678fc6a7bce5e3d6b51bd9559b237113381879d006",
+    "dcu_megamoe_opt/K3_fused/k3_v3_pack5_groupgemm_impl.cuh": "7cadcc4041ece3ea9cd7c4aa2da3dd5aa3c333a48e03d8c1286f68d10eccbb5e",
+    "dcu_megamoe_opt/csrc/python_api_hip.cpp": "7e1219b761a4c028a7c931a261815fda0d1196293d4d202c7f7761530e4ee219",
+    "dcu_megamoe_opt/csrc/python_api_hip_hip.cpp": "48ae8ab23c33e9cdc76f2f3d42740591deeb4fe84a52fad4589f1382ce788963",
+    "dcu_megamoe_opt/include/mega_moe_dcu/comm.cuh": "909f72d4544fbdc69c4e532e31513e91a374376c90cafad98cbeccbcb7e8445e"
+  },
+  "runtime_shape_capability": {
+    "declared_GLM_normal_supported": true,
+    "declared_GLM_LL_supported": false,
+    "shape": {
+      "num_ranks": 8,
+      "num_experts": 256,
+      "num_topk": 8,
+      "hidden": 6144,
+      "intermediate_hidden": 2048
+    },
+    "nearby_mega_paths": [],
+    "embedded_K2_source_paths": []
+  },
+  "dspark_reference": "021a69ba23922158d9b99b365f7949730f845c5a",
+  "framework_guard": "mega_moe.py:825-829 permits only32local experts/H4096/I2048 for standalone; cannot conclude runtime itself lacks H6144 because installed normal capability returns true",
+  "quantization_findings": [
+    {
+      "file": "dcu_megamoe_opt/K2_fused/k2_fused_ext.cu",
+      "lines": "306,322-325,462-491",
+      "behavior": "FP32 SwiGLU multiplied by route weight before FP8 quant, amax floor1e-4, optional BF16 materialization only after quant values computed"
+    },
+    {
+      "file": "opt.py",
+      "lines": "1110-1118",
+      "behavior": "K2 receives route_weights from K1, activation clamp forwarded; standalone path is per-row rather than merged P07 groupwise"
+    },
+    {
+      "file": "LightOp csrc/fuse_silu_mul_fp8_quant.cu at c3881932743e",
+      "lines": "59-62,207-211,625,651",
+      "behavior": "Selected-name baseline kernel template returns BF16 SiLU, then BF16 multiply; scale floor1/(448*512); actual installed native pipeline comparison still needed before asserting source-to-binary equivalence"
+    }
+  ],
+  "pending": [
+    "Compare actual installed baseline routed activation/quant vs standalone K2; preserve observed mismatches, do not relax accuracy thresholds",
+    "Verify shipped native source matches actual binary/ABI and freeze isolated snapshot before any change",
+    "Inspect standalone fabric transport/system atomics and memory budget/weight lifetime; do not reuse merged HIP IPC failure as standalone proof",
+    "Decide applicability and explicit compatible ABI work; no simple removal of guard or blanket MegaMoE exclusion"
+  ],
+  "source_question_status": "Native sources found shipped in wheel; user was told no need to find build directory for now",
+  "raw_local": "/Users/better/Desktop/SGLang相关/sglang_dcu_github_origin/dcu-sglang/profiles/glm53-prefill-opt-20261104/mega-build"
+}

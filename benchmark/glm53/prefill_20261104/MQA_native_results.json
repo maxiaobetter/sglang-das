@@ -1,0 +1,77 @@
+{
+  "validation": "existing LightOp test/mqa_logits/test_mqa_logits.py numeric-only FP8 mode, original mask equality and calc_diff<1e-3 assertions retained",
+  "shape_grid": {
+    "M": [
+      16,
+      128
+    ],
+    "N": [
+      4096,
+      131072
+    ],
+    "heads": 32,
+    "dim": 128
+  },
+  "cases": [
+    {
+      "beta": 0,
+      "CP_mask": false,
+      "cases": 4,
+      "printed_calc_diff": [
+        0.000668,
+        0.000667,
+        0.000677,
+        0.000651
+      ],
+      "max_printed_diff": 0.000677
+    },
+    {
+      "beta": 0,
+      "CP_mask": true,
+      "cases": 4,
+      "printed_calc_diff": [
+        0.000745,
+        0.000625,
+        0.000662,
+        0.000658
+      ],
+      "max_printed_diff": 0.000745
+    },
+    {
+      "beta": 1,
+      "CP_mask": false,
+      "cases": 4,
+      "printed_calc_diff": [
+        0.000668,
+        0.000667,
+        0.000677,
+        0.000651
+      ],
+      "max_printed_diff": 0.000677
+    },
+    {
+      "beta": 1,
+      "CP_mask": true,
+      "cases": 4,
+      "printed_calc_diff": [
+        0.000745,
+        0.000625,
+        0.000662,
+        0.000658
+      ],
+      "max_printed_diff": 0.000745
+    }
+  ],
+  "total_numeric_cases": 16,
+  "qa_rc": 0,
+  "verification": {
+    "source": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/lightop_c3881932743e/test/mqa_logits/test_mqa_logits.py",
+    "prefix_native_path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/lightop_c3881932743e_prefix/lightop/op.cpython-310-x86_64-linux-gnu.so",
+    "prefix_native_sha256": "f4d69b478289cf93a2be4c0f8f92c7374877609276bd6ba40476ab5a10abee6c",
+    "proof_limit": "Prefix native file verified; child commands record exact PYTHONPATH. No separate child /proc/maps capture for these short numerical invocations."
+  },
+  "source_sha256": "60f48072ce003ecba696713d85f590132254bf2de2ffe66e56d4439dc944e05b",
+  "scope": "B2 LightOp FP8 MQA beta0/1; ordinary/CP masks. BF16 reference and original quantization approximation tolerance retained. Not model accuracy, topK equality, or performance validation. No repository unit tests added.",
+  "remote_root": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/mqa_existing_b2",
+  "cleanup": "QA terminal0, all8cards2MiB separately verified before P09 launch"
+}

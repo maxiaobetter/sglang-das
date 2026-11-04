@@ -44,11 +44,11 @@
 | --- | --- | --- |
 | P03 主 KV AllGather / Q absorb BMM overlap | CPv2 interleave 已接入，保持 logical/physical padding；配置只启用此新增开关 | r1 已完成两轮与profile，明显慢于历史B0；fresh control重现B0，r1回退确认；r2恢复基线附近、TTFT低0.66%尚不宣称稳定收益，详见P03.md |
 | P04 直写 Q buffer | Q concat已由78次full copy改为tail copy；BMM strided输出略慢 | 两轮TTFT低0.53%，暂不宣称稳定收益，详见P04.md |
-| P05 Q RMSNorm + FP8 quant | 基线有 `rms_norm_fp8_quant`，但新接入要求显式 `match_sglang` ABI v1，避免沿用旧归约/量化行为 | 待独立模型验证；B2的norm/quant16组原生对照逐位一致，见LIGHTOP.md |
+| P05 Q RMSNorm + FP8 quant | 基线有 `rms_norm_fp8_quant`，但新接入要求显式 `match_sglang` ABI v1，避免沿用旧归约/量化行为 | GSM8K19/20、78次融合命中；TTFT高0.15%而32K step基本不变，默认关闭，见P05.md |
 | P06 native KV gather/dequant | 基线有 kernel 符号，但缺少 `PREFILL_GATHER_TRITON_NAN_COMPAT_VERSION`，不能只凭符号开启 | B2数值通过，但81920tokens性能断言失败237.10us vs Triton145.93us；默认关闭，见LIGHTOP.md |
 | residual/input norm + quant | 基线无显式 `match_sglang` ABI v1；兼容内核将以 opt-in 保持 FP32 residual 语义，默认 API 保留原行为 | 框架已接入；B2原生norm/quant16组含residual逐位一致，模型验证待测 |
 | P10 KV norm/RoPE/store 融合 | 新增prefix CPv2 interleave入口，先写local656-byte行，再全局byte gather及physical loc store；不重复量化，不改cold BF16路径；限制普通DSA pool | 框架已实现；B2 stride256的168+2组原生数值通过，模型/性能待验 |
-| MegaMoE | 原型曾对应develop的deepgemm.mega，但原生L1/L2实际使用groupwise激活scale | 固定GLM per-token约束下排除；新增adapter已移除，现有后端保留；另有双宿主HIP IPC失败，见P07.md |
+| 合并版MegaMoE | 原型曾对应develop的deepgemm.mega，但原生L1/L2实际使用groupwise激活scale | 固定GLM per-token约束下排除；新增adapter已移除，现有后端保留；另有双宿主HIP IPC失败，见P07.md |
 | 历史 KV 下一层预取 | 分支已有 `maybe_prefetch_next_full_attention_kv`，依赖 layer split；B0 的 IFB layer split 关闭 | 普通IFB不允许启用LayerSplit，server_args限定PD prefill；本协议不直接加flag，详见COVERAGE.md |
 | P11 shared expert overlap | `forward_deepep` 已有 alt_stream + event；B0未开 `SGLANG_ROCM_USE_MULTI_STREAM`，MoE将alt_stream置None。P11复用已有组织，只对GLM普通prefill启用一条缓存stream，显式记录跨stream生命周期 | 单项两轮TTFT低1.58%，GSM8K19/20，shared stream命中；稳定收益尚未确立，见P11.md |
 | P12 Q projection / indexer overlap | 原 `q_b_proj` / indexer重叠只在capture decode门控内；新增独立prefill开关，只在indexer确实执行时启动非collective投影并join | GSM8K19/20、并行命中，TTFT低0.52%但无稳定收益，默认关闭，见P12.md |
@@ -60,6 +60,8 @@ P03 与 Q projection 的 overlap 是不同候选，不合并记账。P01 MQA bet
 
 ## LightOp 兼容候选
 
-独立 worktree `lightop-glm53-prefill`、分支 `feat/glm53-prefill-fusions`、提交 `8c2b40a8`，基于已核对的 master `cf5b95407474`。P05/P09 要求显式 `match_sglang=True`，原 API 默认行为保留；额外声明 GLM Q head stride 256。B1 wheel已编译完成且ZIP完整性通过；后续 c3881932743e 增加P08显式兼容入口的B2已编译，native数值检查通过，P06性能断言失败；模型验证仍待执行，不能记作已测收益。
+独立 worktree `lightop-glm53-prefill`、分支 `feat/glm53-prefill-fusions`、提交 `8c2b40a8`，基于已核对的 master `cf5b95407474`。P05/P09 要求显式 `match_sglang=True`，原 API 默认行为保留；额外声明 GLM Q head stride 256。B1 wheel已编译完成且ZIP完整性通过；后续 c3881932743e 增加P08显式兼容入口的B2已编译，native数值检查通过，P06性能断言失败；同包关闭对照和P05已完成，P05未确立端到端收益；其他融合项仍待模型验证，不能记作已测收益。
 
 对4个变更文件，已运行仓库 quality-gate v2.0.3 的实际 code-quality/governance 策略与解析器；Ruff 0.12.1 与 CI 镜像一致，使用本地工具代替 Docker，Lizard 1.25.0 为 advisory。两组均0 finding，Python语法及 diff check通过；security gate 和 native build 不在此 lint 结论内。完整报告保存在原工作区 `profiles/glm53-prefill-opt-20261104/lightop-lint/`。
+
+独立 `megamoe` 不能套用合并版P07的排除结论：容器包存在，normal声明支持GLM动态shape，附带native源码已固定；量化/路由时序、fabric与权重内存需独立核验，新增P13审计记录，未声称实现或性能通过。
