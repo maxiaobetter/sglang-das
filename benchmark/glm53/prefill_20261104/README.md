@@ -88,3 +88,5 @@ profile 单独采集，并对齐同一主模型 32K chunk；同时报告整请�
 较长的逐次GEMM shape明细以无损 `full_analysis/*results.json.gz` 保留，结果JSON记录原始JSON及gzip的SHA256；摘要保留性能、准确率、源码/库哈希、整步/分组和融合信息。原始trace与命令仍在各项证据目录，未因压缩删除数据。
 
 最终源码及组合状态见 [FINAL_RESULTS.md](FINAL_RESULTS.md)，预先定义的变量和正确性协议见 [FINAL_MATRIX.md](FINAL_MATRIX.md)；源代码入口／回退复核见 [IMPLEMENTATION_REVIEW.md](IMPLEMENTATION_REVIEW.md)。
+
+五组最终源码筛选已完成，较快的beta＋shared＋CP overlap＋Q直写组合按预定规则选入R01交替无profiler复测；选择证据见 `R01_selection.json`。R01按关闭A→候选→关闭B，每组两轮正式性能和100题评测，当前未验收，不把筛选6.88%直接当最终收益。

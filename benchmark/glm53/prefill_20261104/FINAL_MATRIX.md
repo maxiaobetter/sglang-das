@@ -4,13 +4,13 @@
 
 固定112640输入／107008缓存／1输出、BS8、每轮32请求、chunk32768、TP8/CP8/EP8、EAGLE5/1/6；正式种子2026110401/02，独立profile2026110403。下表未列的新增开关全部0，P09不进组合，P06已确认模型回退，不加入组合。
 
-| ID | beta | 新增开关 | 配对目的 | 初始状态 |
+| ID | beta | 新增开关 | 配对目的 | 当前状态 |
 | --- | --- | --- | --- | --- |
-| F-control | 未设置 | 全部关闭 | 最终代码＋B2关闭对照 | 单配置测量及长100题完成，见FINAL_RESULTS.md |
-| F-beta | 1 | 全部关闭 | 相对F-control只变MQA beta；替代旧69源码上重复的P01-B2跑测 | 已准备、未验收 |
-| F-beta-shared | 1 | P11 shared overlap | 相对F-beta只变shared overlap | 已准备、未验收 |
-| F-beta-comm-copy-shared | 1 | P11＋P03-r2 CP overlap＋P04 Q直写 | 相对F-beta-shared测两个已独立测量项的组合交互，不作单项归因 | 已准备、未验收 |
-| F-beta-kv-shared | 1 | P11＋P10 KV norm/RoPE/store及packed交换 | 相对F-beta-shared只变P10，作为CP overlap的另一方案 | 已准备、未验收 |
+| F-control | 未设置 | 全部关闭 | 最终代码＋B2关闭对照 | 匹配关闭对照及100题完成，R01另做前后对照 |
+| F-beta | 1 | 全部关闭 | 相对F-control只变MQA beta；替代旧69源码上重复的P01-B2跑测 | 筛选及100题完成，逐题差异见FINAL_RESULTS.md |
+| F-beta-shared | 1 | P11 shared overlap | 相对F-beta只变shared overlap | 筛选和命中完成；本组合未单独跑100题或确认稳定收益 |
+| F-beta-comm-copy-shared | 1 | P11＋P03-r2 CP overlap＋P04 Q直写 | 相对F-beta-shared测两个已独立测量项的组合交互，不作单项归因 | 筛选和命中完成；选入R01，重复与100题尚待验收 |
+| F-beta-kv-shared | 1 | P11＋P10 KV norm/RoPE/store及packed交换 | 相对F-beta-shared只变P10，作为CP overlap的另一方案 | 筛选和命中完成；慢于CP/Q组合，未选入R01；本组合未跑100题 |
 
 P03与P10互斥；P10已含Q拼接，所以该行P04关闭。每组一套服务、一份正式客户端、一份排队profile客户端。终态、8rank库／源码／环境和命中证据核验后才精确停止本轮服务，另核8卡释放后启动下一组，不并行抢卡。
 
