@@ -1134,7 +1134,9 @@ class KVCacheConfigurator:
             )
 
             pool_cls = CpCacheLayerSplitDeepSeekV4TokenToKVPool
-            pool_kwargs = dict(cp_rank=self.ps.attn_cp_rank, cp_size=self.ps.attn_cp_size)
+            pool_kwargs = dict(
+                cp_rank=self.ps.attn_cp_rank, cp_size=self.ps.attn_cp_size
+            )
 
         token_to_kv_pool = pool_cls(
             **pool_kwargs,
