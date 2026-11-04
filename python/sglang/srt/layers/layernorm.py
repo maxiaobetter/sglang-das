@@ -24,7 +24,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from sglang.kernels.fused_op import BaseFusedOp
+from sglang.kernels.fused_op import BaseFusedOp, get_fused_op_backend
 from sglang.srt.batch_invariant_ops import (
     is_batch_invariant_mode_enabled,
     rms_norm_batch_invariant,
@@ -717,6 +717,77 @@ class RMSNorm(BaseFusedOp):
         if needs_reshape:
             output = output.reshape(original_shape)
         return output
+
+    def forward_with_prefill_fp8_quant(
+        self, x, residual=None, post_residual_addition=None
+    ):
+        """Preserve BF16 for other consumers and pass FP8 explicitly to linear."""
+        from sglang.srt.layers.quantization.prefill_input import PrefillFP8Input
+
+        compatible = (
+            _is_hcu
+            and self._forward_method == self.forward_hip
+            and get_fused_op_backend() is None
+            and not torch.cuda.is_current_stream_capturing()
+            and not torch.compiler.is_compiling()
+            and not is_batch_invariant_mode_enabled()
+            and not get_exec().deterministic.enable_deterministic_inference
+            and post_residual_addition is None
+            and not self.cast_x_before_out_mul
+            and self.variance_size_override is None
+            and not self.fp32_residual
+            and self.override_orig_dtype is None
+            and not getattr(self, "x_pad_to_multiple", 0)
+            and x.is_cuda
+            and x.dtype == torch.bfloat16
+            and x.ndim == 2
+            and x.shape[0] > 0
+            and x.is_contiguous()
+            and x.data_ptr() % 16 == 0
+            and self.weight.dtype == x.dtype
+            and self.weight.device == x.device
+            and self.weight.is_contiguous()
+            and self.weight.shape == (x.shape[1],)
+            and self.weight.data_ptr() % 16 == 0
+        )
+        if residual is not None:
+            compatible = compatible and (
+                residual.dtype == x.dtype
+                and residual.device == x.device
+                and residual.shape == x.shape
+                and residual.is_contiguous()
+                and residual.data_ptr() % 16 == 0
+                and residual.data_ptr() != x.data_ptr()
+            )
+        if not compatible:
+            return (
+                (self(x), x)
+                if residual is None
+                else self(x, residual, post_residual_addition)
+            )
+        from lightop import rmsnorm
+
+        # Old kernels normalize a BF16-rounded residual sum. Require the
+        # native producer to declare widths with matching FP32-sum semantics.
+        widths = getattr(rmsnorm.op, "RMS_NORM_FP8_FP32_RESIDUAL_WIDTHS", ())
+        if x.shape[1] not in widths:
+            raise RuntimeError(
+                "GLM prefill input norm quant requires LightOp "
+                f"RMS_NORM_FP8_FP32_RESIDUAL_WIDTHS including {x.shape[1]}"
+            )
+        normalized = x.clone() if residual is None else x
+        with torch.profiler.record_function("glm_prefill_input_norm_quant"):
+            quant, scale = rmsnorm.rms_norm_per_token_fp8_quant(
+                normalized,
+                self.weight,
+                epsilon=self.variance_epsilon,
+                fp8type=0,
+                residual=residual,
+                update_input=True,
+            )
+        return PrefillFP8Input(quant, scale, normalized), (
+            x if residual is None else residual
+        )
 
     def forward_hip(
         self,

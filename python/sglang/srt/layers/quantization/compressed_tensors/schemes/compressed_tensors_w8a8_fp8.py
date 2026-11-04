@@ -289,7 +289,7 @@ def supports_hcu_channelwise_prequant(layer):
     """Whether a BF16 producer can supply per-token FP8 to this linear ABI."""
     from sglang.srt.utils import is_hcu
 
-    if layer is None or not is_hcu() or _use_aiter:
+    if layer is None or not is_hcu() or _use_aiter or getattr(layer, "set_lora", False):
         return False
     scheme = getattr(layer, "scheme", None)
     return (

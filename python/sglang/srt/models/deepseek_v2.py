@@ -132,6 +132,7 @@ from sglang.srt.layers.quantization.fp8_utils import (
 from sglang.srt.layers.quantization.mxfp4_flashinfer_trtllm_moe import (
     maybe_fuse_routed_scale_and_shared_add,
 )
+from sglang.srt.layers.quantization.prefill_input import PrefillFP8Input
 from sglang.srt.layers.radix_attention import RadixAttention
 from sglang.srt.layers.rotary_embedding import get_rope_wrapper
 from sglang.srt.layers.utils import PPMissingLayer
@@ -2201,6 +2202,9 @@ class DeepseekV2AttentionMLA(
         llama_4_scaling: Optional[torch.Tensor] = None,
         prev_topk_indices: Optional[torch.Tensor] = None,
     ):
+        if isinstance(hidden_states, PrefillFP8Input):
+            hidden_states = hidden_states.bf16
+
         if self.attn_mha.kv_b_proj is None:
             self.attn_mha.kv_b_proj = self.kv_b_proj
 
@@ -2341,6 +2345,10 @@ class DeepseekV2AttentionMLA(
         self, hidden_states: torch.Tensor, forward_batch: ForwardBatch
     ):
         assert self.q_lora_rank is not None
+        if self._hcu_glm_prefill and isinstance(hidden_states, PrefillFP8Input):
+            return self.fused_qkv_a_proj_with_mqa(
+                (hidden_states.quant, hidden_states.scale, hidden_states.bf16.dtype)
+            )[0]
         if self._use_min_latency_fused_a_gemm is None:
             self._use_min_latency_fused_a_gemm = (
                 self.has_fused_proj
@@ -2561,6 +2569,22 @@ class DeepseekV2DecoderLayer(nn.Module):
             self._gfx95_quant_format = fmt
         return fmt
 
+    def _use_glm_prefill_input_norm_quant(self, forward_batch):
+        if not envs.SGLANG_GLM_PREFILL_INPUT_NORM_QUANT.get():
+            return False
+        from sglang.srt.layers.quantization.compressed_tensors.schemes.compressed_tensors_w8a8_fp8 import (
+            supports_hcu_channelwise_prequant,
+        )
+        from sglang.srt.models.deepseek_common.glm_prefill import eligible
+
+        return (
+            eligible(self.self_attn, forward_batch)
+            and self.self_attn.has_fused_proj
+            and supports_hcu_channelwise_prequant(
+                self.self_attn.fused_qkv_a_proj_with_mqa
+            )
+        )
+
     def _is_layer_sparse(self, layer_id: int, is_nextn: bool) -> bool:
         return is_nextn or (
             self.config.n_routed_experts is not None
@@ -2588,9 +2612,20 @@ class DeepseekV2DecoderLayer(nn.Module):
                 residual,
                 forward_batch,
                 captured_last_layer_outputs=captured_last_layer_outputs,
-                quant_format=self._resolve_gfx95_quant_format(),
+                quant_format=(
+                    "glm_prefill_fp8_per_token"
+                    if self._use_glm_prefill_input_norm_quant(forward_batch)
+                    else self._resolve_gfx95_quant_format()
+                ),
             )
         )
+
+        if isinstance(hidden_states, PrefillFP8Input):
+            from sglang.srt.models.deepseek_common.glm_prefill import report
+
+            report(
+                self.self_attn, "input RMSNorm/residual + per-token FP8 quantization"
+            )
 
         with self.self_attn.maybe_use_decode_attn_tp(forward_batch):
             hidden_states = self.self_attn(

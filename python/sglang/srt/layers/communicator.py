@@ -66,6 +66,7 @@ from sglang.srt.layers.quantization.fp8_utils import (
     _use_aiter_bpreshuffle_gfx95,
     materialize_bpreshuffle_fp8_scale_tuple,
 )
+from sglang.srt.layers.quantization.prefill_input import PrefillFP8Input
 from sglang.srt.layers.utils.cp_utils import (
     is_mla_prefill_cp_enabled,
     mla_use_prefill_cp,
@@ -267,7 +268,11 @@ class AttentionInputs:
     def fetch_hidden_states(self):
         if self.hidden_states_ is not None:
             return self.hidden_states_
-        self.hidden_states_ = self.hidden_states_local
+        self.hidden_states_ = (
+            self.hidden_states_local.bf16
+            if isinstance(self.hidden_states_local, PrefillFP8Input)
+            else self.hidden_states_local
+        )
         if get_attn_tp_context().input_scattered:
             self.hidden_states_ = self.tp_all_gather_hidden_states(
                 self.hidden_states_, self.forward_batch
@@ -590,6 +595,17 @@ class LayerCommunicator:
             )
         if hidden_states.shape[0] == 0:
             residual = hidden_states
+        elif (
+            quant_format == "glm_prefill_fp8_per_token"
+            and self._communicate_simple_fn is CommunicateSimpleFn._trivial
+            and not get_attn_tp_context().input_scattered
+            and not getattr(hidden_states, "_sglang_needs_allreduce_fusion", False)
+        ):
+            hidden_states, residual = (
+                self.input_layernorm.forward_with_prefill_fp8_quant(
+                    hidden_states, residual, post_residual_addition
+                )
+            )
         else:
             if (
                 residual is not None

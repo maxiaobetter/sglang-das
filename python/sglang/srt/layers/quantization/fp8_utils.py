@@ -1942,6 +1942,7 @@ def apply_fp8_linear(
             and (
                 envs.SGLANG_GLM_PREFILL_NORM_QUANT.get()
                 or envs.SGLANG_GLM_PREFILL_SHARED_QUANT.get()
+                or envs.SGLANG_GLM_PREFILL_INPUT_NORM_QUANT.get()
             )
             and input_scale is not None
             and input_scale.dtype == torch.float32
