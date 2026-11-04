@@ -1,0 +1,41 @@
+{
+  "baseline_id": "B0-20261104-ifb-bs8",
+  "evidence_root_remote": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/ifb_ab_20261104_1548",
+  "nodes": [
+    "p2c1",
+    "p2c9"
+  ],
+  "container": "sglang_glm_mx",
+  "tp": 8,
+  "cp": 8,
+  "ep": 8,
+  "input_tokens": 112640,
+  "cached_tokens": 107008,
+  "output_tokens": 1,
+  "concurrency": 8,
+  "requests": 32,
+  "chunk": 32768,
+  "prefix_seeds": [
+    2026110401,
+    2026110402
+  ],
+  "profile_seed": 2026110403,
+  "mean_ttft_ms": 5011.77,
+  "new_input_tokens_per_second": 8724.79,
+  "library_sha256": {
+    "deepgemm": "79325b382a56de60f69cfaf8f75fe2b725d2092c002d1cf67bd1248f1537af7a",
+    "flash_mla": "b0ea2f7f108da6ba22e951c3e795a1ba8a8f95bd70a6843758cb434e1296d66e",
+    "lightop": "8a309daafbefd32507bc7b0be6cfeb1594368b48a6479d45f1765eda2abf7339"
+  },
+  "code_branch_base": "086ff10241e69030a691c2254b735716b535961f",
+  "code_branch_base_is_installed_baseline": false,
+  "note": "Branch base is a source development reference, not proof of the measured container source. Preserve deployed-source hashes/patches before candidate loading.",
+  "evidence_files": {
+    "serve_baseline.sh": "447f2caee51dce4b27a9d7ed1f364b34eacbd5e948538b28fc073060df591907",
+    "serve_beta.sh": "7f8c9b3d9a4c9adda94a671e55a04bd613b13432bf9f160bdf4cb94b45307161",
+    "serve_flash.sh": "2d14262d461a6b4674390bb64b9fdb164aad4e91f57de8fe354e41e3ce05b768",
+    "bench_bs8.sh": "88550c12d56256ab2771799fe117bc8f51b7c45e624458ea33626d9a4d0951ba",
+    "RESULTS.md": "3c320ab7a71bc782eaf2aa898b5fcc5f0a6c3896e5597d693eadbbbefc0e7a84",
+    "flashmla_provenance.json": "b89d2fb86a325863ded2d66e7823f042c68363eddebd002ce74af5fd9ddcfdaa"
+  }
+}

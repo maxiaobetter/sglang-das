@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+BASE=/public/home/maxiao1/scripts/benchmark
+SGLANG_HOME=${SGLANG_HOME:-/public/home/maxiao1/sglang-das}
+MODEL_PATH=${MODEL_PATH:-/public/share/gxntljsb/models}
+# IFB: use the server URL. PD: use the PD router URL.
+BASE_URL=${BASE_URL:-http://172.20.2.1:30023}
+OUT_DIR=${OUT_DIR:-$BASE/results/prefill_prefix95_$(date +%Y%m%d_%H%M%S)}
+
+unset PYTHONPATH
+export SGLANG_IS_IN_CI=0
+export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
+mkdir -p "$OUT_DIR"
+
+for bs in 8; do
+    PREFIX_SEED=${PREFIX_SEED:-2026110401} python3 "$BASE/bench_prefix95.py" \
+        --backend sglang \
+        --base-url "$BASE_URL" \
+        --model "$MODEL_PATH" \
+        --tokenizer "$MODEL_PATH" \
+        --served-model-name GLM-5.3-Channel-FP8-w8a8 \
+        --dataset-name random-ids \
+        --tokenize-prompt \
+        --random-input-len 112640 \
+        --random-output-len 1 \
+        --random-range-ratio 1.0 \
+        --request-rate inf \
+        --num-prompts "$((4 * bs))" \
+        --max-concurrency "$bs" \
+        --warmup-requests 0 \
+        --cache-report \
+        --output-details \
+        --output-file "$OUT_DIR/bs${bs}.jsonl" \
+        --disable-tqdm 2>&1 | tee "$OUT_DIR/bs${bs}.log"
+done
+
+python3 "$BASE/summarize_bench.py" "$OUT_DIR" --phase prefill
