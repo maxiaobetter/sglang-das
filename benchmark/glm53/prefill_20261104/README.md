@@ -37,6 +37,8 @@ Fresh control 平均 TTFT **5019.78 ms**，与历史 B0 相差 +0.16%；P03-r1 �
 | P06 | `SGLANG_GLM_PREFILL_NATIVE_KV=1` | LightOp native prefix KV gather/dequant；需 NaN 兼容能力标记，缺失时报错，不能静默换旧 ABI |
 | P09 | `SGLANG_GLM_PREFILL_INPUT_NORM_QUANT=1` | input/residual RMSNorm + FP8 量化；类型化显式传递给 fused QKV-A，BF16 保留给 indexer；要求 LightOp match_sglang ABI v1，显式 opt-in 匹配 FP32 residual/quant 语义，当前 B0 包不满足 |
 | P10 | `SGLANG_GLM_PREFILL_KV_ROPE_STORE=1` | prefix prefill 的 KV norm + Q/K RoPE + FP8 store + Q concat；CPv2 interleave 交换完整656-byte cache行并写全局loc，避免重复量化；原包无GLM Q stride能力声明，需兼容候选包；框架已实现、尚未实测 |
+| P11 | `SGLANG_GLM_PREFILL_SHARED_OVERLAP=1` | 复用现有 DeepEP shared/routed 双stream组织，普通GLM prefill显式开启；全模型复用一条shared stream，保持decode原门控，独立于P08量化融合；待测 |
+| P12 | `SGLANG_GLM_PREFILL_Q_PROJ_OVERLAP=1` | Q-B projection 与实际执行的DSA indexer重叠；独立compute stream，排除collective/LoRA，不复用indexer通信stream；不是P03的absorb BMM overlap；待测 |
 | P08 | `SGLANG_GLM_PREFILL_SHARED_QUANT=1` | DeepEP GLM shared expert 的 SwiGLU + per-token FP8 量化，交给 down projection 消费；普通 eager prefill，channelwise 动态 FP8；需独立数值和性能验证 |
 | P07 | `SGLANG_HCU_MEGA_MOE_RUNTIME=deepgemm_mega` + MegaMoE backend | 接入 DeepGEMM 的合并版 runtime，保留 checkpoint FP8 权重与 SwiGLU；仅 gfx938、eager、同宿主 HIP IPC；当前两节点基线暂不能直接使用 |
 
@@ -50,7 +52,7 @@ P07 是独立实验入口，不是本次两节点 DeepEP 的已验证替换。�
 
 - KV RMSNorm + Q/K RoPE + quant/store 大融合已新增 P10 框架入口，尚未验证。限定有prefix、普通pool、CPv2 interleave，原始cold prefill继续使用未量化BF16 K；wrapped/compact/HiSparse pool保持原writer。P10消费已完成的Q absorb BMM，不能与P03同时打开；P10已包含Q concat，组合时P04无需重复开启。
 - residual/input norm + quant：框架接入 P09 已补齐，旧 LightOp residual 累加的 BF16 舍入差异仍需兼容算子解决；当前 B0 包尚不满足要求。
-- shared-expert SwiGLU/quant 已新增独立开关 P08；overlap 先审计已有路径，普通 prefill 的数值/性能仍待验证。不复制 Spark GELU/INT8 模型分支。
+- shared-expert SwiGLU/quant 为 P08；已有 shared/routed overlap 在B0受 `SGLANG_ROCM_USE_MULTI_STREAM` 门控、未开启。新增P11只为普通GLM prefill开启，保持其余模式原有门控，不能与P08合并记账。不复制Spark GELU/INT8模型分支。
 - 历史 KV 下一层预取、indexer overlap、TopK reuse：代码中已有部分路径；先核对基线是否已启用，再决定是否能作为新的单项。
 - FlashMLA / MQA beta 已有实测，不重复记成新优化；GEMM 选优按用户要求暂不处理。
 

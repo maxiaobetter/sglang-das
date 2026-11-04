@@ -498,12 +498,27 @@ class DeepseekMLARocmForwardMixin:
                 current_stream.wait_stream(self.alt_stream)
             else:
                 k_nope = k_nope.unsqueeze(1)
+                q_projection = None
+                if (
+                    not q_replicate_active
+                    and q_lora is not None
+                    and self.should_run_indexer(prev_topk_indices)
+                ):
+                    from sglang.srt.models.deepseek_common.glm_prefill import (
+                        launch_q_projection,
+                    )
+
+                    q_projection = launch_q_projection(
+                        self, forward_batch, q, prequantized=q_prequantized is not None
+                    )
                 if q_replicate_active:
                     q = torch.nn.functional.linear(q, self.q_b_proj_qrep_weight).view(
                         -1,
                         self.num_local_heads * get_parallel().attn_dcp_size,
                         self.qk_head_dim,
                     )
+                elif q_projection is not None:
+                    pass  # Join only after the independent indexer is enqueued.
                 elif q_prequantized is not None:
                     q = self.q_b_proj(q)[0].view(
                         -1, self.num_local_heads, self.qk_head_dim
@@ -524,6 +539,12 @@ class DeepseekMLARocmForwardMixin:
                         topk_indices = maybe_capture_indexer_topk(
                             self.layer_id, prev_topk_indices
                         )
+                if q_projection is not None:
+                    from sglang.srt.models.deepseek_common.glm_prefill import (
+                        finish_q_projection,
+                    )
+
+                    q = finish_q_projection(q_projection)
         else:
             if q_replicate_active:
                 q = torch.nn.functional.linear(

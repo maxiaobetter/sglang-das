@@ -30,6 +30,52 @@ def _cp_comm_stream(device):
     return torch.cuda.Stream(device=device)
 
 
+@lru_cache(maxsize=None)
+def prefill_compute_stream(device, purpose):
+    """One compute queue per device/purpose, shared across all model layers."""
+    return torch.cuda.Stream(device=device)
+
+
+def launch_q_projection(attn, batch, q, *, prequantized):
+    if not (envs.SGLANG_GLM_PREFILL_Q_PROJ_OVERLAP.get() and eligible(attn, batch)):
+        return None
+    from sglang.srt.layers.linear import ColumnParallelLinear, ReplicatedLinear
+
+    # Do not run a tensor-parallel collective out of order with the indexer.
+    if not (
+        type(attn.q_b_proj) in (ColumnParallelLinear, ReplicatedLinear)
+        and not getattr(attn.q_b_proj, "gather_output", False)
+        and not hasattr(attn.q_b_proj, "set_lora")
+    ):
+        return None
+    inputs = q if prequantized else (q,)
+    device = inputs[0].device
+    stream = prefill_compute_stream(device, "q_projection")
+    stream.wait_stream(torch.cuda.current_stream(device))
+    with torch.profiler.record_function("glm_prefill_q_projection_launch"):
+        with torch.cuda.stream(stream):
+            if prequantized:
+                projected = attn.q_b_proj(q)[0].view(
+                    -1, attn.num_local_heads, attn.qk_head_dim
+                )
+            else:
+                projected = attn.q_b_proj_forward(q)
+        for tensor in inputs:
+            if isinstance(tensor, torch.Tensor):
+                tensor.record_stream(stream)
+    report(attn, "Q projection overlapping DSA indexer")
+    return projected, stream
+
+
+def finish_q_projection(handle):
+    projected, stream = handle
+    current = torch.cuda.current_stream(projected.device)
+    with torch.profiler.record_function("glm_prefill_q_projection_join"):
+        current.wait_stream(stream)
+        projected.record_stream(current)
+    return projected
+
+
 def eligible(attn, batch):
     """Only ordinary eager GLM prefill, with the original sparse BF16 ABI."""
     return (

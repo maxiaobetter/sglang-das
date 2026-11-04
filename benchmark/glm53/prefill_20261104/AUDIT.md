@@ -50,7 +50,8 @@
 | P10 KV norm/RoPE/store 融合 | 新增prefix CPv2 interleave入口，先写local656-byte行，再全局byte gather及physical loc store；不重复量化，不改cold BF16路径；限制普通DSA pool | 框架已实现；GLM Q stride256兼容LightOp正在编译，尚未数值/模型/性能验证 |
 | MegaMoE | 新 adapter 对应 develop 的 `deepgemm.mega`，不是容器原有 `deepgemm.op` 接口 | 同宿主 IPC 入口，跨节点可用性尚未证明 |
 | 历史 KV 下一层预取 | 分支已有 `maybe_prefetch_next_full_attention_kv`，依赖 layer split；B0 的 IFB layer split 关闭 | 需作为独立配置实验，不能记作新实现收益 |
-| shared expert overlap | `forward_deepep` 已有 alt_stream + event 路径；需核对 B0 的实际 stream/trace | 不重复宣称为新增实现 |
+| P11 shared expert overlap | `forward_deepep` 已有 alt_stream + event；B0未开 `SGLANG_ROCM_USE_MULTI_STREAM`，MoE将alt_stream置None。P11复用已有组织，只对GLM普通prefill启用一条缓存stream，显式记录跨stream生命周期 | 框架已实现；是已有能力的prefill限定接入，不是新通信算法；待测 |
+| P12 Q projection / indexer overlap | 原 `q_b_proj` / indexer重叠只在capture decode门控内；新增独立prefill开关，只在indexer确实执行时启动非collective投影并join | 已实现；独立于P03，待正确性/运行命中/性能验证 |
 | P08 shared expert SwiGLU + quant | 已新增 DeepEP 普通 prefill 的独立开关及 down projection 预量化消费，需核对 BF16 中间舍入与 FP8 scale | 已接入，待独立数值和性能验证 |
 | indexer overlap / TopK reuse | 实现已存在多个门控分支，需结合实际 B0 kernel/stream 确认 | 待覆盖核验 |
 
