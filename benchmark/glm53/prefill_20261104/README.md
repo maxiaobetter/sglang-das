@@ -98,3 +98,5 @@ R01阶段结果见 [R01.md](R01.md)：关闭A已完成，两轮5019.05／5020.10
 原始B0／P01／P02引用保留核验见 `BASELINE_PRESERVATION.json`：baseline.json及四份命令快照与最初提交字节一致，成绩账本三行的原始字段未改。该核验不代表R01或CI已完成。
 
 针对候选复测收益低于筛选、框架增量尚未确认，已预先记录单组beta-only补测协议 [BETA_REFERENCE.md](BETA_REFERENCE.md)；R01已结束并完成8卡释放核验，R02现按独立资源体检启动。
+
+原目标逐项交付核验见 [ACCEPTANCE.md](ACCEPTANCE.md)；目前R02及最终推荐／PR／CI未完成，源码15文件当前与已部署字节一致的独立检查见 `PRE_PR_SOURCE_CHECK.json`。
