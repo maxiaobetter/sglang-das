@@ -1,0 +1,9 @@
+id,change,status,ttft_round1_ms,ttft_round2_ms,mean_ttft_ms,new_input_tok_s,ttft_change_percent,evidence
+B0,original image,measured,5006.97,5016.57,5011.77,8724.79,0,baseline/
+P01,LIGHTOP_MQA_LOGITS_BETA=1,measured,4811.02,4793.83,4802.42,9036.83,-4.18,beta/
+P02,candidate FlashMLA only,measured,4984.04,4962.52,4973.28,8734.4,-0.77,flash/
+P03,CP KV gather overlap Q absorb BMM,not measured,,,,,,
+P04,direct Q BMM output,not measured,,,,,,
+P05,Q RMSNorm + per-token quant,not measured,,,,,,
+P06,native KV gather/dequant,not measured,,,,,,
+P07,deepgemm.mega runtime,not measured,,,,,,
