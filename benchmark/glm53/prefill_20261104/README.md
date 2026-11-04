@@ -2,7 +2,7 @@
 
 沿用 2026-11-04 已实测的原镜像基线 B0，不将 MQA beta 或候选 FlashMLA 自动并入基线。
 原始结果保存在 `/public/home/maxiao1/scripts/glm5.3/fp8/runs/ifb_ab_20261104_1548/`。
-历史 B0/P01/P02 保留原结果；本轮 fresh control 和 P03-r1 已完成 DCU 实测，P03-r2 已完成独立验证。
+历史 B0/P01/P02 保留原结果；本轮独立测量的结果逐项记录，下方区分已测结论、未完成项及拟验证组合。
 
 ## 固定基线
 
@@ -25,7 +25,7 @@ P01 没有换 LightOp 包。P02 只通过隔离 PYTHONPATH 加载候选 FlashMLA
 
 ## 新增单项，按项验证
 
-每行都单独与 B0 比较，其他新增开关保持 0；不要依次累加开启。
+单项一次只改变一个变量，其他新增开关保持0；以同框架、同包的关闭组作匹配对照，并另列历史B0结果。组合另建实验ID，不覆盖单项。
 
 Fresh control 平均 TTFT **5019.78 ms**，与历史 B0 相差 +0.16%；P03-r1 为 **10533.73 ms**，较 fresh control 高 **109.84%**，保持关闭。P03-r2 只修订通信 stream 复用后为 **4986.79 ms**，比 fresh control 低 **0.66%**，尚不能确认稳定收益、保持默认关闭。P04 两轮为 **4992.98 ms**，相对fresh control低 **0.53%**，同样保持默认关闭。详见 `P03.md`、`P04.md` 和 `control_results.json`。
 
@@ -45,6 +45,8 @@ P09已完成独立测量：TTFT **5012.82ms**（同包对照低0.09%，无稳定
 
 P08已完成：TTFT **5013.89ms**（同包对照低0.071%），GSM19/20，75次融合及消费者命中；整步基本不变，默认关闭，见 `P08.md`。
 
+P10已完成：TTFT **4978.72ms**，比同包关闭对照低 **0.77%**，GSM19/20，32K step低15.37ms；8rank融合及packed交换命中。小幅变化待组合/重复确认，默认关闭，见 `P10.md`。
+
 | ID | 仅开启项 | 实现范围 / 前置条件 |
 | --- | --- | --- |
 | P03 | `SGLANG_GLM_PREFILL_CP_OVERLAP=1` | 主 KV AllGather 与 Q absorb BMM 重叠；支持 CP v1 round-robin 和基线 CP v2 interleave，保留逻辑 token 截断与 padding；不是 Q projection overlap |
@@ -52,10 +54,10 @@ P08已完成：TTFT **5013.89ms**（同包对照低0.071%），GSM19/20，75次�
 | P05 | `SGLANG_GLM_PREFILL_NORM_QUANT=1` | Q RMSNorm + per-token FP8 quant，Q projection 消费预量化输入，BF16 Q 仍供 indexer；不包含 residual norm，不适用 AITER shuffled weight；要求 LightOp match_sglang ABI v1 |
 | P06 | `SGLANG_GLM_PREFILL_NATIVE_KV=1` | LightOp native prefix KV gather/dequant；需 NaN 兼容能力标记，缺失时报错，不能静默换旧 ABI |
 | P09 | `SGLANG_GLM_PREFILL_INPUT_NORM_QUANT=1` | input/residual RMSNorm + FP8 量化；类型化显式传递给 fused QKV-A，BF16 保留给 indexer；要求 LightOp match_sglang ABI v1，显式 opt-in 匹配 FP32 residual/quant 语义，当前 B0 包不满足 |
-| P10 | `SGLANG_GLM_PREFILL_KV_ROPE_STORE=1` | prefix prefill 的 KV norm + Q/K RoPE + FP8 store + Q concat；CPv2 interleave 交换完整656-byte cache行并写全局loc，避免重复量化；原包无GLM Q stride能力声明，需兼容候选包；框架已实现、尚未实测 |
+| P10 | `SGLANG_GLM_PREFILL_KV_ROPE_STORE=1` | prefix prefill 的 KV norm + Q/K RoPE + FP8 store + Q concat；CPv2 interleave 交换完整656-byte cache行并写全局loc，避免重复量化；原包无GLM Q stride能力声明，需兼容候选包；已测、小幅改善待组合/重复确认，见P10.md |
 | P11 | `SGLANG_GLM_PREFILL_SHARED_OVERLAP=1` | 复用现有 DeepEP shared/routed 双stream组织，普通GLM prefill显式开启；全模型复用一条shared stream，保持decode原门控，独立于P08量化融合；已测，详见P11.md |
 | P12 | `SGLANG_GLM_PREFILL_Q_PROJ_OVERLAP=1` | Q-B projection 与实际执行的DSA indexer重叠；独立compute stream，排除collective/LoRA，不复用indexer通信stream；不是P03的absorb BMM overlap；已测，默认关闭，见P12.md |
-| P08 | `SGLANG_GLM_PREFILL_SHARED_QUANT=1` | DeepEP GLM shared expert 的 SwiGLU + per-token FP8 量化，交给 down projection 消费；普通 eager prefill、channelwise动态FP8；要求显式SGLang SwiGLU FP8 ABI v1，旧融合核scale下限不同，不能直接替换；待测 |
+| P08 | `SGLANG_GLM_PREFILL_SHARED_QUANT=1` | DeepEP GLM shared expert 的 SwiGLU + per-token FP8 量化，交给 down projection 消费；普通 eager prefill、channelwise动态FP8；要求显式SGLang SwiGLU FP8 ABI v1，旧融合核scale下限不同，不能直接替换；已测无稳定收益，见P08.md |
 | P07 | 当前pin不纳入运行矩阵 | groupwise激活量化不符合本组per-token约束，新增adapter已从交付移除；证据及后续要求见P07.md |
 
 P03–P06 限 GLM 普通 prefill。每项必须确认日志和 trace 命中，未命中标记“不适用”，不能填写性能收益。
@@ -65,8 +67,8 @@ P07当前pin已排除，见 `P07.md`：实际L1→L2使用groupwise激活scale�
 
 ## 仍需继续实现 / 核验
 
-- KV RMSNorm + Q/K RoPE + quant/store 大融合已新增 P10 框架入口，尚未验证。限定有prefix、普通pool、CPv2 interleave，原始cold prefill继续使用未量化BF16 K；wrapped/compact/HiSparse pool保持原writer。P10消费已完成的Q absorb BMM，不能与P03同时打开；P10已包含Q concat，组合时P04无需重复开启。
-- residual/input norm + quant：框架接入 P09 已补齐，旧 LightOp residual 累加的 BF16 舍入差异仍需兼容算子解决；当前 B0 包尚不满足要求。
+- KV RMSNorm + Q/K RoPE + quant/store 大融合P10已独立测量，TTFT低0.77%、32K step低15.37ms，稳定收益仍需组合/重复验证。限定有prefix、普通pool、CPv2 interleave，原始cold prefill继续使用未量化BF16 K；wrapped/compact/HiSparse pool保持原writer。P10消费已完成的Q absorb BMM，不能与P03同时打开；P10已包含Q concat，组合时P04无需重复开启。
+- residual/input norm + quant：P09和B2显式兼容接口已实现并实测，但存在未定位的配对sanity得分下降及更广输入下的少量原生数值差异。保持关闭、不进组合；不能用旧样本逐位一致来代替实际模型验收。
 - shared-expert SwiGLU/quant 为 P08；已有 shared/routed overlap 在B0受 `SGLANG_ROCM_USE_MULTI_STREAM` 门控、未开启。新增P11只为普通GLM prefill开启，保持其余模式原有门控，不能与P08合并记账。不复制Spark GELU/INT8模型分支。
 - 历史 KV 下一层预取、indexer overlap、TopK reuse：覆盖核验见 `COVERAGE.md`。Indexer小窗口重叠和TopK复用已命中；LayerSplit仅支持PD prefill，不能直接加入本组IFB协议。
 - FlashMLA / MQA beta 已有实测，不重复记成新优化；GEMM 选优按用户要求暂不处理。

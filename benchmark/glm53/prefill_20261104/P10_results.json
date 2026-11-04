@@ -1,0 +1,206 @@
+{
+  "case": "P10",
+  "unique_change": "SGLANG_GLM_PREFILL_KV_ROPE_STORE=1 only; other8flags0; beta absent; same framework69 and B2 as matched control",
+  "matching_control": "B2_control_results.json",
+  "repeats": [
+    {
+      "repeat": 1,
+      "ttft_ms": 4978.433885876257,
+      "new_input_tok_s": 8787.253315031914,
+      "duration": 20.509708044002764
+    },
+    {
+      "repeat": 2,
+      "ttft_ms": 4978.999229189867,
+      "new_input_tok_s": 8784.098977279466,
+      "duration": 20.517073005001293
+    }
+  ],
+  "mean_ttft_ms": 4978.716557533062,
+  "mean_new_input_tok_s": 8785.676146155689,
+  "relative_to_matching_control_percent": -0.772018438815858,
+  "relative_to_historical_B0_percent": -0.6595163478559152,
+  "gsm8k_20": {
+    "accuracy": 0.95,
+    "invalid": 0.0,
+    "latency": 73.82175799601828,
+    "output_throughput": 28.93455883447275
+  },
+  "source_commit": "69fbccd6ed8d0ac9614c71203fd9c9c7d6c8d699",
+  "deployed_source_manifest": "/Users/better/Desktop/SGLang相关/sglang_dcu_github_origin/dcu-sglang/profiles/glm53-prefill-opt-20261104/P10/P10/deployed_source.json",
+  "native_sha256": [
+    "f4d69b478289cf93a2be4c0f8f92c7374877609276bd6ba40476ab5a10abee6c",
+    "b0ea2f7f108da6ba22e951c3e795a1ba8a8f95bd70a6843758cb434e1296d66e",
+    "79325b382a56de60f69cfaf8f75fe2b725d2092c002d1cf67bd1248f1537af7a"
+  ],
+  "trace": {
+    "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P10/traces/1793799597.6698258/1793799597.6798103-TP-0-EP-0.trace.json.gz",
+    "bytes": 84118919,
+    "sha256": "46ba9b5de6cbd6a48ba879cf42e418c7c3a6ba234be09cba7a57fd79209f50ee"
+  },
+  "representative_32k_step": {
+    "ph": "X",
+    "cat": "gpu_user_annotation",
+    "name": "step[EXTEND bs=6 toks=32768]",
+    "pid": 0,
+    "tid": 151,
+    "ts": 2942572700428.136,
+    "dur": 3256836.238,
+    "args": {
+      "External id": 32693
+    }
+  },
+  "kernel_groups_us_sum_and_count": {
+    "Other": [
+      330634.44800000126,
+      2952
+    ],
+    "Other GEMM": [
+      393233.2939999994,
+      727
+    ],
+    "RCCL": [
+      29168.993000000006,
+      101
+    ],
+    "MQA logits": [
+      372980.1309999999,
+      126
+    ],
+    "TopK": [
+      140086.02999999994,
+      126
+    ],
+    "KV dequantize": [
+      61703.247,
+      78
+    ],
+    "FlashMLA sparse attention": [
+      777929.2179999998,
+      78
+    ],
+    "DeepEP dispatch/other": [
+      110706.10199999993,
+      225
+    ],
+    "DeepGEMM MoE": [
+      432826.32099999976,
+      150
+    ],
+    "DeepEP combine notify/wait": [
+      349520.19,
+      75
+    ],
+    "DeepEP combine data": [
+      230338.35099999994,
+      75
+    ]
+  },
+  "matching_control_32k_step_ms": 3272.2033530000003,
+  "fused_native": {
+    "count": 78,
+    "sum_us": 37733.34399999999
+  },
+  "new_global_index_copy": {
+    "count": 78,
+    "sum_us": 16798.951000000012
+  },
+  "fusion_gpu_annotations": {
+    "glm_prefill_packed_kv_cp_gather_store": {
+      "count": 78,
+      "sum_us": 53262.16500000003
+    },
+    "glm_prefill_kv_norm_rope_pack": {
+      "count": 78,
+      "sum_us": 37733.5
+    }
+  },
+  "all_rank_scopes": {
+    "case": "P10",
+    "scope": "glm_prefill_kv_norm_rope_pack",
+    "rank_trace_count": 8,
+    "all_rank_scopes_present": true,
+    "counts_note": "Raw named profiler events may include CPU and GPU annotation copies; counts are not inferred kernel invocations or speedups. Numerical/model correctness and performance remain separate.",
+    "traces": [
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P10/traces/1793799597.6698258/1793799597.6798103-TP-0-EP-0.trace.json.gz",
+        "scope": "glm_prefill_kv_norm_rope_pack",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "46ba9b5de6cbd6a48ba879cf42e418c7c3a6ba234be09cba7a57fd79209f50ee",
+        "packed_gather_store_raw_event_count": 1872
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P10/traces/1793799597.6698258/1793799597.6798103-TP-1-EP-1.trace.json.gz",
+        "scope": "glm_prefill_kv_norm_rope_pack",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "fd1ffe45eba5fcac5b5a83096457ac6a624453a0b67eebd97d0eb76fdded93e2",
+        "packed_gather_store_raw_event_count": 1872
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P10/traces/1793799597.6698258/1793799597.6798103-TP-2-EP-2.trace.json.gz",
+        "scope": "glm_prefill_kv_norm_rope_pack",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "53e30b3c4cb4bd3b51759eddeadcd0df73be2d27eaa5759394214844aa4ce9e2",
+        "packed_gather_store_raw_event_count": 1872
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P10/traces/1793799597.6698258/1793799597.6798103-TP-3-EP-3.trace.json.gz",
+        "scope": "glm_prefill_kv_norm_rope_pack",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "0b82bdf87b9287f1f9c97257514d2d2b30a2bb331051315493dc60885a0672ad",
+        "packed_gather_store_raw_event_count": 1872
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P10/traces/1793799597.6698258/1793799597.6798103-TP-4-EP-4.trace.json.gz",
+        "scope": "glm_prefill_kv_norm_rope_pack",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "e7985098c20fe70204035bbb69796f758d62f72fb3cd9f2053cafab33994cad0",
+        "packed_gather_store_raw_event_count": 1872
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P10/traces/1793799597.6698258/1793799597.6798103-TP-5-EP-5.trace.json.gz",
+        "scope": "glm_prefill_kv_norm_rope_pack",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "6e2663b28857fedbbda8dae660d64c8fd3f955396a9c6163da9efceb5e3c4660",
+        "packed_gather_store_raw_event_count": 1872
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P10/traces/1793799597.6698258/1793799597.6798103-TP-6-EP-6.trace.json.gz",
+        "scope": "glm_prefill_kv_norm_rope_pack",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "cba541e1fe3a7795f352a26882101699f2ca5c4fed9ab39aac4290d4a16503b7",
+        "packed_gather_store_raw_event_count": 1872
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P10/traces/1793799597.6698258/1793799597.6798103-TP-7-EP-7.trace.json.gz",
+        "scope": "glm_prefill_kv_norm_rope_pack",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "f9db1dd5576ea45db5d41602c5af9b94dd14a7c14e8d26daabc70e8e4605fd01",
+        "packed_gather_store_raw_event_count": 1872
+      }
+    ]
+  },
+  "payload": {
+    "before_bytes_per_token": 1152,
+    "after_bytes_per_token": 656,
+    "reduction_percent": 43.05555555555556,
+    "logical_tokens_per_rank": 4096,
+    "rank_count": 8,
+    "note": "New KV CP exchange payload only, not all network traffic or measured link bandwidth. Scales and BF16 RoPE are included in656bytecache rows."
+  },
+  "effective_native_bandwidth": {
+    "minimum_logical_bytes": 48015212544,
+    "GB_s": 1272.4876052331863,
+    "scope": "Assumes4096tokens,64localheads,Qrope64/Qnope512,reads Q plus latent KV, writes finalQ+normalizedKV+packedKV. Excludes weights/caches/extra passes; not HBM PMC measurement."
+  },
+  "raw_local": "/Users/better/Desktop/SGLang相关/sglang_dcu_github_origin/dcu-sglang/profiles/glm53-prefill-opt-20261104/P10",
+  "raw_remote": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P10",
+  "raw_analysis_files": [
+    "chunk32k_analysis.json",
+    "fusion_trace_summary.json",
+    "kernel_delta_vs_B2.json",
+    "P10/all_rank_trace_scopes.json"
+  ],
+  "cleanup": "both clients0/0, all8traces complete before exact PID/start-time service stop; separate free_resources check all8cards2MiB before P06",
+  "conclusion": "Fusion and packed exchange executed on all8ranks. GSM20 19/20 unchanged. TTFT0.77% lower and32Kstep15.37ms lower; small effect needs repeated/combination confirmation, defaultOFF. P10 cannot combine withP03; P04 redundant for this path."
+}

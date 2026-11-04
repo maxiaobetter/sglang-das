@@ -9,7 +9,7 @@
 | absorb Q 直写最终 buffer | P04 | 78次full concat改为tail copy，strided BMM略慢；两轮TTFT小幅变化，保持关闭 |
 | Q norm + FP8 quant | P05 | 需要显式match_sglang ABI，保留indexer消费的BF16 Q；B2原生对照通过；GSM8K19/20、78次融合命中，TTFT高0.15%、32K step基本不变，默认关闭，见P05.md |
 | input/residual norm + FP8 quant | P09 | 需保持FP32 residual累加、norm BF16中间舍入和无scale下限；融合/消费者命中，TTFT低0.09%无稳定收益；GSM17/20复核17/20，对照19/20；默认关闭、不进组合，数值诊断与边界见P09.md |
-| KV norm + Q/K RoPE + quant/store | P10 | 适配GLM Q stride256和CP全局cache loc；交换含scale/rope的656-byte行，cold BF16路径保留；B2原生stride256的168+2组通过，框架/模型待验 |
+| KV norm + Q/K RoPE + quant/store | P10 | 适配GLM Q stride256和CP全局cache loc；交换含scale/rope的656-byte行，cold BF16路径保留；B2原生stride256的168+2组通过；GSM19/20、all8rank命中，TTFT低0.77%、32K step低15.37ms，待组合/重复确认，见P10.md |
 | prefix KV gather/dequant替换 | P06 | B2的数值对照通过，但原有速度断言失败，237.10us vs Triton145.93us；保持关闭，模型收益未验 |
 | 合并版MegaMoE route/GEMM/combine | P07排除 | 实际L1→L2的groupwise scale不符合GLM per-token约束，新增adapter移除、原有后端保留。双宿主HIP IPC另有失败证据，不能据此认定HyLink硬件不支持；兼容ABI及未实现工作见P07.md |
 | 独立MegaMoE normal | P13当前包不原样复用 | normal支持GLM shape，但实际8组K2 FP8/scale均不同；原量化/路由契约不等价，raw+packed最低168.75GiB超预算，binary fabric返回64B。需明确兼容ABI/生命周期/HSA编译；未跑完整模型或计收益，见P13.md |
@@ -33,4 +33,4 @@
 
 Mega原生扩展SHA256 `8e900c9894fea6b080ec3c3946d41a7fdfbede8151a39e9ef36f400096dcff18`，基线deepgemm.op保留原哈希。双宿主probe仅验证2MiB uncached分配/64-byte句柄交换和打开，不是MoE正确性或性能测试；两端在open阶段都报invalid device pointer。命令与结果保留于远端本轮目录 `mega_hip_ipc_probe/`、本地 `mega-build/ipc_probe/`。未改阈值，未新增仓库单测。
 
-LightOp B1 `8c2b40a818fd`已编译、wheel ZIP完整性通过；B2 `c3881932743e`包含SwiGLU显式兼容入口，已完成编译、ZIP及原生数值检查，P06性能断言失败，模型验收待执行。编译成功不代表原生数值正确、模型准确率通过或性能提升。仍待验收的适用项不得记作完成。
+LightOp B1 `8c2b40a818fd`已编译、wheel ZIP完整性通过；B2 `c3881932743e`包含SwiGLU显式兼容入口，已完成编译、ZIP及原生数值检查，P06性能断言失败，P05/P08/P09/P10的独立模型结果已记录，P06和拟交付组合仍须分别验收。编译成功不代表原生数值正确、模型准确率通过或性能提升。仍待验收的适用项不得记作完成。
