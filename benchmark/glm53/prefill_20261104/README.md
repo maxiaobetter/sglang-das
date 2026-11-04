@@ -90,3 +90,5 @@ profile 单独采集，并对齐同一主模型 32K chunk；同时报告整请�
 最终源码及组合状态见 [FINAL_RESULTS.md](FINAL_RESULTS.md)，预先定义的变量和正确性协议见 [FINAL_MATRIX.md](FINAL_MATRIX.md)；源代码入口／回退复核见 [IMPLEMENTATION_REVIEW.md](IMPLEMENTATION_REVIEW.md)。
 
 五组最终源码筛选已完成，较快的beta＋shared＋CP overlap＋Q直写组合按预定规则选入R01交替无profiler复测；选择证据见 `R01_selection.json`。R01按关闭A→候选→关闭B，每组两轮正式性能和100题评测，当前未验收，不把筛选6.88%直接当最终收益。
+
+R01阶段结果见 [R01.md](R01.md)：关闭A已完成，两轮5019.05／5020.10ms、长评测95/100（非示例75/80）；候选和关闭B未完成，不能宣称整轮验收通过。
