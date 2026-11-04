@@ -2,11 +2,12 @@ id,change,status,ttft_round1_ms,ttft_round2_ms,mean_ttft_ms,new_input_tok_s,ttft
 B0,original image,measured,5006.97,5016.57,5011.77,8724.79,0,baseline/
 P01,LIGHTOP_MQA_LOGITS_BETA=1,measured,4811.02,4793.83,4802.42,9036.83,-4.18,beta/
 P02,candidate FlashMLA only,measured,4984.04,4962.52,4973.28,8734.4,-0.77,flash/
-P03-r1,CP KV gather overlap Q absorb BMM,measured; current control pending,10657.986413344588,10409.464589781237,10533.725501562913,4159.45289086788,110.17974690703905,/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P03
+control-20261104,fresh original-source original-package control,measured; GSM8K20 19/20; 8 traces valid,5022.984320280557,5016.571411621953,5019.777865951255,8718.192242585601,0.15978119409418845,/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/control
+P03-r1,CP KV gather overlap Q absorb BMM,regression confirmed vs fresh control; disabled by default,10657.986413344588,10409.464589781237,10533.725501562913,4159.45289086788,110.17974690703905,/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P03
 P04,direct Q BMM output,not measured,,,,,,
 P05,Q RMSNorm + per-token quant,not measured,,,,,,
 P06,native KV gather/dequant,not measured,,,,,,
 P07,deepgemm.mega runtime,not measured,,,,,,
 P08,shared SwiGLU + per-token FP8 quant,not measured,,,,,,
-P03-r2,reuse one CP communication stream per device,not measured,,,,,,
+P03-r2,reuse one CP communication stream per device,running; no result yet,,,,,,
 P09,input/residual RMSNorm + FP8 quant,implemented; matching kernel package required,,,,,,

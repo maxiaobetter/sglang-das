@@ -25,7 +25,7 @@
   "mean_ttft_ms": 10533.725501562913,
   "mean_new_input_tok_s": 4159.45289086788,
   "relative_to_historical_B0_percent": 110.17974690703905,
-  "attribution": "matched current control and P03-r2 pending; no causal claim",
+  "attribution": "fresh control reproduces B0; P03-r1 regression confirmed; stream-count hypothesis awaits P03-r2, not a proven root cause",
   "trace": {
     "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P03/traces/1793784952.0946445/1793784952.1045315-TP-0-EP-0.trace.json.gz",
     "bytes": 90780065,
@@ -87,5 +87,10 @@
     "note": "Interval overlap is not an A/B saving. Phase timing/attribution still requires matched control and P03-r2."
   },
   "P03_r2_code_commit": "a64d22b963",
-  "P03_r2_measured": false
+  "P03_r2_measured": false,
+  "matched_control": {
+    "id": "control-20261104",
+    "mean_ttft_ms": 5019.777865951255,
+    "relative_ttft_percent": 109.84445493120951
+  }
 }
