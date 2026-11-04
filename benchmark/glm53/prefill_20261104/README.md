@@ -89,12 +89,12 @@ profile 单独采集，并对齐同一主模型 32K chunk；同时报告整请�
 
 最终源码及组合状态见 [FINAL_RESULTS.md](FINAL_RESULTS.md)，预先定义的变量和正确性协议见 [FINAL_MATRIX.md](FINAL_MATRIX.md)；源代码入口／回退复核见 [IMPLEMENTATION_REVIEW.md](IMPLEMENTATION_REVIEW.md)。
 
-五组最终源码筛选已完成，较快的beta＋shared＋CP overlap＋Q直写组合按预定规则选入R01交替无profiler复测；选择证据见 `R01_selection.json`。R01按关闭A→候选→关闭B，每组两轮正式性能和100题评测，当前未验收，不把筛选6.88%直接当最终收益。
+五组最终源码筛选已完成，较快的beta＋shared＋CP overlap＋Q直写组合按预定规则选入R01交替无profiler复测；选择证据见 `R01_selection.json`。R01按关闭A→候选→关闭B，每组两轮正式性能和100题评测，R01完整结果为低4.22%，未复现筛选6.88%；框架增量仍由R02参考确认。
 
-R01阶段结果见 [R01.md](R01.md)：关闭A已完成，两轮5019.05／5020.10ms、长评测95/100（非示例75/80）；候选现为4807.33ms、96/100（非示例76/80），相对前置关闭A低4.23%；关闭B未完成，不能宣称整轮验收通过或筛选6.88%已复现。
+R01阶段结果见 [R01.md](R01.md)：关闭A已完成，两轮5019.05／5020.10ms、长评测95/100（非示例75/80）；候选现为4807.33ms、96/100（非示例76/80），相对前后关闭四轮均值低4.22%；关闭B为5018.35ms、96/100（非示例76/80），R01已完成。新增框架增量和最终推荐等待R02参考，筛选6.88%未复现。
 
-固定配置、选定开关、包位置、逐项结论及交付门槛汇总在 [DELIVERY.md](DELIVERY.md)，当前R01关闭B、完整收益漂移判断及PR／CI仍待完成。
+固定配置、选定开关、包位置、逐项结论及交付门槛汇总在 [DELIVERY.md](DELIVERY.md)，当前R02增量参考和最终推荐及PR／CI仍待完成。
 
 原始B0／P01／P02引用保留核验见 `BASELINE_PRESERVATION.json`：baseline.json及四份命令快照与最初提交字节一致，成绩账本三行的原始字段未改。该核验不代表R01或CI已完成。
 
-针对候选复测收益低于筛选、框架增量尚未确认，已预先记录单组beta-only补测协议 [BETA_REFERENCE.md](BETA_REFERENCE.md)；R02当前仅准备，须待R01结束及8卡释放后启动。
+针对候选复测收益低于筛选、框架增量尚未确认，已预先记录单组beta-only补测协议 [BETA_REFERENCE.md](BETA_REFERENCE.md)；R01已结束并完成8卡释放核验，R02现按独立资源体检启动。
