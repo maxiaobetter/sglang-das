@@ -7,13 +7,13 @@
 | 主 KV AllGather 与 Q absorb BMM overlap | P03 | r1每层新stream导致回归；r2复用一条stream恢复到基线附近。单项正确性、两轮压测与同种子32K trace齐全；尚无稳定端到端收益，默认关闭 |
 | Q projection 与 indexer overlap | P12 | 单独接入非collective Q-B投影，与P03不同；实现完成，待独立DCU验收 |
 | absorb Q 直写最终 buffer | P04 | 78次full concat改为tail copy，strided BMM略慢；两轮TTFT小幅变化，保持关闭 |
-| Q norm + FP8 quant | P05 | 需要显式match_sglang ABI，保留indexer消费的BF16 Q；兼容包编译后数值/模型/性能待验 |
-| input/residual norm + FP8 quant | P09 | 需保持FP32 residual累加、norm BF16中间舍入和无scale下限；独立入口已接入，待验 |
-| KV norm + Q/K RoPE + quant/store | P10 | 适配GLM Q stride256和CP全局cache loc；交换含scale/rope的656-byte行，cold BF16路径保留；待兼容包验收 |
-| prefix KV gather/dequant替换 | P06 | 原包缺NaN兼容标记；新包需先做同包全部关闭对照，保持原始阈值验证 |
+| Q norm + FP8 quant | P05 | 需要显式match_sglang ABI，保留indexer消费的BF16 Q；B2的16组norm/quant原生输出/scale逐位一致；模型/性能待验 |
+| input/residual norm + FP8 quant | P09 | 需保持FP32 residual累加、norm BF16中间舍入和无scale下限；独立入口已接入，B2原生含residual对照通过，模型/性能待验 |
+| KV norm + Q/K RoPE + quant/store | P10 | 适配GLM Q stride256和CP全局cache loc；交换含scale/rope的656-byte行，cold BF16路径保留；B2原生stride256的168+2组通过，框架/模型待验 |
+| prefix KV gather/dequant替换 | P06 | B2的数值对照通过，但原有速度断言失败，237.10us vs Triton145.93us；保持关闭，模型收益未验 |
 | MegaMoE route/GEMM/combine | P07 | pin a1efb4e619e2已编译；当前两宿主HIP IPC句柄打开实测失败，原样runtime不可直接运行本基线。DeepEP使用HSA fabric import/export，allocator适配仍需调查，不能据此认定HyLink硬件不支持 |
-| shared激活 + FP8 quant | P08 | GLM使用SwiGLU，旧融合核scale下限不同，新增显式兼容入口；框架与原生实现已提交，待数值/模型/性能验收 |
-| shared/routed expert overlap | P11 | B0未开ROCM多流门控；新增普通prefill限定入口，复用一条stream。当前独立验证进行中，不能先算收益 |
+| shared激活 + FP8 quant | P08 | GLM使用SwiGLU，旧融合核scale下限不同，新增显式兼容入口；框架与原生实现已提交，8组原生输出/scale逐位一致，模型/性能待验 |
+| shared/routed expert overlap | P11 | B0未开ROCM多流门控；新增普通prefill限定入口，复用一条stream。两轮TTFT低1.58%，GSM8K19/20，32K step低42.15ms；稳定收益尚未确立，见P11.md |
 | 下一层历史Index-K/Main-KV预取 | 已有LayerSplit路径 | 基线LayerSplit关闭，trace无broadcast。当前server_args明确只允许PD prefill，普通IFB还会执行decode，不能只加flag或删除守卫来比较。PD需要独立协议，不计作本次IFB已验证优化 |
 | Indexer LayerNorm/RoPE融合 | B0已有 | 主32K chunk实际21次opt_layernorm_rope_split，累计4.43ms，不重复实现/计收益 |
 | Index-K gather与query计算重叠 | B0已有 | 21次非主stream AG；21次query Hadamard使用[131072,128]×[128,128] GEMM，累计1.95ms，与AG区间相交1.44ms。已存在小窗口重叠，不等于P03或P12；相交时间不是A/B节省量 |
@@ -31,4 +31,4 @@
 
 Mega原生扩展SHA256 `8e900c9894fea6b080ec3c3946d41a7fdfbede8151a39e9ef36f400096dcff18`，基线deepgemm.op保留原哈希。双宿主probe仅验证2MiB uncached分配/64-byte句柄交换和打开，不是MoE正确性或性能测试；两端在open阶段都报invalid device pointer。命令与结果保留于远端本轮目录 `mega_hip_ipc_probe/`、本地 `mega-build/ipc_probe/`。未改阈值，未新增仓库单测。
 
-LightOp B1 `8c2b40a818fd`已编译、wheel ZIP完整性通过；B2 `c3881932743e`包含SwiGLU显式兼容入口，尚在CPU编译。编译成功不代表原生数值正确、模型准确率通过或性能提升。仍待验收的适用项不得记作完成。
+LightOp B1 `8c2b40a818fd`已编译、wheel ZIP完整性通过；B2 `c3881932743e`包含SwiGLU显式兼容入口，已完成编译、ZIP及原生数值检查，P06性能断言失败，模型验收待执行。编译成功不代表原生数值正确、模型准确率通过或性能提升。仍待验收的适用项不得记作完成。

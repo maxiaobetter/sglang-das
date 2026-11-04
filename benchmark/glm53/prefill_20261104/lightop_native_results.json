@@ -1,0 +1,331 @@
+{
+  "summary": {
+    "native_comparison_cases": 24,
+    "SwiGLU_bitexact_cases": 8,
+    "norm_quant_bitexact_cases": 16,
+    "norm_scale_max_error": 0.0,
+    "norm_output_max_error": 0.0,
+    "performance_gate": "FAILED and retained"
+  },
+  "original_native_sha256": "8a309daafbefd32507bc7b0be6cfeb1594368b48a6479d45f1765eda2abf7339",
+  "candidate_native_sha256": "f4d69b478289cf93a2be4c0f8f92c7374877609276bd6ba40476ab5a10abee6c",
+  "wheel_sha256": "bcf4b829fb6d003da60fa8627b82f30d4e68b4c9f9fea221a082ece0eed75f41",
+  "existing_gather_check": {
+    "pytest_result": "5 passed, 1 failed",
+    "target_numerical": "bitexact assertion passed",
+    "target_shape": [
+      81920,
+      1,
+      576
+    ],
+    "native_us": 237.09614276885986,
+    "triton_us": 145.92809677124023,
+    "failed_assertion": "native_us < triton_us",
+    "threshold_changed": false,
+    "logical_minimum_bytes_per_token": 1812,
+    "estimated_effective_GB_s_native": 626.0710877304746,
+    "estimated_effective_GB_s_triton": 1017.2067153914572,
+    "bandwidth_note": "logical minimum input+output bytes / API timing; not measured HBM/PMC bandwidth"
+  },
+  "existing_rope": {
+    "Q_C_DIM_process_override": 192,
+    "existing_numeric_cases": 168,
+    "extra_existing_run_case_calls": [
+      [
+        4096,
+        64,
+        false,
+        -1.0,
+        false,
+        false
+      ],
+      [
+        4096,
+        64,
+        true,
+        -1.0,
+        true,
+        false
+      ]
+    ],
+    "parameter_validation": "existing fixture unchanged",
+    "result": "all passed"
+  },
+  "golden_fixture_sha256": {
+    "norm_M1_N2048_R0.pt": "5734e4a9d5f6ed664038eb3abb26ae7b9a58afb409559c277b036e3ff3e9e9ef",
+    "norm_M1_N2048_R1.pt": "a2cf4219a4377e5d8d24ea95de868f2d427a18337d59d08bcc8ea7f31160e6ba",
+    "norm_M1_N6144_R0.pt": "dbe8600713e9ab7dc5788327b45613305d83f5d586f8663ae8f816a2f45f7050",
+    "norm_M1_N6144_R1.pt": "9d592de470f4e02df4f4a6880049ff9c8c12089eea2f796e05f63623649ef4a6",
+    "norm_M7_N2048_R0.pt": "58eeb3d92b38587ce6b9efcf5682b5c065df290d6e0edcfc742d5fb598602013",
+    "norm_M129_N2048_R0.pt": "c6fe428d2db34a7575e946034b53781ae3a90d6623e882e177a1d8fa68639d29",
+    "norm_M129_N6144_R1.pt": "5c5345eb8e1e1eee8d4ae26ab70a1538d93141311667f7b137a1ad2e19a7c4d9",
+    "norm_M4096_N2048_R0.pt": "30d9e79fb438e3887e7bad981d4141dcd855caa5e7de6f0e397c7c32c36ded9c",
+    "norm_M4096_N6144_R0.pt": "f0079d4d6821c8e3ff5edea5dce46dc1e46fc045147b5edb25d91fd8a28dfb7e",
+    "swiglu_M129_magnitude1.0.pt": "c52d67888e7b06dd1cc9cc9995c0ddc968126d4287f94fbe5c255c4cb6a5fd7e",
+    "swiglu_M129_magnitude0.0001.pt": "e2c2601ece820f45cc52db5dde5688b73627c004873a5b17f6807ed2741252f4",
+    "swiglu_M4096_magnitude1.0.pt": "fee1b8dbd2f69d283f2c9dadbd10b8e7a83ea4428fe338f44338cb7540c89804",
+    "norm_M7_N2048_R1.pt": "3ef9b66e651f7ce08ba253d5025a5191c745cea9bb52e5ba893032d231b30c0a",
+    "norm_M7_N6144_R0.pt": "df41e324da023fe14b1605fb9f6a85c2de9b127814aef63603b848ef7b16cbd6",
+    "norm_M7_N6144_R1.pt": "8c4deed5d68a800b97eb61271d7a7e4b743bdf0b2b6606d5467d3dbded6cb160",
+    "norm_M129_N2048_R1.pt": "698266b97ac0a4e34cab96c5ade8ccee1afa334a4daa1e2c93d69046d4c130e8",
+    "norm_M129_N6144_R0.pt": "0d15d5747e782ddd9dbdc16c39cd1881a4834d76c9baf5b35a99c2ccf1ac8707",
+    "norm_M4096_N2048_R1.pt": "6c0f8a742e56da890c69bbabe2e5f3f4b47d06d96838b47e8fc05e44aaa34253",
+    "norm_M4096_N6144_R1.pt": "3fec196ce798c3cfe37b9348dcfcd5c5a741cb460fee9aedee07a710c82d9ac2",
+    "swiglu_M1_magnitude1.0.pt": "77a2d66cc0eee1359fbec0df1d494b3ec7136bd4f66d98274724e968bf8a651e",
+    "swiglu_M1_magnitude0.0001.pt": "3d890d26277db668b9c3df3436a27bfa288d138feae33a8684125e5e187357dc",
+    "swiglu_M7_magnitude1.0.pt": "c6dd83ec15f3861ee3eda8811d1fa344de1aaa6ca13e4132a73798f8a01bdfc3",
+    "swiglu_M7_magnitude0.0001.pt": "4cb1146f7e6b2dfe2abd4a926a5978f4cec755271279b9d31fe28d1e6510fec9",
+    "swiglu_M4096_magnitude0.0001.pt": "9482b82a8dbc4e425d9048d4b3fcb3c93d1f863209f545c8a44ae404c2c9a608"
+  },
+  "candidate_comparison": {
+    "mode": "candidate",
+    "lightop": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/lightop_c3881932743e_prefix/lightop/__init__.py",
+    "native_extension": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/lightop_c3881932743e_prefix/lightop/op.cpython-310-x86_64-linux-gnu.so",
+    "native_sha256": "f4d69b478289cf93a2be4c0f8f92c7374877609276bd6ba40476ab5a10abee6c",
+    "policy_source": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/lightop_c3881932743e/test/ci_tests/test_fuse_silu_mul_fp8_quant.py",
+    "policy_sha256": "187c29ae338c8bd68c19281ef91ad62d9831409cff480703e4ee4e74c412d3d6",
+    "existing_RMS_FP8_bounds": {
+      "SCALE_REL_ERROR_TOL": 0.01,
+      "OUTPUT_REL_ERROR_TOL": 0.08
+    },
+    "swiglu_acceptance": "bitexact scale and FP8 bytes vs original installed separate activation + quantization; no tolerance relaxation",
+    "cases": [
+      {
+        "id": "norm_M1_N2048_R0",
+        "scale": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized_bitexact": true
+      },
+      {
+        "id": "norm_M1_N2048_R1",
+        "scale": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized_bitexact": true
+      },
+      {
+        "id": "norm_M1_N6144_R0",
+        "scale": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized_bitexact": true
+      },
+      {
+        "id": "norm_M1_N6144_R1",
+        "scale": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized_bitexact": true
+      },
+      {
+        "id": "norm_M7_N2048_R0",
+        "scale": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized_bitexact": true
+      },
+      {
+        "id": "norm_M7_N2048_R1",
+        "scale": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized_bitexact": true
+      },
+      {
+        "id": "norm_M7_N6144_R0",
+        "scale": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized_bitexact": true
+      },
+      {
+        "id": "norm_M7_N6144_R1",
+        "scale": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized_bitexact": true
+      },
+      {
+        "id": "norm_M129_N2048_R0",
+        "scale": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized_bitexact": true
+      },
+      {
+        "id": "norm_M129_N2048_R1",
+        "scale": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized_bitexact": true
+      },
+      {
+        "id": "norm_M129_N6144_R0",
+        "scale": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized_bitexact": true
+      },
+      {
+        "id": "norm_M129_N6144_R1",
+        "scale": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized_bitexact": true
+      },
+      {
+        "id": "norm_M4096_N2048_R0",
+        "scale": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized_bitexact": true
+      },
+      {
+        "id": "norm_M4096_N2048_R1",
+        "scale": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized_bitexact": true
+      },
+      {
+        "id": "norm_M4096_N6144_R0",
+        "scale": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized_bitexact": true
+      },
+      {
+        "id": "norm_M4096_N6144_R1",
+        "scale": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized": {
+          "max_abs": 0.0,
+          "max_abs_over_reference_amax": 0.0
+        },
+        "quantized_bitexact": true
+      },
+      {
+        "id": "swiglu_M1_magnitude1.0",
+        "scale_bitexact": true,
+        "quantized_bitexact": true
+      },
+      {
+        "id": "swiglu_M1_magnitude0.0001",
+        "scale_bitexact": true,
+        "quantized_bitexact": true
+      },
+      {
+        "id": "swiglu_M7_magnitude1.0",
+        "scale_bitexact": true,
+        "quantized_bitexact": true
+      },
+      {
+        "id": "swiglu_M7_magnitude0.0001",
+        "scale_bitexact": true,
+        "quantized_bitexact": true
+      },
+      {
+        "id": "swiglu_M129_magnitude1.0",
+        "scale_bitexact": true,
+        "quantized_bitexact": true
+      },
+      {
+        "id": "swiglu_M129_magnitude0.0001",
+        "scale_bitexact": true,
+        "quantized_bitexact": true
+      },
+      {
+        "id": "swiglu_M4096_magnitude1.0",
+        "scale_bitexact": true,
+        "quantized_bitexact": true
+      },
+      {
+        "id": "swiglu_M4096_magnitude0.0001",
+        "scale_bitexact": true,
+        "quantized_bitexact": true
+      }
+    ]
+  },
+  "remote_evidence": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/lightop_native_b2",
+  "local_evidence": "/Users/better/Desktop/SGLang相关/sglang_dcu_github_origin/dcu-sglang/profiles/glm53-prefill-opt-20261104/lightop-build-b2/native",
+  "resource_cleanup": "all8cards2MiB verified after QA, no model services during QA",
+  "limits": "Native correctness only; P05/P08/P09/P10 framework/e2e accuracy and performance still pending. P06 performance FAIL, retain original rc1 and logs."
+}

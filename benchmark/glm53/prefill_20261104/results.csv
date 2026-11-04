@@ -5,13 +5,13 @@ P02,candidate FlashMLA only,measured,4984.04,4962.52,4973.28,8734.4,-0.77,flash/
 control-20261104,fresh original-source original-package control,measured; GSM8K20 19/20; 8 traces valid,5022.984320280557,5016.571411621953,5019.777865951255,8718.192242585601,0.15978119409418845,/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/control
 P03-r1,CP KV gather overlap Q absorb BMM,regression confirmed vs fresh control; disabled by default,10657.986413344588,10409.464589781237,10533.725501562913,4159.45289086788,110.17974690703905,/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P03
 P04,direct Q BMM output,measured; small improvement not established as stable; default OFF,4993.338188942289,4992.628473562945,4992.983331252617,8763.934008687402,-0.3748509757507512,/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P04
-P05,Q RMSNorm + per-token quant,not measured,,,,,,
-P06,native KV gather/dequant,not measured,,,,,,
-P07,deepgemm.mega runtime,not measured,,,,,,
-P08,shared SwiGLU + per-token FP8 quant,implemented; explicit compatible SwiGLU FP8 ABI required,,,,,,
+P05,Q RMSNorm + per-token quant,native norm quant16cases bitexact; model/e2e pending,,,,,,
+P06,native KV gather/dequant,native numeric bitexact; existing speed gate FAIL237.10us vsTriton145.93us; model/e2e pending; default OFF,,,,,,
+P07,deepgemm.mega runtime,native compiled; two-host HIP IPC open failed; fabric adaptation pending,,,,,,
+P08,shared SwiGLU + per-token FP8 quant,native SwiGLU8cases scale and FP8 bytes bitexact; model/e2e pending,,,,,,
 P03-r2,reuse one CP communication stream per device,measured; small delta not established as stable gain; default OFF,4984.286037873062,4989.289850223031,4986.7879440480465,8766.883150982067,-0.4984677260120418,/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P03-r2
-P09,input/residual RMSNorm + FP8 quant,implemented; matching kernel package required,,,,,,
-P10,prefix KV norm RoPE store and packed CP exchange,implemented; matching kernel package required,,,,,,
-P11,shared expert overlap on one reused stream,implemented; not measured,,,,,,
+P09,input/residual RMSNorm + FP8 quant,native norm quant16cases including residual bitexact; model/e2e pending,,,,,,
+P10,prefix KV norm RoPE store and packed CP exchange,native rope norm store168+2cases passed; CP framework/model/e2e pending,,,,,,
+P11,shared expert overlap on one reused stream,measured; GSM8K19/20; overlap hit; small improvement not established stable; default OFF,4963.193601937746,4962.048851436521,4962.6212266871335,8812.222815424351,-0.9806669761953768,/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P11
 P12,Q projection overlapping the DSA indexer,implemented; not measured,,,,,,
 framework-control,new framework source with all optimization flags OFF,measured; GSM8K20 19/20; native hashes unchanged; 8 valid traces,5062.011545374844,5022.368851781721,5042.190198578282,8675.824502864532,0.6069751520576983,/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/framework-control
