@@ -82,3 +82,5 @@ manifest 包含：对照 ID、实际 SGLang commit/dirty patch、所有 rank 的
 性能正式跑测不启 profiler；每轮按原协议清缓存、预热共享前缀，使用相同种子，保留逐请求 input/cached/output 核验。
 profile 单独采集，并对齐同一主模型 32K chunk；同时报告整请求 TTFT 和 chunk critical path，不能把跨 stream kernel dur 简单相加。
 每项保留原始结果，不覆盖旧数据；单项验证后另建组合实验 ID，再决定是否合入旧分支。
+
+较长的逐次GEMM shape明细以无损 `full_analysis/*results.json.gz` 保留，结果JSON记录原始JSON及gzip的SHA256；摘要保留性能、准确率、源码/库哈希、整步/分组和融合信息。原始trace与命令仍在各项证据目录，未因压缩删除数据。
