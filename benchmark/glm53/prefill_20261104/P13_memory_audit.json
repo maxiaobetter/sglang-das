@@ -1,0 +1,45 @@
+{
+  "basis": "Actual rank0 B2-control main32K trace weight dims and150routed GEMM kernels; current W8A8 builder retains raw registered weights and separately allocates flattened pack5 outputs. Lower bound ignores scales, temporary pack buffers, dense/shared weights, KV and route scratch.",
+  "layer_count": 75,
+  "L1_trace_weight_dims": [
+    32,
+    96,
+    128,
+    2,
+    4,
+    16,
+    16
+  ],
+  "L2_trace_weight_dims": [
+    32,
+    32,
+    192,
+    2,
+    4,
+    16,
+    16
+  ],
+  "L1_FP8_bytes_per_layer": 805306368,
+  "L2_FP8_bytes_per_layer": 402653184,
+  "single_copy_FP8_bytes": 90596966400,
+  "single_copy_GiB": 84.375,
+  "raw_plus_packed_minimum_GiB": 168.75,
+  "actual_device_total_MiB": 147440,
+  "actual_device_total_GiB": 143.984375,
+  "scope": "Conditional memory lower bound for removing the framework shape guard while retaining current raw+packed lifetime; no full model OOM run performed.",
+  "native_CPU_buffer_size_queries": [
+    {
+      "max_tokens_per_rank": 4096,
+      "symmetric_bytes": 428228752,
+      "route_scratch_bytes": 30102799696,
+      "total_GiB": 28.434236019849777
+    },
+    {
+      "max_tokens_per_rank": 32768,
+      "symmetric_bytes": 3425829008,
+      "route_scratch_bytes": 240822388048,
+      "total_GiB": 227.47387835383415
+    }
+  ],
+  "CPU_queries_initialized_CUDA": false
+}

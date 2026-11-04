@@ -1,0 +1,6804 @@
+{
+  "case": "P09",
+  "unique_change": "SGLANG_GLM_PREFILL_INPUT_NORM_QUANT=1; other8flags0, beta absent; same framework69/isolated B2 as matched control",
+  "matching_control": "B2_control_results.json",
+  "deployed_source": {
+    "commit": "69fbccd6ed8d0ac9614c71203fd9c9c7d6c8d699",
+    "base_commit": "086ff10241",
+    "base_snapshot": "baseline_source",
+    "patched_files_sha256": {
+      "sglang/srt/distributed/bootstrap.py": "225362938ccb577e5bb717c58c485d1af8854e5ad17e42e0c3665d1cee9475d7",
+      "sglang/srt/environ.py": "2e79a37f63ff4271f29811c83e1979dcfa37fc78e25546c90dcca3328bfc642d",
+      "sglang/srt/layers/attention/dsa/glm_prefill_kv.py": "2ba3f293e193cb398e54d96bfd7bd50f0f877f3e9665cc5b754578af9c29ff61",
+      "sglang/srt/layers/attention/dsa_backend.py": "0943f5970d06971a584ef21442611af66efce7e185e45c95d24d5130e81a8174",
+      "sglang/srt/layers/communicator.py": "a2f0cb8bafe9782ee0fea4340e2b3cc572f0688189f4fd773f665336c2048b6e",
+      "sglang/srt/layers/layernorm.py": "cd8b8e3038ebe311623573f58a6ee355db848fe597c0db4ba0f378dcc5d89ebb",
+      "sglang/srt/layers/moe/deepgemm_mega.py": "db1fe63a1550916721dd4a18db3df042a1691cf92ce74c2513bcc00a50b52908",
+      "sglang/srt/layers/moe/mega_moe.py": "2d8b655eccbe22665203f24bd35c008a4a4986163e239843fdc4da3f52dcc25c",
+      "sglang/srt/layers/quantization/compressed_tensors/schemes/compressed_tensors_w8a8_fp8.py": "afd3e9928346e6fbdcc9c7f4f1755ec7d3f13eed532dfa6566e0ea94affc9253",
+      "sglang/srt/layers/quantization/fp8_utils.py": "8520a9ca47ae3e16733f892607b86e50fc73239ce5c0b53641c6a2cf80bc3dde",
+      "sglang/srt/layers/quantization/prefill_input.py": "fe0babcc4f7cce14eb811127ef998c83f0da8e207f1e8d1bfbb4b1bdffc6eab8",
+      "sglang/srt/models/deepseek_common/attention_forward_methods/forward_mla_rocm.py": "9739a102167dd8a4d58fc2b2b8a0df63b7b20940d72df3b05a0409dc7d2aae9f",
+      "sglang/srt/models/deepseek_common/glm_prefill.py": "0a08b9bdddcf7f214d292303e4ca9e22ab2e0d6cac34f43fd57719af4b3e7a5e",
+      "sglang/srt/models/deepseek_common/glm_prefill_kv_fusion.py": "4430e7df7ea995826d925b48c5caf236a7b84f4371fc59bfa1444e1095342aa0",
+      "sglang/srt/models/deepseek_common/glm_prefill_mlp.py": "36c729f2587c20238efecbac058bc75f2adc34171da138fcc704771cd5347666",
+      "sglang/srt/models/deepseek_v2.py": "e2977761687722d8822baa7c8cfc5713fb69ab3f536a747d1e503a7553a28e67"
+    },
+    "package_directory": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/candidate_framework_69fbccd6ed8d0ac9614c71203fd9c9c7d6c8d699",
+    "native_packages": "isolated LightOp B2 prefix; original FlashMLA and deepgemm.op unchanged",
+    "known_installed_kv_cache_configurator_difference_preserved": true,
+    "case": "P09",
+    "only_enabled_new_optimization": "SGLANG_GLM_PREFILL_INPUT_NORM_QUANT",
+    "comparison": "B2-control; same framework69 source and B2 package; immutable B0 also retained",
+    "lightop_package": {
+      "commit": "c3881932743ed63e2fd6c30c8474d46ac8d5c15a",
+      "prefix": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/lightop_c3881932743e_prefix",
+      "wheel_path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/lightop_c3881932743e/dist_candidate/lightop-0.6.0+das.dtk26041-cp310-cp310-linux_x86_64.whl",
+      "wheel_bytes": 56201094,
+      "wheel_sha256": "bcf4b829fb6d003da60fa8627b82f30d4e68b4c9f9fea221a082ece0eed75f41",
+      "native_sha256": "f4d69b478289cf93a2be4c0f8f92c7374877609276bd6ba40476ab5a10abee6c",
+      "zip_integrity": "PASS",
+      "deployment": "isolated extracted prefix only; baseline site-packages unchanged",
+      "tests": "not yet run; model P11 active"
+    },
+    "required_native_sha256": [
+      "f4d69b478289cf93a2be4c0f8f92c7374877609276bd6ba40476ab5a10abee6c",
+      "b0ea2f7f108da6ba22e951c3e795a1ba8a8f95bd70a6843758cb434e1296d66e",
+      "79325b382a56de60f69cfaf8f75fe2b725d2092c002d1cf67bd1248f1537af7a"
+    ],
+    "allowed_native_sha256": [
+      "2d182a001933f8fedb44e3364ac5ace61f1700cd448b774babc0747696374ecd",
+      "3f269515d6857d0c652f7f25afc9d684ec4079fd60d684ae415ae4fd3d55ede3",
+      "4f8cff2844f5f226124712f1044db94cd8be5a7e85c63eaeaaf11fe450ac97e2",
+      "79325b382a56de60f69cfaf8f75fe2b725d2092c002d1cf67bd1248f1537af7a",
+      "96216b42fd3b913e3db4574509e6c766c0370caeef33682961b69a11d4f205a9",
+      "b0ea2f7f108da6ba22e951c3e795a1ba8a8f95bd70a6843758cb434e1296d66e",
+      "f4d69b478289cf93a2be4c0f8f92c7374877609276bd6ba40476ab5a10abee6c"
+    ],
+    "allowed_lightop_auxiliary_sha256": {
+      "lightop/op.cpython-310-x86_64-linux-gnu.so": "f4d69b478289cf93a2be4c0f8f92c7374877609276bd6ba40476ab5a10abee6c",
+      "lightop/librarygemmbiasf/libsqueue.so": "96216b42fd3b913e3db4574509e6c766c0370caeef33682961b69a11d4f205a9",
+      "lightop/librarygemmbiasf/libhytsf.so": "2d182a001933f8fedb44e3364ac5ace61f1700cd448b774babc0747696374ecd",
+      "lightop/lib/libgemmbias.so": "3f269515d6857d0c652f7f25afc9d684ec4079fd60d684ae415ae4fd3d55ede3",
+      "lightop/lib/libhytsb.so": "4f8cff2844f5f226124712f1044db94cd8be5a7e85c63eaeaaf11fe450ac97e2",
+      "lightop/lib/libhytsf.so": "2d182a001933f8fedb44e3364ac5ace61f1700cd448b774babc0747696374ecd"
+    },
+    "notes": "P06 native numerical passed but existing speed assertion FAILED; do not claim overall package PASS or e2e benefit"
+  },
+  "repeats": [
+    {
+      "repeat": 1,
+      "ttft_ms": 5016.916590033361,
+      "new_input_tok_s": 8713.68408181706,
+      "duration": 20.68287056402187
+    },
+    {
+      "repeat": 2,
+      "ttft_ms": 5008.727388750231,
+      "new_input_tok_s": 8735.154565160512,
+      "duration": 20.63203331499244
+    }
+  ],
+  "mean_ttft_ms": 5012.821989391796,
+  "mean_new_input_tok_s": 8724.419323488786,
+  "relative_to_matching_control_percent": -0.09228238143894618,
+  "relative_to_historical_B0_percent": 0.02099037648966018,
+  "gsm8k_initial": {
+    "accuracy": 0.85,
+    "invalid": 0.0,
+    "latency": 76.56665539901587,
+    "output_throughput": 27.165872521927277
+  },
+  "gsm8k_cold_repeat": {
+    "accuracy": 0.85,
+    "invalid": 0.0,
+    "latency": 78.52081924400409,
+    "output_throughput": 26.489789842059377
+  },
+  "accuracy_observation": {
+    "control_correct_of20": 19,
+    "initial_correct_of20": 17,
+    "cold_repeat_correct_of20": 17,
+    "same_predictions_both_candidate_evaluations": true,
+    "new_wrong_zero_based_ids": [
+      12,
+      13
+    ],
+    "unchanged_existing_threshold": ">0.8; both17/20 pass the existing threshold, but do not establish absence of regression",
+    "causality": "Paired sample score loss reproduced, not proven a GPU arithmetic error. No actual failing intermediate activation/teacher-forced layer trace was captured."
+  },
+  "trace": {
+    "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P09/traces/1793796561.3790772/1793796561.3888521-TP-0-EP-0.trace.json.gz",
+    "bytes": 89095544,
+    "sha256": "b35fc6993164cf7b0af4ff8429d996069b31cc174efaa80386a312c49c841d33"
+  },
+  "trace_summary": {
+    "step": {
+      "ph": "X",
+      "cat": "gpu_user_annotation",
+      "name": "step[EXTEND bs=6 toks=32768]",
+      "pid": 0,
+      "tid": 151,
+      "ts": 2939536428549.97,
+      "dur": 3266099.598,
+      "args": {
+        "External id": 35865
+      }
+    },
+    "groups": {
+      "Other": [
+        330254.7260000024,
+        3811
+      ],
+      "Other GEMM": [
+        393872.5089999999,
+        727
+      ],
+      "RCCL": [
+        37501.46499999999,
+        101
+      ],
+      "MQA logits": [
+        372956.7940000002,
+        126
+      ],
+      "TopK": [
+        139343.338,
+        126
+      ],
+      "KV dequantize": [
+        61786.62099999999,
+        78
+      ],
+      "FlashMLA sparse attention": [
+        778010.721,
+        78
+      ],
+      "DeepEP dispatch/other": [
+        111912.83299999993,
+        225
+      ],
+      "DeepGEMM MoE": [
+        432278.039,
+        150
+      ],
+      "DeepEP combine notify/wait": [
+        350655.90299999993,
+        75
+      ],
+      "DeepEP combine data": [
+        231132.6080000001,
+        75
+      ]
+    },
+    "top_kernels": [
+      [
+        "void gfx93::fwd::sparse_attn_fwd_kernel<gfx93::fwd::KernelTemplate_B_H_64<576, true, true, false, false, false, false> >(SparseAttnFwdParams)",
+        [
+          778010.721,
+          78
+        ]
+      ],
+      [
+        "void m_grouped_fp8_gemm_nt_contiguous_wasp_pair32_bm256_bn256_nloop4::fp8_pair32_wasp_kernel<__hip_bfloat16>(m_grouped_fp8_gemm_nt_contiguous_wasp_pair32_bm256_bn256_nloop4::DeepGemm_params)",
+        [
+          432278.039,
+          150
+        ]
+      ],
+      [
+        "void at::native::_mqa_logits_32x128x128_TN_impl_fp8<32, 128, 32, 128, 128, true, true>(unsigned char*, unsigned char*, float*, float*, unsigned int*, unsigned int*, int, int, float const*)",
+        [
+          372956.7940000002,
+          126
+        ]
+      ],
+      [
+        "void deep_ep::intranode::cached_notify_combine_kernel<8, true>(void**, int*, int, int, int, int**, int)",
+        [
+          350655.90299999993,
+          75
+        ]
+      ],
+      [
+        "void deep_ep::intranode::combine<hip_bfloat16, 8, 1024, true>(hip_bfloat16*, float*, hip_bfloat16 const*, float const*, hip_bfloat16 const*, hip_bfloat16 const*, int const*, int const*, int const*, int*, int, int, int, int, void**, int, int, int)",
+        [
+          231132.6080000001,
+          75
+        ]
+      ],
+      [
+        "Cijk_Alik_Bljk_F8BS_MT256x256x128_TT16_8_WG16_32_1_MFWGS768_AddDepth64_StoreUseLds_WGM8_bias_channelwise",
+        [
+          141282.48199999996,
+          156
+        ]
+      ],
+      [
+        "void at::native::adaptive_topk_kernel<2048, false>(float const*, long, int, int const*, int const*, int const*, long, int, int const*, int, int*, int*, int*, bool, unsigned int, int const*)",
+        [
+          139343.338,
+          126
+        ]
+      ],
+      [
+        "void deep_ep::intranode::dispatch<8, 1024, true>(HIP_vector_type<int, 4u>*, float*, int*, long*, float*, int*, int*, HIP_vector_type<int, 4u> const*, float const*, long const*, float const*, bool const*, int const*, int, int, int, int, int, int, int, int, void**, int, int, int)",
+        [
+          100115.08199999998,
+          75
+        ]
+      ],
+      [
+        "Cijk_Alik_Bljk_BBH_MT128x128x32_SE_AMAS3_BW_DTL1_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS1_FL0_GRVW8_GSU1_ISA938_IU1_KME_GRCMn2_K1_KLA_LDL1_LRVW8_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR0_PGR1_PLR1_RK0_SU0_SUM0_SUS256_SVW4_TT8_8_TLM1_ULDSWM1_USFGRO0_USSB1_VAW2_VSn1_VW8_WG16_16_1_WGM1",
+        [
+          70602.93499999998,
+          78
+        ]
+      ],
+      [
+        "_dequantize_k_cache_paged_tiled_kernel",
+        [
+          61786.62099999999,
+          78
+        ]
+      ],
+      [
+        "Cijk_Alik_Bljk_F8BS_MT256x256x128_TT16_8_WG16_32_1_MFWGS768_structbuffer1024_AddDepth64_StoreUseLds_WGM5_bias_channelwise",
+        [
+          59060.61400000002,
+          156
+        ]
+      ],
+      [
+        "Cijk_Alik_Bljk_BBH_MT128x256x16_SE_AMAS3_BW_DTL0_BL1_DRB16_ALT_KME1_DRMT_NMZ0_ETSP_EPS0_FL0_GRVW8_GSU1_ISA938_IU1_KME_GRCMn2_K1_KLA_LDL1_LRVW8_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR1_PGR2_PLR1_RK0_SU0_SUM0_SUS256_SVW4_TT8_8_TLM0_ULDSWM0_USFGRO0_USSB0_VAW2_VSn1_VW8_WG16_32_1_WGM1",
+        [
+          58034.92600000002,
+          78
+        ]
+      ],
+      [
+        "Cijk_Alik_Bljk_F8BS_MT256x256x128_TT16_8_WG16_32_1_MFWGS768_AddDepth64_StoreUseLds_WGM1_bias_channelwise",
+        [
+          48542.943,
+          78
+        ]
+      ],
+      [
+        "void at::native::ep_gather_kernel<c10::BFloat16, long, 8>(c10::BFloat16 const*, long const*, float const*, int const*, int const*, c10::BFloat16*, int, int, int, bool, int)",
+        [
+          44441.821,
+          75
+        ]
+      ],
+      [
+        "void at::native::ep_scatter_kernel<signed char, float, long, 128, 8>(signed char const*, float const*, long const*, int const*, int*, signed char*, float*, int*, int*, int, int, int, int, int, int, bool)",
+        [
+          43938.77899999998,
+          75
+        ]
+      ],
+      [
+        "void at::native::act_and_mul_fp8_quant_kernel_opt1_one<c10::BFloat16, 8, true, 256>(long, int, unsigned char*, c10::BFloat16 const*, float*, int, int, int*)",
+        [
+          43553.98099999999,
+          75
+        ]
+      ],
+      [
+        "ncclDevKernel_AllGather_Ring_Simple_Sum_i8(ncclDevKernelArgsStorage<1024ul>)",
+        [
+          37501.46499999999,
+          101
+        ]
+      ],
+      [
+        "(anonymous namespace)::concat_mla_absorb_q_hcu_kernel(c10::BFloat16 const*, c10::BFloat16 const*, c10::BFloat16*, long, long, long, long, long, long, long, long)",
+        [
+          32684.375,
+          78
+        ]
+      ],
+      [
+        "void at::native::fused_add_rms_kernel_opt<c10::BFloat16, float, 8, 1024, false, false>(c10::BFloat16*, c10::BFloat16*, c10::BFloat16*, int, float, int, float)",
+        [
+          23773.03499999998,
+          79
+        ]
+      ],
+      [
+        "void at::native::rms_norm_fp8_quant_residual<c10::BFloat16, unsigned char, float, 8, 1024, true, false, true>(c10::BFloat16*, c10::BFloat16*, c10::BFloat16*, int, float, unsigned char*, float*, int, int, int)",
+        [
+          19026.792000000005,
+          77
+        ]
+      ],
+      [
+        "void rotary_embedding_kernel<c10::BFloat16, false>(long const*, c10::BFloat16*, c10::BFloat16*, c10::BFloat16 const*, int, long, long, long, int, int, int)",
+        [
+          15533.770999999895,
+          624
+        ]
+      ],
+      [
+        "void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, long, long, long, long, bool)",
+        [
+          13343.089999999998,
+          103
+        ]
+      ],
+      [
+        "void at::native::per_token_quant_fp8_kernel<c10::BFloat16, float, 16, 1024, true>(c10::BFloat16 const*, unsigned char*, float*, int)",
+        [
+          12425.354999999996,
+          81
+        ]
+      ],
+      [
+        "void at::native::elementwise_kernel_manual_unroll<128, 8, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int, bool)#1})",
+        [
+          11046.24099999999,
+          314
+        ]
+      ],
+      [
+        "void at::native::per_token_quant_fp8_kernel<c10::BFloat16, float, 16, 512, true>(c10::BFloat16 const*, unsigned char*, float*, int)",
+        [
+          10447.183000000005,
+          174
+        ]
+      ],
+      [
+        "_fused_gate_scale_kernel",
+        [
+          10256.775,
+          21
+        ]
+      ],
+      [
+        "Cijk_Alik_Bljk_BBH_MT128x128x32_SE_AMAS3_BW_DTL0_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS1_FL0_GRVW8_GSU1_ISA938_IU1_KME_GRCMn1_K1_KLA_LDL1_LRVW8_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR0_PGR1_PLR1_RK1_SU0_SUM0_SUS256_SVW4_TT8_8_TLM0_ULDSWM0_USFGRO0_USSB1_VAW2_VSn1_VW8_WG16_16_1_WGM1",
+        [
+          8541.682000000003,
+          75
+        ]
+      ],
+      [
+        "void deep_ep::layout::get_dispatch_layout<256, 4, 8>(long const*, int*, int*, int*, bool*, int, int, int, int)",
+        [
+          6767.588999999999,
+          75
+        ]
+      ],
+      [
+        "void at::native::vectorized_elementwise_kernel<8, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul>)",
+        [
+          6605.517,
+          75
+        ]
+      ],
+      [
+        "void at::native::ep_scan_fill_m_indices_kernel<1024, false>(int const*, int*, int*, int, int)",
+        [
+          6338.6410000000005,
+          75
+        ]
+      ],
+      [
+        "void deep_ep::intranode::notify_dispatch<8>(int const*, int*, int const*, int*, long*, int, int, int, bool const*, int*, int*, int, int, void**, int**, int)",
+        [
+          5030.162000000001,
+          75
+        ]
+      ],
+      [
+        "void at::native::opt_layernorm_rope_split_kernel<float, c10::BFloat16, c10::BFloat16, float, false, false, 8, 16>(long const*, c10::BFloat16*, c10::BFloat16*, c10::BFloat16 const*, int, int, long, long, long, long, float const*, float const*, float const*, float const*, c10::BFloat16*, c10::BFloat16*, c10::BFloat16, int, int, int, int, int, int, int)",
+        [
+          4432.298000000001,
+          21
+        ]
+      ],
+      [
+        "void at::native::silu_and_mul_kernel_opt1<c10::BFloat16, 8>(c10::BFloat16*, c10::BFloat16 const*, int)",
+        [
+          4087.1190000000015,
+          75
+        ]
+      ],
+      [
+        "void at::native::per_token_quant_fp8_kernel<c10::BFloat16, float, 16, 128, true>(c10::BFloat16 const*, unsigned char*, float*, int)",
+        [
+          3923.184000000004,
+          174
+        ]
+      ],
+      [
+        "void at::native::fused_quantize_and_store_mla_kv_kernel<c10::BFloat16, true>(c10::BFloat16 const*, c10::BFloat16 const*, unsigned char*, long const*, long, float, int, int)",
+        [
+          3373.8410000000003,
+          78
+        ]
+      ],
+      [
+        "Cijk_Alik_Bljk_F8BS_MT256x256x128_TT16_8_WG16_32_1_MFWGS768_AddDepth64_StoreUseLds_WGM5_bias_channelwise",
+        [
+          3350.5369999999994,
+          21
+        ]
+      ],
+      [
+        "void at::native::(anonymous namespace)::CatArrayBatchedCopy<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 3, 64, 64>(at::native::(anonymous namespace)::OpaqueType<2u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 64, 64>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int)",
+        [
+          3322.1590000000006,
+          78
+        ]
+      ],
+      [
+        "void at::native::fused_rms_kernel_opt<c10::BFloat16, float, 8, 256, false, false>(c10::BFloat16*, c10::BFloat16*, c10::BFloat16*, int, float, int, float)",
+        [
+          2834.1600000000003,
+          78
+        ]
+      ],
+      [
+        "void at::native::moe_fused_gate_kernel_gourp1<__hip_bfloat16, float, at::native::KernelParams<8, 256, 32, 2, 4, 2>, 8, 256, 8>(void*, void*, float*, void*, long, long, double, bool, bool, at::native::KernelParams<8, 256, 32, 2, 4, 2>)",
+        [
+          2489.6850000000004,
+          75
+        ]
+      ],
+      [
+        "Cijk_Alik_Bljk_BBH_MT128x128x32_SE_AMAS3_BW_DTL0_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS0_FL0_GRVW4_GSU1_ISA938_IU1_KME_GRCMn1_K1_KLA_LDL1_LRVW4_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR1_PGR2_PLR1_RK0_SU32_SUM0_SUS256_SVW4_TT8_4_TLM0_ULDSWM0_USFGRO0_USSB0_VAW2_VSn1_VW4_WG16_32_1_WGM8",
+        [
+          1963.4940000000001,
+          21
+        ]
+      ]
+    ],
+    "gemm_shapes": [
+      {
+        "dims": [
+          [
+            59904,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            59904,
+            4096
+          ],
+          [
+            59904,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            59904
+          ],
+          []
+        ],
+        "us": 5709.756,
+        "min_bytes": 1665093632,
+        "padded_flops": 3015067041792
+      },
+      {
+        "dims": [
+          [
+            59904,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            59904,
+            6144
+          ],
+          [
+            59904,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            59904
+          ],
+          []
+        ],
+        "us": 3539.677,
+        "min_bytes": 1262702592,
+        "padded_flops": 1507533520896
+      },
+      {
+        "dims": [
+          [
+            37632,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            37632,
+            4096
+          ],
+          [
+            37632,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            37632
+          ],
+          []
+        ],
+        "us": 3575.998,
+        "min_bytes": 1345624064,
+        "padded_flops": 1894080577536
+      },
+      {
+        "dims": [
+          [
+            37632,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            37632,
+            6144
+          ],
+          [
+            37632,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            37632
+          ],
+          []
+        ],
+        "us": 2230.878,
+        "min_bytes": 943233024,
+        "padded_flops": 947040288768
+      },
+      {
+        "dims": [
+          [
+            44800,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            44800,
+            4096
+          ],
+          [
+            44800,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            44800
+          ],
+          []
+        ],
+        "us": 4246.557,
+        "min_bytes": 1448441856,
+        "padded_flops": 2254857830400
+      },
+      {
+        "dims": [
+          [
+            44800,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            44800,
+            6144
+          ],
+          [
+            44800,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            44800
+          ],
+          []
+        ],
+        "us": 2647.357,
+        "min_bytes": 1046050816,
+        "padded_flops": 1127428915200
+      },
+      {
+        "dims": [
+          [
+            34560,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            34560,
+            4096
+          ],
+          [
+            34560,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            34560
+          ],
+          []
+        ],
+        "us": 3288.637,
+        "min_bytes": 1301559296,
+        "padded_flops": 1739461754880
+      },
+      {
+        "dims": [
+          [
+            34560,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            34560,
+            6144
+          ],
+          [
+            34560,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            34560
+          ],
+          []
+        ],
+        "us": 2033.278,
+        "min_bytes": 899168256,
+        "padded_flops": 869730877440
+      },
+      {
+        "dims": [
+          [
+            27904,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            27904,
+            4096
+          ],
+          [
+            27904,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            27904
+          ],
+          []
+        ],
+        "us": 2708.317,
+        "min_bytes": 1206085632,
+        "padded_flops": 1404454305792
+      },
+      {
+        "dims": [
+          [
+            27904,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            27904,
+            6144
+          ],
+          [
+            27904,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            27904
+          ],
+          []
+        ],
+        "us": 1638.238,
+        "min_bytes": 803694592,
+        "padded_flops": 702227152896
+      },
+      {
+        "dims": [
+          [
+            37888,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            37888,
+            4096
+          ],
+          [
+            37888,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            37888
+          ],
+          []
+        ],
+        "us": 3578.077,
+        "min_bytes": 1349296128,
+        "padded_flops": 1906965479424
+      },
+      {
+        "dims": [
+          [
+            37888,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            37888,
+            6144
+          ],
+          [
+            37888,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            37888
+          ],
+          []
+        ],
+        "us": 2236.798,
+        "min_bytes": 946905088,
+        "padded_flops": 953482739712
+      },
+      {
+        "dims": [
+          [
+            55040,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            55040,
+            4096
+          ],
+          [
+            55040,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            55040
+          ],
+          []
+        ],
+        "us": 5213.276,
+        "min_bytes": 1595324416,
+        "padded_flops": 2770253905920
+      },
+      {
+        "dims": [
+          [
+            55040,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            55040,
+            6144
+          ],
+          [
+            55040,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            55040
+          ],
+          []
+        ],
+        "us": 3238.717,
+        "min_bytes": 1192933376,
+        "padded_flops": 1385126952960
+      },
+      {
+        "dims": [
+          [
+            30976,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            30976,
+            4096
+          ],
+          [
+            30976,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            30976
+          ],
+          []
+        ],
+        "us": 2996.798,
+        "min_bytes": 1250150400,
+        "padded_flops": 1559073128448
+      },
+      {
+        "dims": [
+          [
+            30976,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            30976,
+            6144
+          ],
+          [
+            30976,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            30976
+          ],
+          []
+        ],
+        "us": 1835.678,
+        "min_bytes": 847759360,
+        "padded_flops": 779536564224
+      },
+      {
+        "dims": [
+          [
+            35072,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            35072,
+            4096
+          ],
+          [
+            35072,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            35072
+          ],
+          []
+        ],
+        "us": 3380.637,
+        "min_bytes": 1308903424,
+        "padded_flops": 1765231558656
+      },
+      {
+        "dims": [
+          [
+            35072,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            35072,
+            6144
+          ],
+          [
+            35072,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            35072
+          ],
+          []
+        ],
+        "us": 2072.638,
+        "min_bytes": 906512384,
+        "padded_flops": 882615779328
+      },
+      {
+        "dims": [
+          [
+            25856,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            25856,
+            4096
+          ],
+          [
+            25856,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            25856
+          ],
+          []
+        ],
+        "us": 2519.678,
+        "min_bytes": 1176709120,
+        "padded_flops": 1301375090688
+      },
+      {
+        "dims": [
+          [
+            25856,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            25856,
+            6144
+          ],
+          [
+            25856,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            25856
+          ],
+          []
+        ],
+        "us": 1518.878,
+        "min_bytes": 774318080,
+        "padded_flops": 650687545344
+      },
+      {
+        "dims": [
+          [
+            39680,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39680,
+            4096
+          ],
+          [
+            39680,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            39680
+          ],
+          []
+        ],
+        "us": 3767.837,
+        "min_bytes": 1375000576,
+        "padded_flops": 1997159792640
+      },
+      {
+        "dims": [
+          [
+            39680,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39680,
+            6144
+          ],
+          [
+            39680,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            39680
+          ],
+          []
+        ],
+        "us": 2358.558,
+        "min_bytes": 972609536,
+        "padded_flops": 998579896320
+      },
+      {
+        "dims": [
+          [
+            26368,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            26368,
+            4096
+          ],
+          [
+            26368,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            26368
+          ],
+          []
+        ],
+        "us": 2517.758,
+        "min_bytes": 1184053248,
+        "padded_flops": 1327144894464
+      },
+      {
+        "dims": [
+          [
+            26368,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            26368,
+            6144
+          ],
+          [
+            26368,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            26368
+          ],
+          []
+        ],
+        "us": 1557.758,
+        "min_bytes": 781662208,
+        "padded_flops": 663572447232
+      },
+      {
+        "dims": [
+          [
+            27648,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            27648,
+            4096
+          ],
+          [
+            27648,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            27648
+          ],
+          []
+        ],
+        "us": 2614.078,
+        "min_bytes": 1202413568,
+        "padded_flops": 1391569403904
+      },
+      {
+        "dims": [
+          [
+            27648,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            27648,
+            6144
+          ],
+          [
+            27648,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            27648
+          ],
+          []
+        ],
+        "us": 1638.079,
+        "min_bytes": 800022528,
+        "padded_flops": 695784701952
+      },
+      {
+        "dims": [
+          [
+            36608,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            36608,
+            4096
+          ],
+          [
+            36608,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            36608
+          ],
+          []
+        ],
+        "us": 3480.478,
+        "min_bytes": 1330935808,
+        "padded_flops": 1842540969984
+      },
+      {
+        "dims": [
+          [
+            36608,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            36608,
+            6144
+          ],
+          [
+            36608,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            36608
+          ],
+          []
+        ],
+        "us": 2152.958,
+        "min_bytes": 928544768,
+        "padded_flops": 921270484992
+      },
+      {
+        "dims": [
+          [
+            25856,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            25856,
+            4096
+          ],
+          [
+            25856,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            25856
+          ],
+          []
+        ],
+        "us": 2517.917,
+        "min_bytes": 1176709120,
+        "padded_flops": 1301375090688
+      },
+      {
+        "dims": [
+          [
+            25856,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            25856,
+            6144
+          ],
+          [
+            25856,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            25856
+          ],
+          []
+        ],
+        "us": 1520.158,
+        "min_bytes": 774318080,
+        "padded_flops": 650687545344
+      },
+      {
+        "dims": [
+          [
+            20480,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            20480,
+            4096
+          ],
+          [
+            20480,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            20480
+          ],
+          []
+        ],
+        "us": 1940.798,
+        "min_bytes": 1099595776,
+        "padded_flops": 1030792151040
+      },
+      {
+        "dims": [
+          [
+            20480,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            20480,
+            6144
+          ],
+          [
+            20480,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            20480
+          ],
+          []
+        ],
+        "us": 1201.279,
+        "min_bytes": 697204736,
+        "padded_flops": 515396075520
+      },
+      {
+        "dims": [
+          [
+            62976,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            62976,
+            4096
+          ],
+          [
+            62976,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            62976
+          ],
+          []
+        ],
+        "us": 5991.516,
+        "min_bytes": 1709158400,
+        "padded_flops": 3169685864448
+      },
+      {
+        "dims": [
+          [
+            62976,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            62976,
+            6144
+          ],
+          [
+            62976,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            62976
+          ],
+          []
+        ],
+        "us": 3731.837,
+        "min_bytes": 1306767360,
+        "padded_flops": 1584842932224
+      },
+      {
+        "dims": [
+          [
+            23552,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            23552,
+            4096
+          ],
+          [
+            23552,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            23552
+          ],
+          []
+        ],
+        "us": 2231.678,
+        "min_bytes": 1143660544,
+        "padded_flops": 1185410973696
+      },
+      {
+        "dims": [
+          [
+            23552,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            23552,
+            6144
+          ],
+          [
+            23552,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            23552
+          ],
+          []
+        ],
+        "us": 1399.038,
+        "min_bytes": 741269504,
+        "padded_flops": 592705486848
+      },
+      {
+        "dims": [
+          [
+            67328,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            67328,
+            4096
+          ],
+          [
+            67328,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            67328
+          ],
+          []
+        ],
+        "us": 6400.316,
+        "min_bytes": 1771583488,
+        "padded_flops": 3388729196544
+      },
+      {
+        "dims": [
+          [
+            67328,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            67328,
+            6144
+          ],
+          [
+            67328,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            67328
+          ],
+          []
+        ],
+        "us": 3950.397,
+        "min_bytes": 1369192448,
+        "padded_flops": 1694364598272
+      },
+      {
+        "dims": [
+          [
+            31232,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            31232,
+            4096
+          ],
+          [
+            31232,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            31232
+          ],
+          []
+        ],
+        "us": 2999.037,
+        "min_bytes": 1253822464,
+        "padded_flops": 1571958030336
+      },
+      {
+        "dims": [
+          [
+            31232,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            31232,
+            6144
+          ],
+          [
+            31232,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            31232
+          ],
+          []
+        ],
+        "us": 1835.518,
+        "min_bytes": 851431424,
+        "padded_flops": 785979015168
+      },
+      {
+        "dims": [
+          [
+            39936,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39936,
+            4096
+          ],
+          [
+            39936,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            39936
+          ],
+          []
+        ],
+        "us": 3767.837,
+        "min_bytes": 1378672640,
+        "padded_flops": 2010044694528
+      },
+      {
+        "dims": [
+          [
+            39936,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39936,
+            6144
+          ],
+          [
+            39936,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            39936
+          ],
+          []
+        ],
+        "us": 2353.918,
+        "min_bytes": 976281600,
+        "padded_flops": 1005022347264
+      },
+      {
+        "dims": [
+          [
+            30720,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            30720,
+            4096
+          ],
+          [
+            30720,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            30720
+          ],
+          []
+        ],
+        "us": 2907.358,
+        "min_bytes": 1246478336,
+        "padded_flops": 1546188226560
+      },
+      {
+        "dims": [
+          [
+            30720,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            30720,
+            6144
+          ],
+          [
+            30720,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            30720
+          ],
+          []
+        ],
+        "us": 1797.598,
+        "min_bytes": 844087296,
+        "padded_flops": 773094113280
+      },
+      {
+        "dims": [
+          [
+            35072,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            35072,
+            4096
+          ],
+          [
+            35072,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            35072
+          ],
+          []
+        ],
+        "us": 3381.277,
+        "min_bytes": 1308903424,
+        "padded_flops": 1765231558656
+      },
+      {
+        "dims": [
+          [
+            35072,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            35072,
+            6144
+          ],
+          [
+            35072,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            35072
+          ],
+          []
+        ],
+        "us": 2072.798,
+        "min_bytes": 906512384,
+        "padded_flops": 882615779328
+      },
+      {
+        "dims": [
+          [
+            43008,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            43008,
+            4096
+          ],
+          [
+            43008,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            43008
+          ],
+          []
+        ],
+        "us": 4055.037,
+        "min_bytes": 1422737408,
+        "padded_flops": 2164663517184
+      },
+      {
+        "dims": [
+          [
+            43008,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            43008,
+            6144
+          ],
+          [
+            43008,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            43008
+          ],
+          []
+        ],
+        "us": 2516.478,
+        "min_bytes": 1020346368,
+        "padded_flops": 1082331758592
+      },
+      {
+        "dims": [
+          [
+            44800,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            44800,
+            4096
+          ],
+          [
+            44800,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            44800
+          ],
+          []
+        ],
+        "us": 4248.636,
+        "min_bytes": 1448441856,
+        "padded_flops": 2254857830400
+      },
+      {
+        "dims": [
+          [
+            44800,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            44800,
+            6144
+          ],
+          [
+            44800,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            44800
+          ],
+          []
+        ],
+        "us": 2642.878,
+        "min_bytes": 1046050816,
+        "padded_flops": 1127428915200
+      },
+      {
+        "dims": [
+          [
+            33792,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            33792,
+            4096
+          ],
+          [
+            33792,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            33792
+          ],
+          []
+        ],
+        "us": 3191.998,
+        "min_bytes": 1290543104,
+        "padded_flops": 1700807049216
+      },
+      {
+        "dims": [
+          [
+            33792,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            33792,
+            6144
+          ],
+          [
+            33792,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            33792
+          ],
+          []
+        ],
+        "us": 1994.878,
+        "min_bytes": 888152064,
+        "padded_flops": 850403524608
+      },
+      {
+        "dims": [
+          [
+            38144,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            38144,
+            4096
+          ],
+          [
+            38144,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            38144
+          ],
+          []
+        ],
+        "us": 3669.117,
+        "min_bytes": 1352968192,
+        "padded_flops": 1919850381312
+      },
+      {
+        "dims": [
+          [
+            38144,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            38144,
+            6144
+          ],
+          [
+            38144,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            38144
+          ],
+          []
+        ],
+        "us": 2231.357,
+        "min_bytes": 950577152,
+        "padded_flops": 959925190656
+      },
+      {
+        "dims": [
+          [
+            40704,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            40704,
+            4096
+          ],
+          [
+            40704,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            40704
+          ],
+          []
+        ],
+        "us": 3865.437,
+        "min_bytes": 1389688832,
+        "padded_flops": 2048699400192
+      },
+      {
+        "dims": [
+          [
+            40704,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            40704,
+            6144
+          ],
+          [
+            40704,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            40704
+          ],
+          []
+        ],
+        "us": 2402.878,
+        "min_bytes": 987297792,
+        "padded_flops": 1024349700096
+      },
+      {
+        "dims": [
+          [
+            18688,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            18688,
+            4096
+          ],
+          [
+            18688,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            18688
+          ],
+          []
+        ],
+        "us": 1843.998,
+        "min_bytes": 1073891328,
+        "padded_flops": 940597837824
+      },
+      {
+        "dims": [
+          [
+            18688,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            18688,
+            6144
+          ],
+          [
+            18688,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            18688
+          ],
+          []
+        ],
+        "us": 1120.479,
+        "min_bytes": 671500288,
+        "padded_flops": 470298918912
+      },
+      {
+        "dims": [
+          [
+            57856,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            57856,
+            4096
+          ],
+          [
+            57856,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            57856
+          ],
+          []
+        ],
+        "us": 5500.156,
+        "min_bytes": 1635717120,
+        "padded_flops": 2911987826688
+      },
+      {
+        "dims": [
+          [
+            57856,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            57856,
+            6144
+          ],
+          [
+            57856,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            57856
+          ],
+          []
+        ],
+        "us": 3399.517,
+        "min_bytes": 1233326080,
+        "padded_flops": 1455993913344
+      },
+      {
+        "dims": [
+          [
+            39680,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39680,
+            4096
+          ],
+          [
+            39680,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            39680
+          ],
+          []
+        ],
+        "us": 3767.677,
+        "min_bytes": 1375000576,
+        "padded_flops": 1997159792640
+      },
+      {
+        "dims": [
+          [
+            39680,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39680,
+            6144
+          ],
+          [
+            39680,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            39680
+          ],
+          []
+        ],
+        "us": 2352.638,
+        "min_bytes": 972609536,
+        "padded_flops": 998579896320
+      },
+      {
+        "dims": [
+          [
+            47104,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            47104,
+            4096
+          ],
+          [
+            47104,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            47104
+          ],
+          []
+        ],
+        "us": 4447.037,
+        "min_bytes": 1481490432,
+        "padded_flops": 2370821947392
+      },
+      {
+        "dims": [
+          [
+            47104,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            47104,
+            6144
+          ],
+          [
+            47104,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            47104
+          ],
+          []
+        ],
+        "us": 2751.358,
+        "min_bytes": 1079099392,
+        "padded_flops": 1185410973696
+      },
+      {
+        "dims": [
+          [
+            22272,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            22272,
+            4096
+          ],
+          [
+            22272,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            22272
+          ],
+          []
+        ],
+        "us": 2134.078,
+        "min_bytes": 1125300224,
+        "padded_flops": 1120986464256
+      },
+      {
+        "dims": [
+          [
+            22272,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            22272,
+            6144
+          ],
+          [
+            22272,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            22272
+          ],
+          []
+        ],
+        "us": 1322.558,
+        "min_bytes": 722909184,
+        "padded_flops": 560493232128
+      },
+      {
+        "dims": [
+          [
+            26112,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            26112,
+            4096
+          ],
+          [
+            26112,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            26112
+          ],
+          []
+        ],
+        "us": 2516.158,
+        "min_bytes": 1180381184,
+        "padded_flops": 1314259992576
+      },
+      {
+        "dims": [
+          [
+            26112,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            26112,
+            6144
+          ],
+          [
+            26112,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            26112
+          ],
+          []
+        ],
+        "us": 1555.519,
+        "min_bytes": 777990144,
+        "padded_flops": 657129996288
+      },
+      {
+        "dims": [
+          [
+            39936,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39936,
+            4096
+          ],
+          [
+            39936,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            39936
+          ],
+          []
+        ],
+        "us": 3769.437,
+        "min_bytes": 1378672640,
+        "padded_flops": 2010044694528
+      },
+      {
+        "dims": [
+          [
+            39936,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39936,
+            6144
+          ],
+          [
+            39936,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            39936
+          ],
+          []
+        ],
+        "us": 2364.478,
+        "min_bytes": 976281600,
+        "padded_flops": 1005022347264
+      },
+      {
+        "dims": [
+          [
+            41984,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            41984,
+            4096
+          ],
+          [
+            41984,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            41984
+          ],
+          []
+        ],
+        "us": 3964.637,
+        "min_bytes": 1408049152,
+        "padded_flops": 2113123909632
+      },
+      {
+        "dims": [
+          [
+            41984,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            41984,
+            6144
+          ],
+          [
+            41984,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            41984
+          ],
+          []
+        ],
+        "us": 2478.877,
+        "min_bytes": 1005658112,
+        "padded_flops": 1056561954816
+      },
+      {
+        "dims": [
+          [
+            66816,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            66816,
+            4096
+          ],
+          [
+            66816,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            66816
+          ],
+          []
+        ],
+        "us": 6369.436,
+        "min_bytes": 1764239360,
+        "padded_flops": 3362959392768
+      },
+      {
+        "dims": [
+          [
+            66816,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            66816,
+            6144
+          ],
+          [
+            66816,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            66816
+          ],
+          []
+        ],
+        "us": 3910.877,
+        "min_bytes": 1361848320,
+        "padded_flops": 1681479696384
+      },
+      {
+        "dims": [
+          [
+            31744,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            31744,
+            4096
+          ],
+          [
+            31744,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            31744
+          ],
+          []
+        ],
+        "us": 2999.038,
+        "min_bytes": 1261166592,
+        "padded_flops": 1597727834112
+      },
+      {
+        "dims": [
+          [
+            31744,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            31744,
+            6144
+          ],
+          [
+            31744,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            31744
+          ],
+          []
+        ],
+        "us": 1875.039,
+        "min_bytes": 858775552,
+        "padded_flops": 798863917056
+      },
+      {
+        "dims": [
+          [
+            50944,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            50944,
+            4096
+          ],
+          [
+            50944,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            50944
+          ],
+          []
+        ],
+        "us": 4825.117,
+        "min_bytes": 1536571392,
+        "padded_flops": 2564095475712
+      },
+      {
+        "dims": [
+          [
+            50944,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            50944,
+            6144
+          ],
+          [
+            50944,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            50944
+          ],
+          []
+        ],
+        "us": 2984.478,
+        "min_bytes": 1134180352,
+        "padded_flops": 1282047737856
+      },
+      {
+        "dims": [
+          [
+            39936,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39936,
+            4096
+          ],
+          [
+            39936,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            39936
+          ],
+          []
+        ],
+        "us": 3769.437,
+        "min_bytes": 1378672640,
+        "padded_flops": 2010044694528
+      },
+      {
+        "dims": [
+          [
+            39936,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39936,
+            6144
+          ],
+          [
+            39936,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            39936
+          ],
+          []
+        ],
+        "us": 2358.238,
+        "min_bytes": 976281600,
+        "padded_flops": 1005022347264
+      },
+      {
+        "dims": [
+          [
+            41472,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            41472,
+            4096
+          ],
+          [
+            41472,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            41472
+          ],
+          []
+        ],
+        "us": 3962.077,
+        "min_bytes": 1400705024,
+        "padded_flops": 2087354105856
+      },
+      {
+        "dims": [
+          [
+            41472,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            41472,
+            6144
+          ],
+          [
+            41472,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            41472
+          ],
+          []
+        ],
+        "us": 2434.877,
+        "min_bytes": 998313984,
+        "padded_flops": 1043677052928
+      },
+      {
+        "dims": [
+          [
+            53760,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            53760,
+            4096
+          ],
+          [
+            53760,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            53760
+          ],
+          []
+        ],
+        "us": 5114.557,
+        "min_bytes": 1576964096,
+        "padded_flops": 2705829396480
+      },
+      {
+        "dims": [
+          [
+            53760,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            53760,
+            6144
+          ],
+          [
+            53760,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            53760
+          ],
+          []
+        ],
+        "us": 3148.157,
+        "min_bytes": 1174573056,
+        "padded_flops": 1352914698240
+      },
+      {
+        "dims": [
+          [
+            32256,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            32256,
+            4096
+          ],
+          [
+            32256,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            32256
+          ],
+          []
+        ],
+        "us": 3092.958,
+        "min_bytes": 1268510720,
+        "padded_flops": 1623497637888
+      },
+      {
+        "dims": [
+          [
+            32256,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            32256,
+            6144
+          ],
+          [
+            32256,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            32256
+          ],
+          []
+        ],
+        "us": 1915.838,
+        "min_bytes": 866119680,
+        "padded_flops": 811748818944
+      },
+      {
+        "dims": [
+          [
+            31744,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            31744,
+            4096
+          ],
+          [
+            31744,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            31744
+          ],
+          []
+        ],
+        "us": 3004.958,
+        "min_bytes": 1261166592,
+        "padded_flops": 1597727834112
+      },
+      {
+        "dims": [
+          [
+            31744,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            31744,
+            6144
+          ],
+          [
+            31744,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            31744
+          ],
+          []
+        ],
+        "us": 1877.918,
+        "min_bytes": 858775552,
+        "padded_flops": 798863917056
+      },
+      {
+        "dims": [
+          [
+            30976,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            30976,
+            4096
+          ],
+          [
+            30976,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            30976
+          ],
+          []
+        ],
+        "us": 2998.558,
+        "min_bytes": 1250150400,
+        "padded_flops": 1559073128448
+      },
+      {
+        "dims": [
+          [
+            30976,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            30976,
+            6144
+          ],
+          [
+            30976,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            30976
+          ],
+          []
+        ],
+        "us": 1836.318,
+        "min_bytes": 847759360,
+        "padded_flops": 779536564224
+      },
+      {
+        "dims": [
+          [
+            39424,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39424,
+            4096
+          ],
+          [
+            39424,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            39424
+          ],
+          []
+        ],
+        "us": 3768.157,
+        "min_bytes": 1371328512,
+        "padded_flops": 1984274890752
+      },
+      {
+        "dims": [
+          [
+            39424,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            39424,
+            6144
+          ],
+          [
+            39424,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            39424
+          ],
+          []
+        ],
+        "us": 2320.158,
+        "min_bytes": 968937472,
+        "padded_flops": 992137445376
+      },
+      {
+        "dims": [
+          [
+            22784,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            22784,
+            4096
+          ],
+          [
+            22784,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            22784
+          ],
+          []
+        ],
+        "us": 2228.478,
+        "min_bytes": 1132644352,
+        "padded_flops": 1146756268032
+      },
+      {
+        "dims": [
+          [
+            22784,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            22784,
+            6144
+          ],
+          [
+            22784,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            22784
+          ],
+          []
+        ],
+        "us": 1359.998,
+        "min_bytes": 730253312,
+        "padded_flops": 573378134016
+      },
+      {
+        "dims": [
+          [
+            59136,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            59136,
+            4096
+          ],
+          [
+            59136,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            59136
+          ],
+          []
+        ],
+        "us": 5595.356,
+        "min_bytes": 1654077440,
+        "padded_flops": 2976412336128
+      },
+      {
+        "dims": [
+          [
+            59136,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            59136,
+            6144
+          ],
+          [
+            59136,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            59136
+          ],
+          []
+        ],
+        "us": 3495.677,
+        "min_bytes": 1251686400,
+        "padded_flops": 1488206168064
+      },
+      {
+        "dims": [
+          [
+            32256,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            32256,
+            4096
+          ],
+          [
+            32256,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            32256
+          ],
+          []
+        ],
+        "us": 3096.797,
+        "min_bytes": 1268510720,
+        "padded_flops": 1623497637888
+      },
+      {
+        "dims": [
+          [
+            32256,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            32256,
+            6144
+          ],
+          [
+            32256,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            32256
+          ],
+          []
+        ],
+        "us": 1914.078,
+        "min_bytes": 866119680,
+        "padded_flops": 811748818944
+      },
+      {
+        "dims": [
+          [
+            58880,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            58880,
+            4096
+          ],
+          [
+            58880,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            58880
+          ],
+          []
+        ],
+        "us": 5600.476,
+        "min_bytes": 1650405376,
+        "padded_flops": 2963527434240
+      },
+      {
+        "dims": [
+          [
+            58880,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            58880,
+            6144
+          ],
+          [
+            58880,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            58880
+          ],
+          []
+        ],
+        "us": 3471.837,
+        "min_bytes": 1248014336,
+        "padded_flops": 1481763717120
+      },
+      {
+        "dims": [
+          [
+            21760,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            21760,
+            4096
+          ],
+          [
+            21760,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            21760
+          ],
+          []
+        ],
+        "us": 2133.598,
+        "min_bytes": 1117956096,
+        "padded_flops": 1095216660480
+      },
+      {
+        "dims": [
+          [
+            21760,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            21760,
+            6144
+          ],
+          [
+            21760,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            21760
+          ],
+          []
+        ],
+        "us": 1279.679,
+        "min_bytes": 715565056,
+        "padded_flops": 547608330240
+      },
+      {
+        "dims": [
+          [
+            37888,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            37888,
+            4096
+          ],
+          [
+            37888,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            37888
+          ],
+          []
+        ],
+        "us": 3575.838,
+        "min_bytes": 1349296128,
+        "padded_flops": 1906965479424
+      },
+      {
+        "dims": [
+          [
+            37888,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            37888,
+            6144
+          ],
+          [
+            37888,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            37888
+          ],
+          []
+        ],
+        "us": 2237.278,
+        "min_bytes": 946905088,
+        "padded_flops": 953482739712
+      },
+      {
+        "dims": [
+          [
+            29952,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            29952,
+            4096
+          ],
+          [
+            29952,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            29952
+          ],
+          []
+        ],
+        "us": 2906.557,
+        "min_bytes": 1235462144,
+        "padded_flops": 1507533520896
+      },
+      {
+        "dims": [
+          [
+            29952,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            29952,
+            6144
+          ],
+          [
+            29952,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            29952
+          ],
+          []
+        ],
+        "us": 1758.718,
+        "min_bytes": 833071104,
+        "padded_flops": 753766760448
+      },
+      {
+        "dims": [
+          [
+            40192,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            40192,
+            4096
+          ],
+          [
+            40192,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            40192
+          ],
+          []
+        ],
+        "us": 3863.517,
+        "min_bytes": 1382344704,
+        "padded_flops": 2022929596416
+      },
+      {
+        "dims": [
+          [
+            40192,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            40192,
+            6144
+          ],
+          [
+            40192,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            40192
+          ],
+          []
+        ],
+        "us": 2361.278,
+        "min_bytes": 979953664,
+        "padded_flops": 1011464798208
+      },
+      {
+        "dims": [
+          [
+            31488,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            31488,
+            4096
+          ],
+          [
+            31488,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            31488
+          ],
+          []
+        ],
+        "us": 3001.277,
+        "min_bytes": 1257494528,
+        "padded_flops": 1584842932224
+      },
+      {
+        "dims": [
+          [
+            31488,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            31488,
+            6144
+          ],
+          [
+            31488,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            31488
+          ],
+          []
+        ],
+        "us": 1875.038,
+        "min_bytes": 855103488,
+        "padded_flops": 792421466112
+      },
+      {
+        "dims": [
+          [
+            26112,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            26112,
+            4096
+          ],
+          [
+            26112,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            26112
+          ],
+          []
+        ],
+        "us": 2518.078,
+        "min_bytes": 1180381184,
+        "padded_flops": 1314259992576
+      },
+      {
+        "dims": [
+          [
+            26112,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            26112,
+            6144
+          ],
+          [
+            26112,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            26112
+          ],
+          []
+        ],
+        "us": 1556.958,
+        "min_bytes": 777990144,
+        "padded_flops": 657129996288
+      },
+      {
+        "dims": [
+          [
+            24320,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            24320,
+            4096
+          ],
+          [
+            24320,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            24320
+          ],
+          []
+        ],
+        "us": 2327.837,
+        "min_bytes": 1154676736,
+        "padded_flops": 1224065679360
+      },
+      {
+        "dims": [
+          [
+            24320,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            24320,
+            6144
+          ],
+          [
+            24320,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            24320
+          ],
+          []
+        ],
+        "us": 1440.159,
+        "min_bytes": 752285696,
+        "padded_flops": 612032839680
+      },
+      {
+        "dims": [
+          [
+            32256,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            32256,
+            4096
+          ],
+          [
+            32256,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            32256
+          ],
+          []
+        ],
+        "us": 3094.238,
+        "min_bytes": 1268510720,
+        "padded_flops": 1623497637888
+      },
+      {
+        "dims": [
+          [
+            32256,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            32256,
+            6144
+          ],
+          [
+            32256,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            32256
+          ],
+          []
+        ],
+        "us": 1912.958,
+        "min_bytes": 866119680,
+        "padded_flops": 811748818944
+      },
+      {
+        "dims": [
+          [
+            36864,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            36864,
+            4096
+          ],
+          [
+            36864,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            36864
+          ],
+          []
+        ],
+        "us": 3479.197,
+        "min_bytes": 1334607872,
+        "padded_flops": 1855425871872
+      },
+      {
+        "dims": [
+          [
+            36864,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            36864,
+            6144
+          ],
+          [
+            36864,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            36864
+          ],
+          []
+        ],
+        "us": 2155.998,
+        "min_bytes": 932216832,
+        "padded_flops": 927712935936
+      },
+      {
+        "dims": [
+          [
+            36608,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            36608,
+            4096
+          ],
+          [
+            36608,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            36608
+          ],
+          []
+        ],
+        "us": 3477.278,
+        "min_bytes": 1330935808,
+        "padded_flops": 1842540969984
+      },
+      {
+        "dims": [
+          [
+            36608,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            36608,
+            6144
+          ],
+          [
+            36608,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            36608
+          ],
+          []
+        ],
+        "us": 2154.238,
+        "min_bytes": 928544768,
+        "padded_flops": 921270484992
+      },
+      {
+        "dims": [
+          [
+            31744,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            31744,
+            4096
+          ],
+          [
+            31744,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            31744
+          ],
+          []
+        ],
+        "us": 2998.238,
+        "min_bytes": 1261166592,
+        "padded_flops": 1597727834112
+      },
+      {
+        "dims": [
+          [
+            31744,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            31744,
+            6144
+          ],
+          [
+            31744,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            31744
+          ],
+          []
+        ],
+        "us": 1877.118,
+        "min_bytes": 858775552,
+        "padded_flops": 798863917056
+      },
+      {
+        "dims": [
+          [
+            54016,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            54016,
+            4096
+          ],
+          [
+            54016,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            54016
+          ],
+          []
+        ],
+        "us": 5116.477,
+        "min_bytes": 1580636160,
+        "padded_flops": 2718714298368
+      },
+      {
+        "dims": [
+          [
+            54016,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            54016,
+            6144
+          ],
+          [
+            54016,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            54016
+          ],
+          []
+        ],
+        "us": 3199.197,
+        "min_bytes": 1178245120,
+        "padded_flops": 1359357149184
+      },
+      {
+        "dims": [
+          [
+            34304,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            34304,
+            4096
+          ],
+          [
+            34304,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            34304
+          ],
+          []
+        ],
+        "us": 3288.477,
+        "min_bytes": 1297887232,
+        "padded_flops": 1726576852992
+      },
+      {
+        "dims": [
+          [
+            34304,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            34304,
+            6144
+          ],
+          [
+            34304,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            34304
+          ],
+          []
+        ],
+        "us": 2030.238,
+        "min_bytes": 895496192,
+        "padded_flops": 863288426496
+      },
+      {
+        "dims": [
+          [
+            27648,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            27648,
+            4096
+          ],
+          [
+            27648,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            27648
+          ],
+          []
+        ],
+        "us": 2615.358,
+        "min_bytes": 1202413568,
+        "padded_flops": 1391569403904
+      },
+      {
+        "dims": [
+          [
+            27648,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            27648,
+            6144
+          ],
+          [
+            27648,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            27648
+          ],
+          []
+        ],
+        "us": 1637.758,
+        "min_bytes": 800022528,
+        "padded_flops": 695784701952
+      },
+      {
+        "dims": [
+          [
+            40192,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            40192,
+            4096
+          ],
+          [
+            40192,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            40192
+          ],
+          []
+        ],
+        "us": 3863.197,
+        "min_bytes": 1382344704,
+        "padded_flops": 2022929596416
+      },
+      {
+        "dims": [
+          [
+            40192,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            40192,
+            6144
+          ],
+          [
+            40192,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            40192
+          ],
+          []
+        ],
+        "us": 2360.158,
+        "min_bytes": 979953664,
+        "padded_flops": 1011464798208
+      },
+      {
+        "dims": [
+          [
+            48384,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            48384,
+            4096
+          ],
+          [
+            48384,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            48384
+          ],
+          []
+        ],
+        "us": 4630.237,
+        "min_bytes": 1499850752,
+        "padded_flops": 2435246456832
+      },
+      {
+        "dims": [
+          [
+            48384,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            48384,
+            6144
+          ],
+          [
+            48384,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            48384
+          ],
+          []
+        ],
+        "us": 2826.078,
+        "min_bytes": 1097459712,
+        "padded_flops": 1217623228416
+      },
+      {
+        "dims": [
+          [
+            38656,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            38656,
+            4096
+          ],
+          [
+            38656,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            38656
+          ],
+          []
+        ],
+        "us": 3674.877,
+        "min_bytes": 1360312320,
+        "padded_flops": 1945620185088
+      },
+      {
+        "dims": [
+          [
+            38656,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            38656,
+            6144
+          ],
+          [
+            38656,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            38656
+          ],
+          []
+        ],
+        "us": 2275.038,
+        "min_bytes": 957921280,
+        "padded_flops": 972810092544
+      },
+      {
+        "dims": [
+          [
+            25600,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            25600,
+            4096
+          ],
+          [
+            25600,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            25600
+          ],
+          []
+        ],
+        "us": 2424.958,
+        "min_bytes": 1173037056,
+        "padded_flops": 1288490188800
+      },
+      {
+        "dims": [
+          [
+            25600,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            25600,
+            6144
+          ],
+          [
+            25600,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            25600
+          ],
+          []
+        ],
+        "us": 1515.518,
+        "min_bytes": 770646016,
+        "padded_flops": 644245094400
+      },
+      {
+        "dims": [
+          [
+            22272,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            22272,
+            4096
+          ],
+          [
+            22272,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            22272
+          ],
+          []
+        ],
+        "us": 2135.678,
+        "min_bytes": 1125300224,
+        "padded_flops": 1120986464256
+      },
+      {
+        "dims": [
+          [
+            22272,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            22272,
+            6144
+          ],
+          [
+            22272,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            22272
+          ],
+          []
+        ],
+        "us": 1322.239,
+        "min_bytes": 722909184,
+        "padded_flops": 560493232128
+      },
+      {
+        "dims": [
+          [
+            57088,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            57088,
+            4096
+          ],
+          [
+            57088,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            57088
+          ],
+          []
+        ],
+        "us": 5407.676,
+        "min_bytes": 1624700928,
+        "padded_flops": 2873333121024
+      },
+      {
+        "dims": [
+          [
+            57088,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            57088,
+            6144
+          ],
+          [
+            57088,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            57088
+          ],
+          []
+        ],
+        "us": 3349.117,
+        "min_bytes": 1222309888,
+        "padded_flops": 1436666560512
+      },
+      {
+        "dims": [
+          [
+            21760,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            21760,
+            4096
+          ],
+          [
+            21760,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            21760
+          ],
+          []
+        ],
+        "us": 2130.718,
+        "min_bytes": 1117956096,
+        "padded_flops": 1095216660480
+      },
+      {
+        "dims": [
+          [
+            21760,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            21760,
+            6144
+          ],
+          [
+            21760,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            21760
+          ],
+          []
+        ],
+        "us": 1281.438,
+        "min_bytes": 715565056,
+        "padded_flops": 547608330240
+      },
+      {
+        "dims": [
+          [
+            44032,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            44032,
+            4096
+          ],
+          [
+            44032,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            44032
+          ],
+          []
+        ],
+        "us": 4155.837,
+        "min_bytes": 1437425664,
+        "padded_flops": 2216203124736
+      },
+      {
+        "dims": [
+          [
+            44032,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            44032,
+            6144
+          ],
+          [
+            44032,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            44032
+          ],
+          []
+        ],
+        "us": 2589.918,
+        "min_bytes": 1035034624,
+        "padded_flops": 1108101562368
+      },
+      {
+        "dims": [
+          [
+            17920,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            17920,
+            4096
+          ],
+          [
+            17920,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            17920
+          ],
+          []
+        ],
+        "us": 1747.998,
+        "min_bytes": 1062875136,
+        "padded_flops": 901943132160
+      },
+      {
+        "dims": [
+          [
+            17920,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            17920,
+            6144
+          ],
+          [
+            17920,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            17920
+          ],
+          []
+        ],
+        "us": 1081.278,
+        "min_bytes": 660484096,
+        "padded_flops": 450971566080
+      },
+      {
+        "dims": [
+          [
+            47872,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            47872,
+            4096
+          ],
+          [
+            47872,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            47872
+          ],
+          []
+        ],
+        "us": 4541.277,
+        "min_bytes": 1492506624,
+        "padded_flops": 2409476653056
+      },
+      {
+        "dims": [
+          [
+            47872,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            47872,
+            6144
+          ],
+          [
+            47872,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            47872
+          ],
+          []
+        ],
+        "us": 2831.358,
+        "min_bytes": 1090115584,
+        "padded_flops": 1204738326528
+      },
+      {
+        "dims": [
+          [
+            28928,
+            6144
+          ],
+          [
+            32,
+            96,
+            128,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            28928,
+            4096
+          ],
+          [
+            28928,
+            1
+          ],
+          [
+            32,
+            4096,
+            1
+          ],
+          [
+            28928
+          ],
+          []
+        ],
+        "us": 2807.358,
+        "min_bytes": 1220773888,
+        "padded_flops": 1455993913344
+      },
+      {
+        "dims": [
+          [
+            28928,
+            2048
+          ],
+          [
+            32,
+            32,
+            192,
+            2,
+            4,
+            16,
+            16
+          ],
+          [
+            28928,
+            6144
+          ],
+          [
+            28928,
+            1
+          ],
+          [
+            32,
+            6144,
+            1
+          ],
+          [
+            28928
+          ],
+          []
+        ],
+        "us": 1719.679,
+        "min_bytes": 818382848,
+        "padded_flops": 727996956672
+      }
+    ]
+  },
+  "fusion_trace_summary": {
+    "case": "P09",
+    "step": {
+      "ph": "X",
+      "cat": "gpu_user_annotation",
+      "name": "step[EXTEND bs=6 toks=32768]",
+      "pid": 0,
+      "tid": 151,
+      "ts": 2939536428549.97,
+      "dur": 3266099.598,
+      "args": {
+        "External id": 35865
+      }
+    },
+    "all_kernel_names": {
+      "void gfx93::fwd::sparse_attn_fwd_kernel<gfx93::fwd::KernelTemplate_B_H_64<576, true, true, false, false, false, false> >(SparseAttnFwdParams)": {
+        "count": 78,
+        "sum_us": 778010.721
+      },
+      "void m_grouped_fp8_gemm_nt_contiguous_wasp_pair32_bm256_bn256_nloop4::fp8_pair32_wasp_kernel<__hip_bfloat16>(m_grouped_fp8_gemm_nt_contiguous_wasp_pair32_bm256_bn256_nloop4::DeepGemm_params)": {
+        "count": 150,
+        "sum_us": 432278.039
+      },
+      "void at::native::_mqa_logits_32x128x128_TN_impl_fp8<32, 128, 32, 128, 128, true, true>(unsigned char*, unsigned char*, float*, float*, unsigned int*, unsigned int*, int, int, float const*)": {
+        "count": 126,
+        "sum_us": 372956.7940000002
+      },
+      "void deep_ep::intranode::cached_notify_combine_kernel<8, true>(void**, int*, int, int, int, int**, int)": {
+        "count": 75,
+        "sum_us": 350655.90299999993
+      },
+      "void deep_ep::intranode::combine<hip_bfloat16, 8, 1024, true>(hip_bfloat16*, float*, hip_bfloat16 const*, float const*, hip_bfloat16 const*, hip_bfloat16 const*, int const*, int const*, int const*, int*, int, int, int, int, void**, int, int, int)": {
+        "count": 75,
+        "sum_us": 231132.6080000001
+      },
+      "Cijk_Alik_Bljk_F8BS_MT256x256x128_TT16_8_WG16_32_1_MFWGS768_AddDepth64_StoreUseLds_WGM8_bias_channelwise": {
+        "count": 156,
+        "sum_us": 141282.48199999996
+      },
+      "void at::native::adaptive_topk_kernel<2048, false>(float const*, long, int, int const*, int const*, int const*, long, int, int const*, int, int*, int*, int*, bool, unsigned int, int const*)": {
+        "count": 126,
+        "sum_us": 139343.338
+      },
+      "void deep_ep::intranode::dispatch<8, 1024, true>(HIP_vector_type<int, 4u>*, float*, int*, long*, float*, int*, int*, HIP_vector_type<int, 4u> const*, float const*, long const*, float const*, bool const*, int const*, int, int, int, int, int, int, int, int, void**, int, int, int)": {
+        "count": 75,
+        "sum_us": 100115.08199999998
+      },
+      "Cijk_Alik_Bljk_BBH_MT128x128x32_SE_AMAS3_BW_DTL1_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS1_FL0_GRVW8_GSU1_ISA938_IU1_KME_GRCMn2_K1_KLA_LDL1_LRVW8_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR0_PGR1_PLR1_RK0_SU0_SUM0_SUS256_SVW4_TT8_8_TLM1_ULDSWM1_USFGRO0_USSB1_VAW2_VSn1_VW8_WG16_16_1_WGM1": {
+        "count": 78,
+        "sum_us": 70602.93499999998
+      },
+      "_dequantize_k_cache_paged_tiled_kernel": {
+        "count": 78,
+        "sum_us": 61786.62099999999
+      },
+      "Cijk_Alik_Bljk_F8BS_MT256x256x128_TT16_8_WG16_32_1_MFWGS768_structbuffer1024_AddDepth64_StoreUseLds_WGM5_bias_channelwise": {
+        "count": 156,
+        "sum_us": 59060.61400000002
+      },
+      "Cijk_Alik_Bljk_BBH_MT128x256x16_SE_AMAS3_BW_DTL0_BL1_DRB16_ALT_KME1_DRMT_NMZ0_ETSP_EPS0_FL0_GRVW8_GSU1_ISA938_IU1_KME_GRCMn2_K1_KLA_LDL1_LRVW8_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR1_PGR2_PLR1_RK0_SU0_SUM0_SUS256_SVW4_TT8_8_TLM0_ULDSWM0_USFGRO0_USSB0_VAW2_VSn1_VW8_WG16_32_1_WGM1": {
+        "count": 78,
+        "sum_us": 58034.92600000002
+      },
+      "Cijk_Alik_Bljk_F8BS_MT256x256x128_TT16_8_WG16_32_1_MFWGS768_AddDepth64_StoreUseLds_WGM1_bias_channelwise": {
+        "count": 78,
+        "sum_us": 48542.943
+      },
+      "void at::native::ep_gather_kernel<c10::BFloat16, long, 8>(c10::BFloat16 const*, long const*, float const*, int const*, int const*, c10::BFloat16*, int, int, int, bool, int)": {
+        "count": 75,
+        "sum_us": 44441.821
+      },
+      "void at::native::ep_scatter_kernel<signed char, float, long, 128, 8>(signed char const*, float const*, long const*, int const*, int*, signed char*, float*, int*, int*, int, int, int, int, int, int, bool)": {
+        "count": 75,
+        "sum_us": 43938.77899999998
+      },
+      "void at::native::act_and_mul_fp8_quant_kernel_opt1_one<c10::BFloat16, 8, true, 256>(long, int, unsigned char*, c10::BFloat16 const*, float*, int, int, int*)": {
+        "count": 75,
+        "sum_us": 43553.98099999999
+      },
+      "ncclDevKernel_AllGather_Ring_Simple_Sum_i8(ncclDevKernelArgsStorage<1024ul>)": {
+        "count": 101,
+        "sum_us": 37501.46499999999
+      },
+      "(anonymous namespace)::concat_mla_absorb_q_hcu_kernel(c10::BFloat16 const*, c10::BFloat16 const*, c10::BFloat16*, long, long, long, long, long, long, long, long)": {
+        "count": 78,
+        "sum_us": 32684.375
+      },
+      "void at::native::fused_add_rms_kernel_opt<c10::BFloat16, float, 8, 1024, false, false>(c10::BFloat16*, c10::BFloat16*, c10::BFloat16*, int, float, int, float)": {
+        "count": 79,
+        "sum_us": 23773.03499999998
+      },
+      "void at::native::rms_norm_fp8_quant_residual<c10::BFloat16, unsigned char, float, 8, 1024, true, false, true>(c10::BFloat16*, c10::BFloat16*, c10::BFloat16*, int, float, unsigned char*, float*, int, int, int)": {
+        "count": 77,
+        "sum_us": 19026.792000000005
+      },
+      "void rotary_embedding_kernel<c10::BFloat16, false>(long const*, c10::BFloat16*, c10::BFloat16*, c10::BFloat16 const*, int, long, long, long, int, int, int)": {
+        "count": 624,
+        "sum_us": 15533.770999999895
+      },
+      "void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, long, long, long, long, bool)": {
+        "count": 103,
+        "sum_us": 13343.089999999998
+      },
+      "void at::native::per_token_quant_fp8_kernel<c10::BFloat16, float, 16, 1024, true>(c10::BFloat16 const*, unsigned char*, float*, int)": {
+        "count": 81,
+        "sum_us": 12425.354999999996
+      },
+      "void at::native::elementwise_kernel_manual_unroll<128, 8, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int, bool)#1})": {
+        "count": 314,
+        "sum_us": 11046.24099999999
+      },
+      "void at::native::per_token_quant_fp8_kernel<c10::BFloat16, float, 16, 512, true>(c10::BFloat16 const*, unsigned char*, float*, int)": {
+        "count": 174,
+        "sum_us": 10447.183000000005
+      },
+      "_fused_gate_scale_kernel": {
+        "count": 21,
+        "sum_us": 10256.775
+      },
+      "Cijk_Alik_Bljk_BBH_MT128x128x32_SE_AMAS3_BW_DTL0_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS1_FL0_GRVW8_GSU1_ISA938_IU1_KME_GRCMn1_K1_KLA_LDL1_LRVW8_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR0_PGR1_PLR1_RK1_SU0_SUM0_SUS256_SVW4_TT8_8_TLM0_ULDSWM0_USFGRO0_USSB1_VAW2_VSn1_VW8_WG16_16_1_WGM1": {
+        "count": 75,
+        "sum_us": 8541.682000000003
+      },
+      "void deep_ep::layout::get_dispatch_layout<256, 4, 8>(long const*, int*, int*, int*, bool*, int, int, int, int)": {
+        "count": 75,
+        "sum_us": 6767.588999999999
+      },
+      "void at::native::vectorized_elementwise_kernel<8, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul>)": {
+        "count": 75,
+        "sum_us": 6605.517
+      },
+      "void at::native::ep_scan_fill_m_indices_kernel<1024, false>(int const*, int*, int*, int, int)": {
+        "count": 75,
+        "sum_us": 6338.6410000000005
+      },
+      "void deep_ep::intranode::notify_dispatch<8>(int const*, int*, int const*, int*, long*, int, int, int, bool const*, int*, int*, int, int, void**, int**, int)": {
+        "count": 75,
+        "sum_us": 5030.162000000001
+      },
+      "void at::native::opt_layernorm_rope_split_kernel<float, c10::BFloat16, c10::BFloat16, float, false, false, 8, 16>(long const*, c10::BFloat16*, c10::BFloat16*, c10::BFloat16 const*, int, int, long, long, long, long, float const*, float const*, float const*, float const*, c10::BFloat16*, c10::BFloat16*, c10::BFloat16, int, int, int, int, int, int, int)": {
+        "count": 21,
+        "sum_us": 4432.298000000001
+      },
+      "void at::native::silu_and_mul_kernel_opt1<c10::BFloat16, 8>(c10::BFloat16*, c10::BFloat16 const*, int)": {
+        "count": 75,
+        "sum_us": 4087.1190000000015
+      },
+      "void at::native::per_token_quant_fp8_kernel<c10::BFloat16, float, 16, 128, true>(c10::BFloat16 const*, unsigned char*, float*, int)": {
+        "count": 174,
+        "sum_us": 3923.184000000004
+      },
+      "void at::native::fused_quantize_and_store_mla_kv_kernel<c10::BFloat16, true>(c10::BFloat16 const*, c10::BFloat16 const*, unsigned char*, long const*, long, float, int, int)": {
+        "count": 78,
+        "sum_us": 3373.8410000000003
+      },
+      "Cijk_Alik_Bljk_F8BS_MT256x256x128_TT16_8_WG16_32_1_MFWGS768_AddDepth64_StoreUseLds_WGM5_bias_channelwise": {
+        "count": 21,
+        "sum_us": 3350.5369999999994
+      },
+      "void at::native::(anonymous namespace)::CatArrayBatchedCopy<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 3, 64, 64>(at::native::(anonymous namespace)::OpaqueType<2u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<2u>, unsigned int, 64, 64>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int)": {
+        "count": 78,
+        "sum_us": 3322.1590000000006
+      },
+      "void at::native::fused_rms_kernel_opt<c10::BFloat16, float, 8, 256, false, false>(c10::BFloat16*, c10::BFloat16*, c10::BFloat16*, int, float, int, float)": {
+        "count": 78,
+        "sum_us": 2834.1600000000003
+      },
+      "void at::native::moe_fused_gate_kernel_gourp1<__hip_bfloat16, float, at::native::KernelParams<8, 256, 32, 2, 4, 2>, 8, 256, 8>(void*, void*, float*, void*, long, long, double, bool, bool, at::native::KernelParams<8, 256, 32, 2, 4, 2>)": {
+        "count": 75,
+        "sum_us": 2489.6850000000004
+      },
+      "Cijk_Alik_Bljk_BBH_MT128x128x32_SE_AMAS3_BW_DTL0_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS0_FL0_GRVW4_GSU1_ISA938_IU1_KME_GRCMn1_K1_KLA_LDL1_LRVW4_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR1_PGR2_PLR1_RK0_SU32_SUM0_SUS256_SVW4_TT8_4_TLM0_ULDSWM0_USFGRO0_USSB0_VAW2_VSn1_VW4_WG16_32_1_WGM8": {
+        "count": 21,
+        "sum_us": 1963.4940000000001
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<int>, std::array<char*, 1ul> >(int, at::native::FillFunctor<int>, std::array<char*, 1ul>)": {
+        "count": 187,
+        "sum_us": 1525.2520000000006
+      },
+      "void at::native::fused_qk_quant_weight_mul_and_store_index_k_cache<c10::BFloat16, true>(c10::BFloat16 const*, unsigned char*, float*, c10::BFloat16 const*, c10::BFloat16*, float, float, int, int, c10::BFloat16 const*, unsigned char*, long const*, int, int, int, long, long, float, bool, long, long, int)": {
+        "count": 21,
+        "sum_us": 1479.1780000000003
+      },
+      "_get_k_and_s_triton_kernel": {
+        "count": 21,
+        "sum_us": 1407.6580000000001
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<int>, std::array<char*, 2ul>)": {
+        "count": 252,
+        "sum_us": 1355.7470000000012
+      },
+      "Cijk_Alik_Bljk_BBH_MT32x64x128_SE_AMAS3_BW_DTL0_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS1_FL0_GRVW4_GSU1_ISA938_IU1_KME_GRCMn1_K1_KLA_LDL1_LRVW4_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR0_PGR1_PLR1_RK1_SU0_SUM0_SUS256_SVW4_TT4_8_TLM0_ULDSWM0_USFGRO0_USSB0_VAW2_VSn1_VW4_WG8_8_1_WGM1": {
+        "count": 21,
+        "sum_us": 1143.0189999999998
+      },
+      "void at::native::rms_kernel_small_hidden_multi_token<c10::BFloat16, float, 512, 64, 256, false, false>(c10::BFloat16*, c10::BFloat16*, c10::BFloat16*, float, int, float)": {
+        "count": 78,
+        "sum_us": 919.9219999999998
+      },
+      "void at::native::silu_and_mul_kernel_opt2<c10::BFloat16, 8>(c10::BFloat16*, c10::BFloat16 const*, int)": {
+        "count": 3,
+        "sum_us": 912.1560000000001
+      },
+      "Cijk_Alik_Bljk_F8BS_MT64x128x256_TT4_8_WG16_16_1_MFWGS512_WGM8_bias_channelwise": {
+        "count": 21,
+        "sum_us": 891.659
+      },
+      "void at::native::vectorized_elementwise_kernel<8, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul> >(int, at::native::FillFunctor<c10::BFloat16>, std::array<char*, 1ul>)": {
+        "count": 100,
+        "sum_us": 636.8599999999996
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::BUnaryFunctor<long, long, long, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long, long)#1}>, std::array<char*, 2ul> >(int, at::native::BUnaryFunctor<long, long, long, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long, long)#1}>, std::array<char*, 2ul>)": {
+        "count": 100,
+        "sum_us": 629.3379999999999
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::AUnaryFunctor<long, long, long, at::native::binary_internal::MulFunctor<long> >, std::array<char*, 2ul> >(int, at::native::AUnaryFunctor<long, long, long, at::native::binary_internal::MulFunctor<long> >, std::array<char*, 2ul>)": {
+        "count": 100,
+        "sum_us": 554.3000000000002
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::BUnaryFunctor<long, long, long, at::native::remainder_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long, long)#1}>, std::array<char*, 2ul> >(int, at::native::BUnaryFunctor<long, long, long, at::native::remainder_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long, long)#1}>, std::array<char*, 2ul>)": {
+        "count": 100,
+        "sum_us": 553.0200000000001
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<long>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<long>, std::array<char*, 3ul>)": {
+        "count": 100,
+        "sum_us": 548.2170000000002
+      },
+      "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>::result_type*)": {
+        "count": 100,
+        "sum_us": 541.4999999999999
+      },
+      "triton_poi_fused__to_copy_arange_ge_index_put_lift_fresh_0": {
+        "count": 75,
+        "sum_us": 415.605
+      },
+      "void at::native::(anonymous namespace)::CatArrayBatchedCopy_contig<at::native::(anonymous namespace)::OpaqueType<4u>, unsigned int, 1, 128, 1>(at::native::(anonymous namespace)::OpaqueType<4u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<4u>, unsigned int, 128, 1>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int, bool, long, long)": {
+        "count": 5,
+        "sum_us": 336.31499999999994
+      },
+      "Cijk_Alik_Bljk_BBH_MT32x32x32_SE_AMAS3_BW_DTL1_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS0_FL0_GRVW2_GSU1_ISA938_IU1_KME_GRCMn2_K1_KLA_LDL1_LRVW2_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR0_PGR2_PLR1_RK0_SU0_SUM0_SUS256_SVW4_TT2_2_TLM1_ULDSWM1_USFGRO0_USSB1_VAW2_VSn1_VW2_WG16_16_1_WGM1": {
+        "count": 1,
+        "sum_us": 294.399
+      },
+      "void at::native::rms_norm_fp8_quant_<c10::BFloat16, unsigned char, float, 8, 1024, true, false, true>(c10::BFloat16*, c10::BFloat16*, c10::BFloat16*, int, float, unsigned char*, float*, int, int, int)": {
+        "count": 1,
+        "sum_us": 213.759
+      },
+      "Cijk_Alik_Bljk_BBH_MT64x64x32_SE_AMAS3_BW_DTL0_BL1_DRB16_ALT_KME0_DRMT_NMZ0_ETSP_EPS0_FL0_GRVW4_GSU1_ISA938_IU1_KME_GRCMn1_K1_KLA_LDL1_LRVW4_MAC_MMAC_BW1_MMAC_KM0_MMAC_KME1_NBWB1_NLCA1_NLCB1_OLDSR1_PGR2_PLR1_RK0_SU32_SUM0_SUS256_SVW4_TT4_4_TLM0_ULDSWM0_USFGRO0_USSB0_VAW2_VSn1_VW4_WG16_16_1_WGM1": {
+        "count": 21,
+        "sum_us": 163.81900000000002
+      },
+      "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1} const&)::{lambda(int, bool)#1})": {
+        "count": 6,
+        "sum_us": 40.154
+      },
+      "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<4> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1})": {
+        "count": 3,
+        "sum_us": 37.437
+      },
+      "void at::native::(anonymous namespace)::CatArrayBatchedCopy<at::native::(anonymous namespace)::OpaqueType<8u>, unsigned int, 1, 64, 64>(at::native::(anonymous namespace)::OpaqueType<8u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<8u>, unsigned int, 64, 64>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int)": {
+        "count": 5,
+        "sum_us": 33.754999999999995
+      },
+      "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1})": {
+        "count": 4,
+        "sum_us": 26.556
+      },
+      "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(long)#1}>::result_type*)": {
+        "count": 13,
+        "sum_us": 24.947000000000003
+      },
+      "void at::native::(anonymous namespace)::multi_tensor_apply_kernel<at::native::(anonymous namespace)::TensorListMetadata<2>, at::native::(anonymous namespace)::UnaryOpFunctor<long, 2, 1, 1>, at::native::Copy<long, long> >(at::native::(anonymous namespace)::TensorListMetadata<2>, at::native::(anonymous namespace)::UnaryOpFunctor<long, 2, 1, 1>, at::native::Copy<long, long>)": {
+        "count": 1,
+        "sum_us": 18.399
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<int>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<int>, std::array<char*, 3ul>)": {
+        "count": 6,
+        "sum_us": 15.834000000000001
+      },
+      "void rocprim::detail::single_scan_kernel<false, rocprim::detail::wrapped_scan_config<rocprim::default_config, int>, int const*, int*, std::plus<int>, int, int>(int const*, unsigned long, int, int*, std::plus<int>)": {
+        "count": 3,
+        "sum_us": 15.036999999999999
+      },
+      "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<int, at::native::func_wrapper_t<int, at::native::MaxNanFunctor<int> >, unsigned int, int, 4, 4> >(at::native::ReduceOp<int, at::native::func_wrapper_t<int, at::native::MaxNanFunctor<int> >, unsigned int, int, 4, 4>)": {
+        "count": 1,
+        "sum_us": 14.719
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctorOnSelf_add<long>, std::array<char*, 2ul> >(int, at::native::CUDAFunctorOnSelf_add<long>, std::array<char*, 2ul>)": {
+        "count": 3,
+        "sum_us": 13.757
+      },
+      "void rocprim::detail::single_scan_kernel<false, rocprim::detail::wrapped_scan_config<rocprim::default_config, long>, long const*, long*, std::plus<long>, long, long>(long const*, unsigned long, long, long*, std::plus<long>)": {
+        "count": 2,
+        "sum_us": 10.078
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::compare_scalar_kernel<int>(at::TensorIteratorBase&, at::native::(anonymous namespace)::OpType, int)::{lambda(int)#1}, std::array<char*, 2ul> >(int, at::native::compare_scalar_kernel<int>(at::TensorIteratorBase&, at::native::(anonymous namespace)::OpType, int)::{lambda(int)#1}, std::array<char*, 2ul>)": {
+        "count": 1,
+        "sum_us": 9.919
+      },
+      "void rocprim::detail::lookback_scan_kernel<(rocprim::detail::lookback_scan_determinism)0, false, rocprim::detail::wrapped_scan_config<rocprim::default_config, int>, int const*, int*, std::plus<int>, int, int, rocprim::detail::lookback_scan_state<int, false, true> >(int const*, int*, unsigned long, int, std::plus<int>, rocprim::detail::lookback_scan_state<int, false, true>, unsigned int, int*, int*, bool, bool)": {
+        "count": 1,
+        "sum_us": 9.759
+      },
+      "void at::native::(anonymous namespace)::CatArrayBatchedCopy<at::native::(anonymous namespace)::OpaqueType<4u>, unsigned int, 1, 64, 64>(at::native::(anonymous namespace)::OpaqueType<4u>*, at::native::(anonymous namespace)::CatArrInputTensorMetadata<at::native::(anonymous namespace)::OpaqueType<4u>, unsigned int, 64, 64>, at::native::(anonymous namespace)::TensorSizeStride<unsigned int, 4u>, int, unsigned int)": {
+        "count": 2,
+        "sum_us": 9.758
+      },
+      "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1} const&)::{lambda(int, bool)#1})": {
+        "count": 1,
+        "sum_us": 8.639
+      },
+      "void at::native::_scatter_gather_elementwise_kernel<256, 4, at::native::_cuda_scatter_gather_internal_kernel<false, at::native::OpaqueType<4>, int>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1}>(int, at::native::_cuda_scatter_gather_internal_kernel<false, at::native::OpaqueType<4>, int>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1})": {
+        "count": 1,
+        "sum_us": 7.839
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::bfloat16_to_float_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul> >(int, at::native::bfloat16_to_float_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(c10::BFloat16)#1}, std::array<char*, 2ul>)": {
+        "count": 1,
+        "sum_us": 7.679
+      },
+      "void at::native::index_elementwise_kernel<128, 4, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1}>(long, at::native::gpu_index_kernel<at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1}>(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>, at::native::index_kernel_impl<at::native::OpaqueType<8> >(at::TensorIteratorBase&, c10::ArrayRef<long>, c10::ArrayRef<long>)::{lambda(char*, char const*, long)#1} const&, bool)::{lambda(int)#1})": {
+        "count": 1,
+        "sum_us": 7.199
+      },
+      "void at::native::elementwise_kernel_manual_unroll<128, 4, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1}>(int, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1} const&)::{lambda(int, bool)#1})": {
+        "count": 1,
+        "sum_us": 6.399
+      },
+      "void rocprim::detail::init_lookback_scan_state_kernel<rocprim::detail::lookback_scan_state<int, false, true> >(rocprim::detail::lookback_scan_state<int, false, true>, unsigned int, unsigned int, rocprim::detail::lookback_scan_state<int, false, true>::value_type*)": {
+        "count": 1,
+        "sum_us": 4.959
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::BUnaryFunctor<int, int, int, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int, int)#1}>, std::array<char*, 2ul> >(int, at::native::BUnaryFunctor<int, int, int, at::native::binary_internal::div_floor_kernel_cuda(at::TensorIteratorBase&)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int, int)#1}>, std::array<char*, 2ul>)": {
+        "count": 1,
+        "sum_us": 4.799
+      },
+      "void compute_cuda_kernel<int>(int const*, long const*, int*, long, long)": {
+        "count": 1,
+        "sum_us": 4.479
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)": {
+        "count": 1,
+        "sum_us": 4.319
+      },
+      "dsa_cp_round_robin_split_q_seqs_kernel": {
+        "count": 1,
+        "sum_us": 4.159
+      },
+      "at::native::and_kernel_continuous_small(bool*, bool*, long, long, long)": {
+        "count": 1,
+        "sum_us": 3.839
+      },
+      "void at::native::vectorized_elementwise_kernel<4, at::native::(anonymous namespace)::launch_clamp_scalar(at::TensorIteratorBase&, c10::Scalar, c10::Scalar, at::native::detail::ClampLimits)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}, std::array<char*, 2ul> >(int, at::native::(anonymous namespace)::launch_clamp_scalar(at::TensorIteratorBase&, c10::Scalar, c10::Scalar, at::native::detail::ClampLimits)::{lambda()#1}::operator()() const::{lambda()#3}::operator()() const::{lambda(int)#1}, std::array<char*, 2ul>)": {
+        "count": 1,
+        "sum_us": 3.679
+      }
+    },
+    "fusion_gpu_annotations": {
+      "glm_prefill_input_norm_quant": {
+        "count": 78,
+        "sum_us": 19240.707000000013
+      }
+    },
+    "timing_limit": "Each sum is GPU duration within the main-model 32K step. Overlapping kernels/annotations are not additive wall time or causal savings. No HBM PMC counters captured."
+  },
+  "all_rank_scopes": {
+    "case": "P09",
+    "scope": "glm_prefill_input_norm_quant",
+    "rank_trace_count": 8,
+    "all_rank_scopes_present": true,
+    "counts_note": "Raw named profiler events may include CPU and GPU annotation copies; counts are not inferred kernel invocations or speedups. Numerical/model correctness and performance remain separate.",
+    "traces": [
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P09/traces/1793796561.3790772/1793796561.3888521-TP-0-EP-0.trace.json.gz",
+        "scope": "glm_prefill_input_norm_quant",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "b35fc6993164cf7b0af4ff8429d996069b31cc174efaa80386a312c49c841d33"
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P09/traces/1793796561.3790772/1793796561.3888521-TP-1-EP-1.trace.json.gz",
+        "scope": "glm_prefill_input_norm_quant",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "fecd21c4e6d0568e1f4249cb0748ed6a2a59e746f1cd8cd8f0e1fc3b172710b2"
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P09/traces/1793796561.3790772/1793796561.3888521-TP-2-EP-2.trace.json.gz",
+        "scope": "glm_prefill_input_norm_quant",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "b60b4dd135c71f0ab1248d59989bbe5b0e1994ecdd354de5ba534a9ddde73c51"
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P09/traces/1793796561.3790772/1793796561.3888521-TP-3-EP-3.trace.json.gz",
+        "scope": "glm_prefill_input_norm_quant",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "e4fe4766cf4d1c14e49e4876a1c46e6f065474ed52b6f6fd81756db3dcd4e5ad"
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P09/traces/1793796561.3790772/1793796561.3888521-TP-4-EP-4.trace.json.gz",
+        "scope": "glm_prefill_input_norm_quant",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "bf32194a7e2676d6706073baf66f5ac7460fcdbb8c8fbc318674c9f3485c4a07"
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P09/traces/1793796561.3790772/1793796561.3888521-TP-5-EP-5.trace.json.gz",
+        "scope": "glm_prefill_input_norm_quant",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "df4c4b42dbd80909a065d31a986bd260c98baa23a696e0e61f8d0f7c5ba3f852"
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P09/traces/1793796561.3790772/1793796561.3888521-TP-6-EP-6.trace.json.gz",
+        "scope": "glm_prefill_input_norm_quant",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "78284fd2539b5aec6324c1fbdf1b74838c4a3dd58ad88abed91a62368cf1dc29"
+      },
+      {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P09/traces/1793796561.3790772/1793796561.3888521-TP-7-EP-7.trace.json.gz",
+        "scope": "glm_prefill_input_norm_quant",
+        "raw_named_event_count": 1872,
+        "trace_sha256": "70f82d3f77730dc1f742bb009fe56e810d3225b4f3bb80171a5a4380147173f3"
+      }
+    ]
+  },
+  "native_diagnostic": {
+    "purpose": "Same B2 package, original unfused norm then quant versus explicit fused norm-quant; actual model layer0 norm weight and configured epsilon, synthetic fixed-seed input amplitudes. This is a diagnostic experiment, not new acceptance thresholds or a captured failing model activation.",
+    "source_native": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/lightop_c3881932743e_prefix/lightop/op.cpython-310-x86_64-linux-gnu.so",
+    "native_sha256": "f4d69b478289cf93a2be4c0f8f92c7374877609276bd6ba40476ab5a10abee6c",
+    "model_norm_key": "model.layers.0.input_layernorm.weight",
+    "norm_weight_bf16_sha256": "56e784271529197e86a4f3506d912c424b29d95f96ba86d3dbf0559ee7d7a4d3",
+    "model_config_sha256": "bc21bd68d92085465810c3da72c4b8a43b16c65c2c8f55f52547045f36c1abbf",
+    "epsilon": 1e-05,
+    "cases": [
+      {
+        "M": 1,
+        "N": 6144,
+        "amplitude": 0.0001,
+        "residual": false,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 0,
+        "normalized_max_abs_difference": 0.0,
+        "normalized_reference_amax": 0.012451171875,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": null
+      },
+      {
+        "M": 1,
+        "N": 6144,
+        "amplitude": 0.0001,
+        "residual": true,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 0,
+        "normalized_max_abs_difference": 0.0,
+        "normalized_reference_amax": 0.025390625,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": 0
+      },
+      {
+        "M": 1,
+        "N": 6144,
+        "amplitude": 0.1,
+        "residual": false,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 0,
+        "normalized_max_abs_difference": 0.0,
+        "normalized_reference_amax": 0.39453125,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": null
+      },
+      {
+        "M": 1,
+        "N": 6144,
+        "amplitude": 0.1,
+        "residual": true,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 0,
+        "normalized_max_abs_difference": 0.0,
+        "normalized_reference_amax": 0.56640625,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": 0
+      },
+      {
+        "M": 1,
+        "N": 6144,
+        "amplitude": 1.0,
+        "residual": false,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 0,
+        "normalized_max_abs_difference": 0.0,
+        "normalized_reference_amax": 0.39453125,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": null
+      },
+      {
+        "M": 1,
+        "N": 6144,
+        "amplitude": 1.0,
+        "residual": true,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 0,
+        "normalized_max_abs_difference": 0.0,
+        "normalized_reference_amax": 0.5625,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": 0
+      },
+      {
+        "M": 1,
+        "N": 6144,
+        "amplitude": 10.0,
+        "residual": false,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 0,
+        "normalized_max_abs_difference": 0.0,
+        "normalized_reference_amax": 0.392578125,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": null
+      },
+      {
+        "M": 1,
+        "N": 6144,
+        "amplitude": 10.0,
+        "residual": true,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 0,
+        "normalized_max_abs_difference": 0.0,
+        "normalized_reference_amax": 0.56640625,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": 0
+      },
+      {
+        "M": 137,
+        "N": 6144,
+        "amplitude": 0.0001,
+        "residual": false,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 0,
+        "normalized_max_abs_difference": 0.0,
+        "normalized_reference_amax": 0.020263671875,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": null
+      },
+      {
+        "M": 137,
+        "N": 6144,
+        "amplitude": 0.0001,
+        "residual": true,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 0,
+        "normalized_max_abs_difference": 0.0,
+        "normalized_reference_amax": 0.03515625,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": 0
+      },
+      {
+        "M": 137,
+        "N": 6144,
+        "amplitude": 0.1,
+        "residual": false,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 0,
+        "normalized_max_abs_difference": 0.0,
+        "normalized_reference_amax": 0.6484375,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": null
+      },
+      {
+        "M": 137,
+        "N": 6144,
+        "amplitude": 0.1,
+        "residual": true,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 1,
+        "normalized_max_abs_difference": 0.000244140625,
+        "normalized_reference_amax": 0.78125,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": 0
+      },
+      {
+        "M": 137,
+        "N": 6144,
+        "amplitude": 1.0,
+        "residual": false,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 0,
+        "normalized_max_abs_difference": 0.0,
+        "normalized_reference_amax": 0.65234375,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": null
+      },
+      {
+        "M": 137,
+        "N": 6144,
+        "amplitude": 1.0,
+        "residual": true,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 0,
+        "normalized_max_abs_difference": 0.0,
+        "normalized_reference_amax": 0.78125,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": 0
+      },
+      {
+        "M": 137,
+        "N": 6144,
+        "amplitude": 10.0,
+        "residual": false,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 0,
+        "normalized_max_abs_difference": 0.0,
+        "normalized_reference_amax": 0.65234375,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": null
+      },
+      {
+        "M": 137,
+        "N": 6144,
+        "amplitude": 10.0,
+        "residual": true,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 2,
+        "normalized_max_abs_difference": 6.103515625e-05,
+        "normalized_reference_amax": 0.78125,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": 0
+      },
+      {
+        "M": 4096,
+        "N": 6144,
+        "amplitude": 0.0001,
+        "residual": false,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 0,
+        "normalized_max_abs_difference": 0.0,
+        "normalized_reference_amax": 0.02392578125,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": null
+      },
+      {
+        "M": 4096,
+        "N": 6144,
+        "amplitude": 0.0001,
+        "residual": true,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 0,
+        "normalized_max_abs_difference": 0.0,
+        "normalized_reference_amax": 0.03466796875,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": 0
+      },
+      {
+        "M": 4096,
+        "N": 6144,
+        "amplitude": 0.1,
+        "residual": false,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 0,
+        "normalized_max_abs_difference": 0.0,
+        "normalized_reference_amax": 0.75,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": null
+      },
+      {
+        "M": 4096,
+        "N": 6144,
+        "amplitude": 0.1,
+        "residual": true,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 4,
+        "normalized_max_abs_difference": 0.000244140625,
+        "normalized_reference_amax": 0.76953125,
+        "quantized_byte_differences": 1,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": 0
+      },
+      {
+        "M": 4096,
+        "N": 6144,
+        "amplitude": 1.0,
+        "residual": false,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 0,
+        "normalized_max_abs_difference": 0.0,
+        "normalized_reference_amax": 0.75,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": null
+      },
+      {
+        "M": 4096,
+        "N": 6144,
+        "amplitude": 1.0,
+        "residual": true,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 2,
+        "normalized_max_abs_difference": 6.103515625e-05,
+        "normalized_reference_amax": 0.76953125,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": 0
+      },
+      {
+        "M": 4096,
+        "N": 6144,
+        "amplitude": 10.0,
+        "residual": false,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 0,
+        "normalized_max_abs_difference": 0.0,
+        "normalized_reference_amax": 0.75,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": null
+      },
+      {
+        "M": 4096,
+        "N": 6144,
+        "amplitude": 10.0,
+        "residual": true,
+        "epsilon": 1e-05,
+        "normalized_bf16_differing_elements": 6,
+        "normalized_max_abs_difference": 0.000244140625,
+        "normalized_reference_amax": 0.7734375,
+        "quantized_byte_differences": 0,
+        "scale_differing_rows": 0,
+        "scale_max_abs_difference": 0.0,
+        "residual_differing_elements": 0
+      }
+    ],
+    "first_difference": {
+      "M": 137,
+      "N": 6144,
+      "amplitude": 0.1,
+      "residual": true,
+      "epsilon": 1e-05,
+      "normalized_bf16_differing_elements": 1,
+      "normalized_max_abs_difference": 0.000244140625,
+      "normalized_reference_amax": 0.78125,
+      "quantized_byte_differences": 0,
+      "scale_differing_rows": 0,
+      "scale_max_abs_difference": 0.0,
+      "residual_differing_elements": 0
+    },
+    "input_limit": "Inputs are synthetic and cannot establish the cause of the two GSM8K answer changes. A real failing activation/teacher-forced trace remains stronger evidence.",
+    "threshold_policy": "No existing accuracy/numerical threshold changed. Exact differing-element counts and maximum errors are observed data, not a blanket model accuracy assertion."
+  },
+  "effective_bandwidth_estimate": {
+    "kernel_count": 78,
+    "sum_kernel_us": 19240.551000000003,
+    "minimum_logical_bytes": 17567023104,
+    "GB_s": 913.0207915563333,
+    "scope": "one non-residual row traffic5N+4 plus77 residual9N+4, M4096/N6144; excludes clone, weight reads, extra passes/cache effects. Not HBM PMC measurement."
+  },
+  "implementation_path_audit": "AttnTpContext keeps PrefillFP8Input in hidden_states_local; fetch_qkv_latent calls prepare_qkv_latent on it. forward_prepare unwraps BF16 for other consumers after context retains typed input. Quant512 calls252->174 confirms78 consumers skip redundant quant; do not misdiagnose the BF16 unwrap as dropping prequant data.",
+  "cleanup": "additional cold accuracy terminal0 first; exact owned PID/start-time stop; all8cards2MiB separately verified before native diagnostics and P08",
+  "remote_root": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P09",
+  "conclusion": "No stable e2e improvement established (-0.09%); two fixed20question runs17/20 vscontrol19/20 leave precision concern. Keep default OFF and exclude from selected performance combination; no blanket numerical/model correctness claim."
+}

@@ -39,3 +39,5 @@ wheel 路径：
 提交前已按LightOp quality-gate v2.0.3实际code-quality/governance策略运行本地lint（Ruff0.12.1匹配镜像）；Python语法与diff check通过。security和完整CI留给对应仓库，lint/编译成功不替代GPU数值正确性。
 
 P05模型单项已完成：GSM8K19/20，78次融合命中，TTFT高0.15%而无端到端加速，默认关闭。B2同包全部关闭对照见 `B2-control.md`，其他单项尚待验收。本地wheel已下载至原工作区 `profiles/glm53-prefill-opt-20261104/lightop-build-b2/wheels/`，SHA256及ZIP完整性再次通过。
+
+P09单项已测：GSM初次17/20、冷缓存复核17/20，对照19/20；TTFT仅低0.09%，默认关闭、不进组合。旧16组norm观察只覆盖std≈1/width与epsilon1e-6；新同包对照使用实际模型norm权重/epsilon1e-5，24组中5组有少量BF16差异、1组有1个FP8字节差异，scale/residual一致。不能将旧样本逐位一致泛化到任意输入；差异与模型错题因果仍未证明，详见P09.md。
