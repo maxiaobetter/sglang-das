@@ -1,0 +1,46 @@
+{
+  "staging": {
+    "root": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515",
+    "commit": "9b7870b450624414da1524cc497a60521fd55bab",
+    "files": [
+      "python/sglang/srt/distributed/bootstrap.py",
+      "python/sglang/srt/environ.py",
+      "python/sglang/srt/layers/attention/dsa/glm_prefill_kv.py",
+      "python/sglang/srt/layers/attention/dsa_backend.py",
+      "python/sglang/srt/layers/moe/deepgemm_mega.py",
+      "python/sglang/srt/layers/moe/mega_moe.py",
+      "python/sglang/srt/layers/quantization/fp8_utils.py",
+      "python/sglang/srt/models/deepseek_common/attention_forward_methods/forward_mla_rocm.py",
+      "python/sglang/srt/models/deepseek_common/glm_prefill.py",
+      "python/sglang/srt/models/deepseek_v2.py"
+    ],
+    "source_count": 3451
+  },
+  "alignment": {
+    "matches": 3449,
+    "different": [
+      "srt/mem_cache/kv_cache_configurator.py"
+    ],
+    "extra_installed": [
+      "_version.py"
+    ]
+  },
+  "capabilities": {
+    "versions": {
+      "torch": "2.11.0+dtk2604.2610211125.ga346d2",
+      "lightop": "0.6.0+dtk2604.torch2110.2610211335.ge564f5",
+      "flash-mla": "1.2.0+dtk2604.torch2110.2610191020.g1287a0",
+      "deepgemm": "2.1.0+dtk2604.torch2110.2610202354.g9ab224"
+    },
+    "symbols": {
+      "rms_norm_fp8_quant": "<class 'builtin_function_or_method'>",
+      "RMS_NORM_FP8_FP32_RESIDUAL_WIDTHS": null,
+      "fused_rms_norm_rope_contiguous_q_cat": "<class 'builtin_function_or_method'>",
+      "MLA_ROPE_SUPPORTED_Q_HEAD_STRIDES": null,
+      "prefill_gather_and_upconvert_fp8_kv_cache": "<class 'builtin_function_or_method'>",
+      "PREFILL_GATHER_TRITON_NAN_COMPAT_VERSION": null,
+      "silu_and_mul_quant": null
+    },
+    "norm_api": "(input: torch.Tensor, weight: torch.Tensor, epsilon: float = 1e-05, fp8type: int = 0, residual: Optional[torch.Tensor] = None, update_input: bool = False) -> tuple[torch.Tensor, torch.Tensor]"
+  }
+}
