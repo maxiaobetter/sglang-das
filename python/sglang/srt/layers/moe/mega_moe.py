@@ -55,11 +55,9 @@ _IS_HCU = is_hcu()
 
 _HCU_MEGA_MOE_RUNTIME_DEEP_GEMM = "deep_gemm"
 _HCU_MEGA_MOE_RUNTIME_MEGAMOE = "megamoe"
-_HCU_MEGA_MOE_RUNTIME_MERGED = "deepgemm_mega"
 _HCU_MEGA_MOE_RUNTIMES = {
     _HCU_MEGA_MOE_RUNTIME_DEEP_GEMM,
     _HCU_MEGA_MOE_RUNTIME_MEGAMOE,
-    _HCU_MEGA_MOE_RUNTIME_MERGED,
 }
 
 _MEGA_MOE_HCU_BACKEND_ENV = "MEGAMOE_HCU_BACKEND"
@@ -287,11 +285,6 @@ def _get_mega_moe_symm_buffer(
 
         package_key = _HCU_MEGA_MOE_RUNTIME_MEGAMOE
         factory = megamoe.get_symm_buffer_for_mega_moe
-    elif _IS_HCU and runtime == _HCU_MEGA_MOE_RUNTIME_MERGED:
-        from sglang.srt.layers.moe.deepgemm_mega import create_buffer
-
-        package_key = _HCU_MEGA_MOE_RUNTIME_MERGED
-        factory = create_buffer
     else:
         import deep_gemm
 
@@ -351,8 +344,6 @@ def should_use_mega_moe(moe: DeepseekV2MoE, hidden_states: torch.Tensor) -> bool
         if not is_sm90_fp8_mega_moe_available(moe.experts):
             return False
     if get_is_capture_mode():
-        if _IS_HCU and runtime == _HCU_MEGA_MOE_RUNTIME_MERGED:
-            raise RuntimeError("deepgemm_mega requires --disable-cuda-graph")
         if getattr(moe.experts, "_mega_moe_hcu_int4_weights", False):
             raise RuntimeError("HCU INT4 MegaMoE requires --disable-cuda-graph")
         return not _IS_HCU or _is_standalone_megamoe_runtime()
@@ -538,10 +529,6 @@ def _run_mega_routed(
                 hidden_size=hidden_size,
                 dispatch_num_tokens=dispatch_num_tokens,
             )
-        elif runtime == _HCU_MEGA_MOE_RUNTIME_MERGED:
-            from sglang.srt.layers.moe.deepgemm_mega import run
-
-            y = run(hidden_states, topk_ids, topk_weights, moe, buf)
         elif runtime == _HCU_MEGA_MOE_RUNTIME_MEGAMOE:
             y = _run_standalone_hcu_w8a8_mega_moe(
                 hidden_states=hidden_states,
@@ -1026,14 +1013,7 @@ def build_hcu_w8a8_mega_moe_experts_weights(experts) -> None:
         "w2",
     )
 
-    if runtime == _HCU_MEGA_MOE_RUNTIME_MERGED:
-        from sglang.srt.layers.moe.deepgemm_mega import transform_weights
-
-        experts.mega_l1_weights, experts.mega_l2_weights = transform_weights(
-            w13, w13_scale, w2, w2_scale
-        )
-        experts._mega_moe_hcu_weight_layout = "marlin_w6_interleaved8"
-    elif runtime == _HCU_MEGA_MOE_RUNTIME_DEEP_GEMM:
+    if runtime == _HCU_MEGA_MOE_RUNTIME_DEEP_GEMM:
         if l1_rows % 16 != 0 or hidden % 16 != 0 or intermediate % 16 != 0:
             raise ValueError(
                 "deep_gemm HCU W8A8 MegaMoE requires rows and K divisible by 16"

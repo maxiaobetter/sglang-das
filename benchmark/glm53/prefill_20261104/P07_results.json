@@ -1,0 +1,93 @@
+{
+  "candidate": "P07 merged DeepGEMM MegaMoE",
+  "pin": "a1efb4e619e232a40f3b13eb8f2c5b12a8867740",
+  "conclusion": "Excluded as-is under the fixed GLM per-token activation quantization contract. Actual L1/L2 native code uses groupwise scales. Do not treat Python API comments or toleranced UT success as equivalent quantization semantics.",
+  "source_files": {
+    "csrc/megamoe/kernels/params.h": {
+      "sha256": "b819b0025ed6849c583aceb626d982249a05deeec9605d56d9fe0acc4a39d625",
+      "evidence": [
+        {
+          "start_line": 211,
+          "text": "211:     return a < b ? a : b;\n212: }\n213: \n214: // Group-wise quantization group size for SwiGLU output (post-L1 GEMM).\n215: // Each group of kGroupQuantSize elements in the K dimension of L2 GEMM\n216: // (i.e., the intermediate_hidden dimension) gets its own FP8 scale.\n217: // This allows each L1 tile to independently quantize its SwiGLU output\n218: // without waiting for all N-blocks to arrive.\n219: // Must be divisible by BLOCK_K (64) and divide kIntermediateHidden (3072).\n220: static constexpr int kGroupQuantSize = 128;"
+        }
+      ]
+    },
+    "csrc/megamoe/kernels/buffer_layout.cuh": {
+      "sha256": "fb586aa7d5c2af2df8a9479632fb4cff4a383d57c176ed9429855a7869c33e75",
+      "evidence": [
+        {
+          "start_line": 145,
+          "text": "145:     const DataLayout fp8_token_layout(hidden);\n146:     const DataLayout fp8_intermediate_token_layout(intermediate_hidden);\n147:     const DataLayout fp8_sf_layout(sizeof(float), false);\n148:     // Group-wise SF: [num_groups per token] floats = [intermediate_hidden / kGroupQuantSize]\n149:     const DataLayout fp8_intermediate_sf_layout(\n150:         (intermediate_hidden / kGroupQuantSize) * sizeof(float), false);"
+        },
+        {
+          "start_line": 171,
+          "text": "171:     // L2 pool area (local — GEMM A matrix, no P2P access)\n172:     Buffer l2_token_buffer(fp8_intermediate_token_layout, 1, num_max_pool_tokens, nullptr);\n173:     offset += l2_token_buffer.get_num_bytes();\n174:     Buffer l2_sf_buffer(fp8_intermediate_sf_layout, 1, num_max_pool_tokens, nullptr);\n175:     offset += l2_sf_buffer.get_num_bytes();"
+        }
+      ]
+    },
+    "csrc/megamoe/kernels/mega_moe_kernel_unified.cuh": {
+      "sha256": "6cdc5cd4e1777eb9321b32c9a7ae680d96ae35631e4315ce0024a81a2f4489e7",
+      "evidence": [
+        {
+          "start_line": 269,
+          "text": "269:     // HT group-quant granularity equals one fused-GEMM call's output width:\n270:     // every L1 call produces exactly one scale group, and the L2 groupwise\n271:     // GEMM consumes the same granularity.\n272:     constexpr uint32_t kHTGroupSize = kL1BlockN / 2;\n273:     constexpr uint32_t kL2Groups = L2_SHAPE_K / kHTGroupSize;\n274:     static_assert(kL1BlockN % (kNumMathWarps * 16) == 0,\n275:                   \"L1 tile width must divide evenly by the L1 math-warp count * 16\");\n276:     static_assert(kBlockNTile % (kNumMathWarpsL2 * 16) == 0,\n277:                   \"L2 tile width must divide evenly by kNumMathWarpsL2 * 16\");\n278: \n279:     // Divisibility invariants: every tile/group count below is computed with\n280:     // integer division and silently truncates if the shape does not tile\n281:     // evenly -- fail at compile time instead.\n282:     static_assert(L1_SHAPE_N % kL1BlockN == 0, \"2*intermediate_hidden must divide evenly by the L1 tile width\");\n283:     static_assert(L2_SHAPE_N >= BLOCK_N, \"hidden must be at least one L2 tile wide\");\n284:     static_assert(kL2TailOverlap < BLOCK_N, \"L2 tail overlap must stay below one tile\");\n285:     static_assert(L1_SHAPE_K % BLOCK_K == 0, \"hidden must divide evenly by BLOCK_K\");\n286:     static_assert(L2_SHAPE_K % BLOCK_K == 0, \"intermediate_hidden must divide evenly by BLOCK_K\");\n287:     static_assert(L2_SHAPE_K % kHTGroupSize == 0,\n288:                   \"intermediate_hidden must divide evenly by the L1 group size (BLOCK_N/2)\");"
+        },
+        {
+          "start_line": 1110,
+          "text": "1110:                 if (epilogue_warp_idx < kNumMathWarps) {\n1111:                     constexpr int kL1Groups = kIntermediateHidden / kHTGroupSize;\n1112:                     if constexpr (BLOCK_M == 256) {\n1113:                         // Dedicated BM256 path: 8 math warps, each covering\n1114:                         // all 256 rows x 32 cols (acc[16][2]).\n1115:                         gemm_ht_tile_bm256_bk64_silu_quant<L1_SHAPE_N, L1_SHAPE_K,\n1116:                                  BLOCK_N, BLOCK_K, kIsInt8>(\n1117:                             matrixA, l1_weights, expert_b_base_l1,\n1118:                             matrixA_scale, matrixB_scale,\n1119:                             0, n_blk, valid_m,\n1120:                             scheduler.get_num_tokens(expert_idx),\n1121:                             math_warp_offset,\n1122:                             slices.l2_token_buffer.get_data_buffer<uint8_t>(0),\n1123:                             slices.l2_sf_buffer.get_data_buffer<float>(0),\n1124:                             m_idx, kL1Groups, kIntermediateHidden,\n1125:                             smem_math_amax, a_lds_ht,\n1126:                             &smem_bar_count, &smem_bar_sense,\n1127:                             activation_clamp, fast_math);"
+        }
+      ]
+    },
+    "csrc/megamoe/kernels/gemm_device.cuh": {
+      "sha256": "e68f486416fa1cfd0106b271f03d8af26aab3b42417da2ca135a9e1858f8142e",
+      "evidence": [
+        {
+          "start_line": 317,
+          "text": "317: //   l2_token_out: [pool_tokens, IH] FP8 output, row base = m_idx, col base =\n318: //                 n_blk * (BLOCK_N/2)\n319: //   l2_sf:        [pool_tokens, IH/GROUP_SIZE] group scale output\n320: //   m_idx:        row offset of this tile in the pool buffers\n321: //   n_blk:        N-block index = group index in l2_sf\n322: //   sf_stride:    floats per l2_sf row (IH / GROUP_SIZE)\n323: //   ih:           row stride of l2_token_out\n324: //   smem_amax:    scratch [NUM_WARPS * BLOCK_M] floats"
+        },
+        {
+          "start_line": 550,
+          "text": "550:     // Per-thread row amax across all math warps, then quantize + store.\n551:     constexpr int HALF_BN = BLOCK_N / 2;\n552:     constexpr int FRAG_OUT = HALF_BN / N_REPEAT;  // out cols per fragment\n553:     #pragma unroll\n554:     for (int m = 0; m < M_TILES; ++m) {\n555:         const int32_t row = m * 16 + ld_row;\n556:         float row_amax = 0.0f;\n557:         #pragma unroll\n558:         for (int w = 0; w < NUM_WARPS; ++w) {\n559:             row_amax = fmaxf(row_amax, smem_amax[w * BLOCK_M + row]);\n560:         }\n561:         const float qmax = kIsInt8 ? 127.0f : 448.0f;\n562:         const float clamped_amax = fmaxf(row_amax, kIsInt8 ? 1.0e-6f : 1.0e-4f);\n563:         const float scale = clamped_amax / qmax;\n564:         const float inv_scale = qmax / clamped_amax;"
+        },
+        {
+          "start_line": 604,
+          "text": "604:         if (lane_id < 16 && row < valid_m) {\n605:             l2_sf[(m_idx + row) * sf_stride + n_blk] = scale;\n606:         }"
+        }
+      ]
+    },
+    "csrc/megamoe/kernels/gemm_device_ht.cuh": {
+      "sha256": "91570fd9edcd3c3615a93e71247cdbafd3370499919ef7149688a4e93d77618f",
+      "evidence": [
+        {
+          "start_line": 759,
+          "text": "759: // Each call covers BLOCK_N raw cols -> BLOCK_N/2 SwiGLU cols starting at\n760: // out_base = tile_n * (BLOCK_N/2).  One group of BLOCK_N/2 output cols\n761: // shares one amax/scale: NUM_WARPS*kNFragments*8 == BLOCK_N/2 holds, so a\n762: // group always spans exactly all NUM_WARPS warps of the block.\n763: //   - BN256 (or split BN512 call): one call = one 128-col group\n764: //   - BN512 direct: one call = one 256-col group\n765: //\n766: // Contains exactly ONE s_barrier (row-amax cross-warp reduction), on top of\n767: // the K/BLOCK_K stage barriers 鈥?callers must mirror both counts in warps\n768: // that skip this function.\n769: //\n770: // Args (in addition to gemm_ht_tile_bm128_bk64):\n771: //   l2_token_out: [pool_tokens, ih] FP8 output base (row 0)\n772: //   l2_sf:        [pool_tokens, sf_stride] group scale output base (row 0)\n773: //   m_idx:        pool-buffer row offset of this tile\n774: //   ih:           row stride of l2_token_out (intermediate_hidden)\n775: //   sf_stride:    floats per l2_sf row (ih / GROUP_SIZE)"
+        },
+        {
+          "start_line": 1226,
+          "text": "1226:         float row_amax = 0.0f;\n1227:         static_assert(kWarpsPerGroup % 4 == 0,\n1228:                       \"row-amax vectorized read needs groups of 4 warps\");\n1229:         #pragma unroll\n1230:         for (int w = 0; w < kWarpsPerGroup; w += 4) {\n1231:             const float4 a4 = *reinterpret_cast<const float4*>(\n1232:                 &smem_amax[row_local * NUM_WARPS + group_warp_base + w]);\n1233:             row_amax = fmaxf(row_amax,\n1234:                 fmaxf(fmaxf(a4.x, a4.y), fmaxf(a4.z, a4.w)));\n1235:         }\n1236:         const float qmax = kIsInt8 ? 127.0f : 448.0f;\n1237:         const float clamped_amax = fmaxf(row_amax, kIsInt8 ? 1.0e-6f : 1.0e-4f);\n1238:         const float scale = clamped_amax / qmax;\n1239:         const float inv_scale = qmax / clamped_amax;"
+        }
+      ]
+    },
+    "op_test/test_mega_moe_fp8.py": {
+      "sha256": "da16e4515b978763be53dc6b0dabcbfc4d4990f0fa2f9e4d002c98f7bb515398",
+      "evidence": [
+        {
+          "start_line": 1632,
+          "text": "1632:     # Pass criterion (init-mode aware): every element must satisfy\n1633:     #   |fus - ref| <= atol + atol_frac * amax|ref| + rtol * |ref|\n1634:     # plus no non-finite values on either side.  The fused path quantizes the\n1635:     # intermediate to fp8 per-128-group while the ref keeps per-token scales,\n1636:     # so the residual noise floor scales with the output amplitude -- the\n1637:     # atol_frac term tracks it via the global ref amplitude.\n1638:     #   randn init (outputs ~+-0.1, noise tail ~4% of amax):\n1639:     #     atol=0.00355 + 0.03*amax + 0.02*|ref| (~0.008 effective, ~2x margin\n1640:     #     over the observed 0.005 tail; structural bugs produce 0.03+ errors)"
+        }
+      ]
+    }
+  },
+  "transport": "Separately, p2c1/p2c9 HIP IPC open failed invalid device pointer on both ranks; this is not a claim HyLink fabric hardware is unsupported.",
+  "prototype": "86a0f2dcec in branch history; experimental deepgemm_mega runtime adapter removed from current delivery after audit; original deep_gemm/megamoe backends preserved.",
+  "future_requirements": [
+    "Native entry retaining GLM per-token activation scales and rounding/clamp/zero-row rules, with an explicit matching ABI and numerical validation",
+    "Cross-host compatible buffer export/import and system-atomic coherence validation, not just HSA connectivity",
+    "Weight pack lifetime and memory accounting before full model startup; no extra retained full expert copies",
+    "Existing MoE correctness tests plus matched-package/topology model performance validation without tolerance relaxation"
+  ],
+  "fabric_probe": "Prepared only; not executed after quantization-contract incompatibility was established. Connectivity alone cannot make this kernel eligible.",
+  "performance": "No fused MoE or e2e performance numbers claimed",
+  "remote_evidence": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/deepgemm_mega_a1efb4e619e2_src_subset and mega_hip_ipc_probe",
+  "local_evidence": "profiles/glm53-prefill-opt-20261104/mega-build/"
+}
