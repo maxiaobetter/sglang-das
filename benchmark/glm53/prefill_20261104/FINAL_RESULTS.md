@@ -8,7 +8,7 @@
 | F-beta | 4786.69 | -4.62% | 9126.46 | 19/20 | 96/100；76/80 | 3116.19 |
 | F-beta-shared | 4733.11 | -5.69% | 9223.48 | 19/20 | 未执行 | 3079.72 |
 | F-beta-comm-copy-shared | 4673.05 | -6.88% | 9344.17 | 19/20 | 未执行 | 3026.76 |
-| F-beta-kv-shared | 待验 | — | — | — | — | — |
+| F-beta-kv-shared | 4701.12 | -6.32% | 9286.03 | 19/20 | 未执行 | 3053.06 |
 
 长评测复用原解析器、20-shot／100题、greedy／parallel4／max512；前20题包含在示例中，单列其正确数并重点报告余下80题。实际prompt token数和prompt／数据集／评测代码哈希保留于对应JSON及原始目录，短sanity不作完整准确率保证。
 
@@ -24,3 +24,6 @@ Beta＋shared overlap：TTFT比beta-only再低1.12%，主32K step 3116.19→3079
 
 
 Beta＋shared＋CP overlap＋Q直写：TTFT两轮4672.91／4673.19ms，比F-control低6.88%，比beta＋shared再低1.27%。主32K step 3079.72→3026.76ms；78次主KV AllGather落在同一独立通信stream，与Q/V BMM区间交集35.09ms。78次full Q concat消失，改为78次RoPE尾部copy累计5.29ms；strided Q absorb BMM累计68.22ms。跨stream交集不等同于端到端收益，组合交互也不拆成未经A/B证明的单项收益。8rank运行身份／beta kernel核验和完整trace齐全，精确清理后8卡释放。GSM20为19/20，长100题及交替重复仍待验收。
+
+
+Beta＋shared＋KV norm/RoPE/store＋packed交换：TTFT两轮4700.43／4701.82ms，均值4701.12ms，比F-control低6.32%、比beta＋shared低0.68%，但比CP overlap＋Q直写组合高0.60%。主32K step3053.06ms，78次native融合及78次全局index_copy均命中；8rank同时确认fusion/packed交换scope和beta kernel。该方案未优于本次筛选的最快组合，保留默认关闭，不与P03混用；GSM20为19/20，未声称具有本组合100题或重复收益验收。

@@ -1,0 +1,444 @@
+{
+  "case": "F-beta-kv-shared",
+  "status": "formal/profile and existing sanity complete; combination/repeat acceptance remains separate",
+  "source_commit": "7684f58399ad70de47de7678897f7ea5aab6107e",
+  "source_files_sha256": {
+    "sglang/srt/distributed/bootstrap.py": "225362938ccb577e5bb717c58c485d1af8854e5ad17e42e0c3665d1cee9475d7",
+    "sglang/srt/environ.py": "2e79a37f63ff4271f29811c83e1979dcfa37fc78e25546c90dcca3328bfc642d",
+    "sglang/srt/layers/attention/dsa/glm_prefill_kv.py": "2ba3f293e193cb398e54d96bfd7bd50f0f877f3e9665cc5b754578af9c29ff61",
+    "sglang/srt/layers/attention/dsa_backend.py": "0943f5970d06971a584ef21442611af66efce7e185e45c95d24d5130e81a8174",
+    "sglang/srt/layers/communicator.py": "a2f0cb8bafe9782ee0fea4340e2b3cc572f0688189f4fd773f665336c2048b6e",
+    "sglang/srt/layers/layernorm.py": "cd8b8e3038ebe311623573f58a6ee355db848fe597c0db4ba0f378dcc5d89ebb",
+    "sglang/srt/layers/moe/mega_moe.py": "553097662386b808b4dfba224a2897dcbe9437b55d52723f5df625080bbafd6d",
+    "sglang/srt/layers/quantization/compressed_tensors/schemes/compressed_tensors_w8a8_fp8.py": "afd3e9928346e6fbdcc9c7f4f1755ec7d3f13eed532dfa6566e0ea94affc9253",
+    "sglang/srt/layers/quantization/fp8_utils.py": "8520a9ca47ae3e16733f892607b86e50fc73239ce5c0b53641c6a2cf80bc3dde",
+    "sglang/srt/layers/quantization/prefill_input.py": "fe0babcc4f7cce14eb811127ef998c83f0da8e207f1e8d1bfbb4b1bdffc6eab8",
+    "sglang/srt/models/deepseek_common/attention_forward_methods/forward_mla_rocm.py": "9739a102167dd8a4d58fc2b2b8a0df63b7b20940d72df3b05a0409dc7d2aae9f",
+    "sglang/srt/models/deepseek_common/glm_prefill.py": "0a08b9bdddcf7f214d292303e4ca9e22ab2e0d6cac34f43fd57719af4b3e7a5e",
+    "sglang/srt/models/deepseek_common/glm_prefill_kv_fusion.py": "4430e7df7ea995826d925b48c5caf236a7b84f4371fc59bfa1444e1095342aa0",
+    "sglang/srt/models/deepseek_common/glm_prefill_mlp.py": "36c729f2587c20238efecbac058bc75f2adc34171da138fcc704771cd5347666",
+    "sglang/srt/models/deepseek_v2.py": "e2977761687722d8822baa7c8cfc5713fb69ab3f536a747d1e503a7553a28e67"
+  },
+  "required_native_sha256": [
+    "f4d69b478289cf93a2be4c0f8f92c7374877609276bd6ba40476ab5a10abee6c",
+    "b0ea2f7f108da6ba22e951c3e795a1ba8a8f95bd70a6843758cb434e1296d66e",
+    "79325b382a56de60f69cfaf8f75fe2b725d2092c002d1cf67bd1248f1537af7a"
+  ],
+  "enabled_new_flags": [
+    "SGLANG_GLM_PREFILL_SHARED_OVERLAP",
+    "SGLANG_GLM_PREFILL_KV_ROPE_STORE"
+  ],
+  "mqa_beta": "1",
+  "matching_control": "F-control",
+  "repeats": [
+    {
+      "repeat": 1,
+      "ttft_ms": 4700.427673564263,
+      "new_input_tok_s": 9288.55148638793,
+      "duration": 19.40281003600103
+    },
+    {
+      "repeat": 2,
+      "ttft_ms": 4701.815456096483,
+      "new_input_tok_s": 9283.507502550463,
+      "duration": 19.41335211400292
+    }
+  ],
+  "mean_ttft_ms": 4701.121564830373,
+  "mean_new_input_tok_s": 9286.029494469196,
+  "relative_to_historical_B0_percent": -6.1983777222344045,
+  "relative_to_final_control_percent": -6.323340637464803,
+  "gsm8k_20": {
+    "accuracy": 0.95,
+    "invalid": 0.0,
+    "latency": 73.08836641698144,
+    "output_throughput": 29.22489726769593
+  },
+  "long_accuracy_100": null,
+  "paired_long_accuracy_vs_final_control": null,
+  "long_invalid_details": [],
+  "trace": {
+    "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta-kv-shared/traces/1793806746.5997472/1793806746.609558-TP-0-EP-0.trace.json.gz",
+    "bytes": 89686812,
+    "sha256": "e6c1f1daa8341de9d756ba89536e45e486763c41dfdd33bf2cd5a3740fdaa12d"
+  },
+  "profile_step": {
+    "ph": "X",
+    "cat": "gpu_user_annotation",
+    "name": "step[EXTEND bs=6 toks=32768]",
+    "pid": 0,
+    "tid": 151,
+    "ts": 2949721606631.658,
+    "dur": 3053063.842,
+    "args": {
+      "External id": 32723
+    }
+  },
+  "profile_kernel_groups_us_sum_and_count": {
+    "Other": [
+      339798.3999999995,
+      2952
+    ],
+    "Other GEMM": [
+      452741.9369999991,
+      727
+    ],
+    "RCCL": [
+      29005.150999999998,
+      101
+    ],
+    "MQA logits": [
+      213394.81100000002,
+      126
+    ],
+    "TopK": [
+      139374.34899999993,
+      126
+    ],
+    "KV dequantize": [
+      61675.72899999999,
+      78
+    ],
+    "FlashMLA sparse attention": [
+      777872.9589999999,
+      78
+    ],
+    "DeepEP dispatch/other": [
+      121803.88000000003,
+      225
+    ],
+    "DeepGEMM MoE": [
+      432685.87000000005,
+      150
+    ],
+    "DeepEP combine notify/wait": [
+      348657.6550000001,
+      75
+    ],
+    "DeepEP combine data": [
+      230278.3759999999,
+      75
+    ]
+  },
+  "gpu_fusion_annotations": {
+    "glm_prefill_kv_norm_rope_pack": {
+      "count": 78,
+      "sum_us": 37649.01500000001
+    },
+    "glm_prefill_packed_kv_cp_gather_store": {
+      "count": 78,
+      "sum_us": 53368.950999999994
+    }
+  },
+  "mqa_native_kernel_inventory": {
+    "void lightop::mqa_fp8::mqa_fp8_64x256_kernel<true, true, 4, true, false, false>(lightop::mqa_beta::MqaParams)": {
+      "count": 126,
+      "sum_us": 213394.81100000002
+    }
+  },
+  "beta_specific_native_kernel_inventory": {
+    "void lightop::mqa_fp8::mqa_fp8_64x256_kernel<true, true, 4, true, false, false>(lightop::mqa_beta::MqaParams)": {
+      "count": 126,
+      "sum_us": 213394.81100000002
+    }
+  },
+  "all_rank_mqa_native_dispatch": {
+    "case": "F-beta-kv-shared",
+    "expected_beta": true,
+    "all8rank_native_dispatch_verified": true,
+    "matches_only_cat_kernel": true,
+    "traces": [
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta-kv-shared/traces/1793806746.5997472/1793806746.609558-TP-0-EP-0.trace.json.gz",
+        "sha256": "e6c1f1daa8341de9d756ba89536e45e486763c41dfdd33bf2cd5a3740fdaa12d",
+        "beta_kernel_events": 726,
+        "legacy_fp8_kernel_events": 0
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta-kv-shared/traces/1793806746.5997472/1793806746.609558-TP-1-EP-1.trace.json.gz",
+        "sha256": "3689c4eec5d6a8d5b2baa58612c8164098c3318e01f75a8e08b8f8d932239ccb",
+        "beta_kernel_events": 726,
+        "legacy_fp8_kernel_events": 0
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta-kv-shared/traces/1793806746.5997472/1793806746.609558-TP-2-EP-2.trace.json.gz",
+        "sha256": "beab3f0a14824bf8be2f12287de992bab8349c730a05f86ef5fc1c96db06ecd9",
+        "beta_kernel_events": 726,
+        "legacy_fp8_kernel_events": 0
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta-kv-shared/traces/1793806746.5997472/1793806746.609558-TP-3-EP-3.trace.json.gz",
+        "sha256": "1c8bda238ca01cabea88cad75618eaa46035307080827cbd0ed032c4c9993868",
+        "beta_kernel_events": 726,
+        "legacy_fp8_kernel_events": 0
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta-kv-shared/traces/1793806746.5997472/1793806746.609558-TP-4-EP-4.trace.json.gz",
+        "sha256": "b3176ce3b39fcf53628c2ad9e6dabbf22c0f5a107fbe665ff6e43f21ce4e66c4",
+        "beta_kernel_events": 726,
+        "legacy_fp8_kernel_events": 0
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta-kv-shared/traces/1793806746.5997472/1793806746.609558-TP-5-EP-5.trace.json.gz",
+        "sha256": "cba718315fe6a017e736d8646628b7c57dbed44f4b804d54391ad9542d6a53e6",
+        "beta_kernel_events": 726,
+        "legacy_fp8_kernel_events": 0
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta-kv-shared/traces/1793806746.5997472/1793806746.609558-TP-6-EP-6.trace.json.gz",
+        "sha256": "da60c49754388527fe18782bd5069c56bcd1318ae7e82961c61ae1c9d8ca6492",
+        "beta_kernel_events": 726,
+        "legacy_fp8_kernel_events": 0
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta-kv-shared/traces/1793806746.5997472/1793806746.609558-TP-7-EP-7.trace.json.gz",
+        "sha256": "2e3577aea664c3102e1b1d7a2563ec134460c42fbbcedb299d1e707f0dd24730",
+        "beta_kernel_events": 726,
+        "legacy_fp8_kernel_events": 0
+      }
+    ],
+    "scope": "Complete trace event counts include all captured steps, not just main32K; rank0 whole-step analysis reports timing separately. Known native beta FP8 entrynames from pinnedLightOp c388. No numerical threshold change."
+  },
+  "proof_scope": "8rank source/native/comm/env/HCA verification plus complete8trace manifest; rank0 timing/native inventory here. Sum of overlapping durations is not causal wall savings. Other model/platform regression suites not run locally.",
+  "model_metadata_sha256": {
+    "config.json": "bc21bd68d92085465810c3da72c4b8a43b16c65c2c8f55f52547045f36c1abbf",
+    "model.safetensors.index.json": "c3f9f10306a20dbcf151397b1e76c9faf2592aa3ab1fa5798a6d2a15a704b188",
+    "tokenizer_config.json": "98b1271574f41abf89427ae2dda030d94dc9478f0edc5a8bd240db213c6fd5fc",
+    "tokenizer.json": "19e773648cb4e65de8660ea6365e10acca112d42a854923df93db4a6f333a82d"
+  },
+  "weights_note": "Same model directory; full755.86GB weight content SHA not collected, metadata SHA retained. No EPLB mapping specified in this ordinary IFB protocol.",
+  "raw_local": "/Users/better/Desktop/SGLang相关/sglang_dcu_github_origin/dcu-sglang/profiles/glm53-prefill-opt-20261104/F-beta-kv-shared",
+  "raw_remote": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta-kv-shared",
+  "cleanup_note": "Owned PID/start-time family stopped after terminal clients/full8trace archive; separate historical release observations all8cards passed. This does not assert present availability.",
+  "resource_release_verification": {
+    "p2c9_release_observation_1793807055080067225.json": {
+      "host": "p2c9",
+      "time": 1793807055.0800362,
+      "used_MiB": [
+        2,
+        2,
+        2,
+        2
+      ],
+      "memory": {
+        "card0": {
+          "vram Total Memory (MiB)": "147440",
+          "vram Total Used Memory (MiB)": "2"
+        },
+        "card1": {
+          "vram Total Memory (MiB)": "147440",
+          "vram Total Used Memory (MiB)": "2"
+        },
+        "card2": {
+          "vram Total Memory (MiB)": "147440",
+          "vram Total Used Memory (MiB)": "2"
+        },
+        "card3": {
+          "vram Total Memory (MiB)": "147440",
+          "vram Total Used Memory (MiB)": "2"
+        }
+      },
+      "passed": true
+    },
+    "p2c1_release_observation_1793807055099368431.json": {
+      "host": "p2c1",
+      "time": 1793807055.0993314,
+      "used_MiB": [
+        2,
+        2,
+        2,
+        2
+      ],
+      "memory": {
+        "card0": {
+          "vram Total Memory (MiB)": "147440",
+          "vram Total Used Memory (MiB)": "2"
+        },
+        "card1": {
+          "vram Total Memory (MiB)": "147440",
+          "vram Total Used Memory (MiB)": "2"
+        },
+        "card2": {
+          "vram Total Memory (MiB)": "147440",
+          "vram Total Used Memory (MiB)": "2"
+        },
+        "card3": {
+          "vram Total Memory (MiB)": "147440",
+          "vram Total Used Memory (MiB)": "2"
+        }
+      },
+      "passed": true
+    },
+    "p2c1_release_verified.json": {
+      "host": "p2c1",
+      "time": 1793807055.0993314,
+      "used_MiB": [
+        2,
+        2,
+        2,
+        2
+      ],
+      "memory": {
+        "card0": {
+          "vram Total Memory (MiB)": "147440",
+          "vram Total Used Memory (MiB)": "2"
+        },
+        "card1": {
+          "vram Total Memory (MiB)": "147440",
+          "vram Total Used Memory (MiB)": "2"
+        },
+        "card2": {
+          "vram Total Memory (MiB)": "147440",
+          "vram Total Used Memory (MiB)": "2"
+        },
+        "card3": {
+          "vram Total Memory (MiB)": "147440",
+          "vram Total Used Memory (MiB)": "2"
+        }
+      },
+      "passed": true
+    },
+    "p2c9_release_verified.json": {
+      "host": "p2c9",
+      "time": 1793807055.0800362,
+      "used_MiB": [
+        2,
+        2,
+        2,
+        2
+      ],
+      "memory": {
+        "card0": {
+          "vram Total Memory (MiB)": "147440",
+          "vram Total Used Memory (MiB)": "2"
+        },
+        "card1": {
+          "vram Total Memory (MiB)": "147440",
+          "vram Total Used Memory (MiB)": "2"
+        },
+        "card2": {
+          "vram Total Memory (MiB)": "147440",
+          "vram Total Used Memory (MiB)": "2"
+        },
+        "card3": {
+          "vram Total Memory (MiB)": "147440",
+          "vram Total Used Memory (MiB)": "2"
+        }
+      },
+      "passed": true
+    }
+  },
+  "report_notes_markdown": "Beta＋shared＋KV norm/RoPE/store＋packed交换：TTFT两轮4700.43／4701.82ms，均值4701.12ms，比F-control低6.32%、比beta＋shared低0.68%，但比CP overlap＋Q直写组合高0.60%。主32K step3053.06ms，78次native融合及78次全局index_copy均命中；8rank同时确认fusion/packed交换scope和beta kernel。该方案未优于本次筛选的最快组合，保留默认关闭，不与P03混用；GSM20为19/20，未声称具有本组合100题或重复收益验收。",
+  "confirmation": {
+    "screening_parent": "F-beta-shared",
+    "incremental_ttft_percent": -0.6758006663698302,
+    "shared_overlap": {
+      "step": {
+        "ph": "X",
+        "cat": "gpu_user_annotation",
+        "name": "step[EXTEND bs=6 toks=32768]",
+        "pid": 0,
+        "tid": 151,
+        "ts": 2949721606631.658,
+        "dur": 3053063.842,
+        "args": {
+          "External id": 32723
+        }
+      },
+      "main_stream": 151,
+      "shared_stream": 153,
+      "shared_stream_groups": {
+        "FP8 token quant": {
+          "count": 150,
+          "ms_sum": 11.50156600000001
+        },
+        "FP8 shared GEMM": {
+          "count": 150,
+          "ms_sum": 105.82972599999995
+        },
+        "SiLU": {
+          "count": 75,
+          "ms_sum": 5.355442
+        }
+      },
+      "shared_kernel_ms_sum": 122.68673400000003,
+      "shared_routed_interval_intersection_union_ms": 104.34694677734375,
+      "note": "Stream identified by the only non-main-stream channelwise GEMMs. Intersected intervals show concurrency, not an A/B saving or exclusive critical path contribution. Compare whole-step wall interval and formal TTFT separately."
+    },
+    "specific_native_path_proof": {
+      "native_fusion": {
+        "count": 78,
+        "sum_us": 37648.859
+      },
+      "global_index_copy": {
+        "count": 78,
+        "sum_us": 16795.117000000013
+      },
+      "all_rank_scopes": {
+        "case": "F-beta-kv-shared",
+        "scope": "glm_prefill_kv_norm_rope_pack",
+        "rank_trace_count": 8,
+        "all_rank_scopes_present": true,
+        "counts_note": "Raw named profiler events may include CPU and GPU annotation copies; counts are not inferred kernel invocations or speedups. Numerical/model correctness and performance remain separate.",
+        "traces": [
+          {
+            "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta-kv-shared/traces/1793806746.5997472/1793806746.609558-TP-0-EP-0.trace.json.gz",
+            "scope": "glm_prefill_kv_norm_rope_pack",
+            "raw_named_event_count": 1872,
+            "trace_sha256": "e6c1f1daa8341de9d756ba89536e45e486763c41dfdd33bf2cd5a3740fdaa12d",
+            "packed_gather_store_raw_event_count": 1872
+          },
+          {
+            "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta-kv-shared/traces/1793806746.5997472/1793806746.609558-TP-1-EP-1.trace.json.gz",
+            "scope": "glm_prefill_kv_norm_rope_pack",
+            "raw_named_event_count": 1872,
+            "trace_sha256": "3689c4eec5d6a8d5b2baa58612c8164098c3318e01f75a8e08b8f8d932239ccb",
+            "packed_gather_store_raw_event_count": 1872
+          },
+          {
+            "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta-kv-shared/traces/1793806746.5997472/1793806746.609558-TP-2-EP-2.trace.json.gz",
+            "scope": "glm_prefill_kv_norm_rope_pack",
+            "raw_named_event_count": 1872,
+            "trace_sha256": "beab3f0a14824bf8be2f12287de992bab8349c730a05f86ef5fc1c96db06ecd9",
+            "packed_gather_store_raw_event_count": 1872
+          },
+          {
+            "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta-kv-shared/traces/1793806746.5997472/1793806746.609558-TP-3-EP-3.trace.json.gz",
+            "scope": "glm_prefill_kv_norm_rope_pack",
+            "raw_named_event_count": 1872,
+            "trace_sha256": "1c8bda238ca01cabea88cad75618eaa46035307080827cbd0ed032c4c9993868",
+            "packed_gather_store_raw_event_count": 1872
+          },
+          {
+            "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta-kv-shared/traces/1793806746.5997472/1793806746.609558-TP-4-EP-4.trace.json.gz",
+            "scope": "glm_prefill_kv_norm_rope_pack",
+            "raw_named_event_count": 1872,
+            "trace_sha256": "b3176ce3b39fcf53628c2ad9e6dabbf22c0f5a107fbe665ff6e43f21ce4e66c4",
+            "packed_gather_store_raw_event_count": 1872
+          },
+          {
+            "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta-kv-shared/traces/1793806746.5997472/1793806746.609558-TP-5-EP-5.trace.json.gz",
+            "scope": "glm_prefill_kv_norm_rope_pack",
+            "raw_named_event_count": 1872,
+            "trace_sha256": "cba718315fe6a017e736d8646628b7c57dbed44f4b804d54391ad9542d6a53e6",
+            "packed_gather_store_raw_event_count": 1872
+          },
+          {
+            "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta-kv-shared/traces/1793806746.5997472/1793806746.609558-TP-6-EP-6.trace.json.gz",
+            "scope": "glm_prefill_kv_norm_rope_pack",
+            "raw_named_event_count": 1872,
+            "trace_sha256": "da60c49754388527fe18782bd5069c56bcd1318ae7e82961c61ae1c9d8ca6492",
+            "packed_gather_store_raw_event_count": 1872
+          },
+          {
+            "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta-kv-shared/traces/1793806746.5997472/1793806746.609558-TP-7-EP-7.trace.json.gz",
+            "scope": "glm_prefill_kv_norm_rope_pack",
+            "raw_named_event_count": 1872,
+            "trace_sha256": "2e3577aea664c3102e1b1d7a2563ec134460c42fbbcedb299d1e707f0dd24730",
+            "packed_gather_store_raw_event_count": 1872
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "batch": "R01",
+  "selected_case": "F-beta-comm-copy-shared",
+  "criterion": "Lowest completed eligible same-source/package F screening TTFT mean, as predeclared FINAL_MATRIX.md; all original sanity thresholds retained. Screening selection does not establish stable gains or full accuracy.",
+  "eligible_screening_rows": [
+    {
+      "case": "F-beta",
+      "mean_ttft_ms": 4786.685012439193,
+      "gsm20": 0.95,
+      "long100_if_available": 0.96,
+      "step_ms": 3116.185145
+    },
+    {
+      "case": "F-beta-shared",
+      "mean_ttft_ms": 4733.1079398277325,
+      "gsm20": 0.95,
+      "long100_if_available": null,
+      "step_ms": 3079.723919
+    },
+    {
+      "case": "F-beta-comm-copy-shared",
+      "mean_ttft_ms": 4673.050931139187,
+      "gsm20": 0.95,
+      "long100_if_available": null,
+      "step_ms": 3026.762272
+    },
+    {
+      "case": "F-beta-kv-shared",
+      "mean_ttft_ms": 4701.121564830373,
+      "gsm20": 0.95,
+      "long100_if_available": null,
+      "step_ms": 3053.063842
+    }
+  ],
+  "date_epoch": 1793807140.100001,
+  "protocol": "control-a -> candidate -> control-b;2unprofiledformalrounds+existing100QAeach; actualsemanticrequesthashes; allscoresretained; no best-score selection",
+  "accuracy_note": "F-beta96/100 vs F-control97/100 previously; selected combination has only19/20 sanity so far, requires this pairedlongQA. No unique kernel-root claim."
+}
