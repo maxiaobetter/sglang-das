@@ -47,7 +47,7 @@
 | P05 Q RMSNorm + FP8 quant | 基线有 `rms_norm_fp8_quant`，但新接入要求显式 `match_sglang` ABI v1，避免沿用旧归约/量化行为 | 待独立验证 |
 | P06 native KV gather/dequant | 基线有 kernel 符号，但缺少 `PREFILL_GATHER_TRITON_NAN_COMPAT_VERSION`，不能只凭符号开启 | 基线包不满足接入契约，需兼容候选包及匹配对照 |
 | residual/input norm + quant | 基线无显式 `match_sglang` ABI v1；兼容内核将以 opt-in 保持 FP32 residual 语义，默认 API 保留原行为 | 框架扩展 P09 已接入，兼容算子与实测尚未完成 |
-| KV norm/RoPE/store 融合 | 基线有 q_cat 接口，但无 `MLA_ROPE_SUPPORTED_Q_HEAD_STRIDES` 声明；CP local/global cache loc 和 GLM Q stride 必须适配 | 尚未完成，不能将 decode 融合直接启用到 prefill |
+| P10 KV norm/RoPE/store 融合 | 新增prefix CPv2 interleave入口，先写local656-byte行，再全局byte gather及physical loc store；不重复量化，不改cold BF16路径；限制普通DSA pool | 框架已实现；GLM Q stride256兼容LightOp正在编译，尚未数值/模型/性能验证 |
 | MegaMoE | 新 adapter 对应 develop 的 `deepgemm.mega`，不是容器原有 `deepgemm.op` 接口 | 同宿主 IPC 入口，跨节点可用性尚未证明 |
 | 历史 KV 下一层预取 | 分支已有 `maybe_prefetch_next_full_attention_kv`，依赖 layer split；B0 的 IFB layer split 关闭 | 需作为独立配置实验，不能记作新实现收益 |
 | shared expert overlap | `forward_deepep` 已有 alt_stream + event 路径；需核对 B0 的实际 stream/trace | 不重复宣称为新增实现 |

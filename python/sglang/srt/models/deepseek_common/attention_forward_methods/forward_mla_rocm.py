@@ -373,6 +373,7 @@ class DeepseekMLARocmForwardMixin:
         )
         q_lora = None
         topk_indices = None
+        kv_fusion = False
         if self.q_lora_rank is not None:
             q, latent_cache = (
                 get_attn_tp_context()
@@ -385,12 +386,19 @@ class DeepseekMLARocmForwardMixin:
             k_nope = latent_cache[..., : self.kv_lora_rank]
 
             from sglang.srt.models.deepseek_common.glm_prefill import try_q_norm_quant
+            from sglang.srt.models.deepseek_common.glm_prefill_kv_fusion import (
+                use_fused_kv_producer,
+            )
 
+            kv_fusion = llama_4_scaling is None and use_fused_kv_producer(
+                self, forward_batch, latent_cache
+            )
             q_prequantized = try_q_norm_quant(self, forward_batch, q)
             # overlap qk norm
             if q_prequantized is not None:
                 q, q_lora = q_prequantized
-                k_nope = self.kv_a_layernorm(k_nope)
+                if not kv_fusion:
+                    k_nope = self.kv_a_layernorm(k_nope)
             elif self.alt_stream is not None and get_is_capture_mode():
                 current_stream = torch.cuda.current_stream()
                 self.alt_stream.wait_stream(current_stream)
@@ -452,7 +460,8 @@ class DeepseekMLARocmForwardMixin:
                 )
             else:
                 q = self.q_a_layernorm(q)
-                k_nope = self.kv_a_layernorm(k_nope)
+                if not kv_fusion:
+                    k_nope = self.kv_a_layernorm(k_nope)
 
             # q_lora needed by indexer
             if self.use_dsa:
@@ -551,7 +560,7 @@ class DeepseekMLARocmForwardMixin:
             rope_prepared = kv_gather is not None
         packed_q = (
             try_direct_q_buffer(self, forward_batch, q_nope, q_pe)
-            if llama_4_scaling is None and not q_replicate_active
+            if llama_4_scaling is None and not q_replicate_active and not kv_fusion
             else None
         )
 
@@ -617,6 +626,17 @@ class DeepseekMLARocmForwardMixin:
             elif is_kv_b_lora_active(self):
                 q_nope_out = apply_kv_b_lora_q_correction(self, q_nope, q_nope_out)
 
+        if kv_fusion:
+            from sglang.srt.models.deepseek_common.glm_prefill_kv_fusion import (
+                fuse_kv_rope_store,
+            )
+
+            q_nope_out = fuse_kv_rope_store(
+                self, forward_batch, positions, q_nope_out, q_pe, latent_cache
+            )
+            q_pe, k_nope, k_pe = None, None, None
+            rope_prepared = True
+
         fuse_rope_for_trtllm_mla = self._fuse_rope_for_trtllm_mla(forward_batch)
         if (
             not rope_prepared
@@ -639,7 +659,9 @@ class DeepseekMLARocmForwardMixin:
             dsa_prefill_cp=dsa_prefill_cp,
             fuse_rope_for_trtllm_mla=fuse_rope_for_trtllm_mla,
         )
-        if kv_gather is not None:
+        if kv_fusion:
+            pass  # The fused producer has materialized global packed KV.
+        elif kv_gather is not None:
             k_nope, k_pe = finish_cp_kv_gather(kv_gather, self.kv_lora_rank)
         elif dsa_prefill_cp and not defer_kv_gather_until_after_rope:
             from sglang.srt.layers.attention.dsa_backend import materialize_full_kv_cp
@@ -723,7 +745,13 @@ class DeepseekMLARocmForwardMixin:
         llama_4_scaling,
         attention_output_gate=None,
     ):
-        save_kv_cache = True
+        from sglang.srt.models.deepseek_common.glm_prefill_kv_fusion import (
+            PrefillQWithStoredKV,
+        )
+
+        save_kv_cache = not isinstance(q_nope_out, PrefillQWithStoredKV)
+        if not save_kv_cache:
+            q_nope_out = q_nope_out.query
         # HYV4 carries a per-head learnable attention sink logit that the
         # sparse backend folds into the softmax denominator.
         sink_args = (
@@ -824,6 +852,7 @@ class DeepseekMLARocmForwardMixin:
                         k_nope,
                         k_nope,
                         forward_batch,
+                        save_kv_cache=save_kv_cache,
                         q_rope=q_pe,
                         k_rope=k_pe,
                         **extra_args,
