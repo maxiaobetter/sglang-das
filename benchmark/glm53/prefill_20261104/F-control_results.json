@@ -1,0 +1,292 @@
+{
+  "case": "F-control",
+  "status": "formal/profile and existing sanity complete; combination/repeat acceptance remains separate",
+  "source_commit": "7684f58399ad70de47de7678897f7ea5aab6107e",
+  "source_files_sha256": {
+    "sglang/srt/distributed/bootstrap.py": "225362938ccb577e5bb717c58c485d1af8854e5ad17e42e0c3665d1cee9475d7",
+    "sglang/srt/environ.py": "2e79a37f63ff4271f29811c83e1979dcfa37fc78e25546c90dcca3328bfc642d",
+    "sglang/srt/layers/attention/dsa/glm_prefill_kv.py": "2ba3f293e193cb398e54d96bfd7bd50f0f877f3e9665cc5b754578af9c29ff61",
+    "sglang/srt/layers/attention/dsa_backend.py": "0943f5970d06971a584ef21442611af66efce7e185e45c95d24d5130e81a8174",
+    "sglang/srt/layers/communicator.py": "a2f0cb8bafe9782ee0fea4340e2b3cc572f0688189f4fd773f665336c2048b6e",
+    "sglang/srt/layers/layernorm.py": "cd8b8e3038ebe311623573f58a6ee355db848fe597c0db4ba0f378dcc5d89ebb",
+    "sglang/srt/layers/moe/mega_moe.py": "553097662386b808b4dfba224a2897dcbe9437b55d52723f5df625080bbafd6d",
+    "sglang/srt/layers/quantization/compressed_tensors/schemes/compressed_tensors_w8a8_fp8.py": "afd3e9928346e6fbdcc9c7f4f1755ec7d3f13eed532dfa6566e0ea94affc9253",
+    "sglang/srt/layers/quantization/fp8_utils.py": "8520a9ca47ae3e16733f892607b86e50fc73239ce5c0b53641c6a2cf80bc3dde",
+    "sglang/srt/layers/quantization/prefill_input.py": "fe0babcc4f7cce14eb811127ef998c83f0da8e207f1e8d1bfbb4b1bdffc6eab8",
+    "sglang/srt/models/deepseek_common/attention_forward_methods/forward_mla_rocm.py": "9739a102167dd8a4d58fc2b2b8a0df63b7b20940d72df3b05a0409dc7d2aae9f",
+    "sglang/srt/models/deepseek_common/glm_prefill.py": "0a08b9bdddcf7f214d292303e4ca9e22ab2e0d6cac34f43fd57719af4b3e7a5e",
+    "sglang/srt/models/deepseek_common/glm_prefill_kv_fusion.py": "4430e7df7ea995826d925b48c5caf236a7b84f4371fc59bfa1444e1095342aa0",
+    "sglang/srt/models/deepseek_common/glm_prefill_mlp.py": "36c729f2587c20238efecbac058bc75f2adc34171da138fcc704771cd5347666",
+    "sglang/srt/models/deepseek_v2.py": "e2977761687722d8822baa7c8cfc5713fb69ab3f536a747d1e503a7553a28e67"
+  },
+  "required_native_sha256": [
+    "f4d69b478289cf93a2be4c0f8f92c7374877609276bd6ba40476ab5a10abee6c",
+    "b0ea2f7f108da6ba22e951c3e795a1ba8a8f95bd70a6843758cb434e1296d66e",
+    "79325b382a56de60f69cfaf8f75fe2b725d2092c002d1cf67bd1248f1537af7a"
+  ],
+  "enabled_new_flags": [],
+  "mqa_beta": null,
+  "matching_control": "final source all-off; B2-control and historicalB0 retained independently",
+  "repeats": [
+    {
+      "repeat": 1,
+      "ttft_ms": 5017.524432533719,
+      "new_input_tok_s": 8712.793155128044,
+      "duration": 20.684985491010593
+    },
+    {
+      "repeat": 2,
+      "ttft_ms": 5019.3867827492795,
+      "new_input_tok_s": 8713.428933439895,
+      "duration": 20.68347620399436
+    }
+  ],
+  "mean_ttft_ms": 5018.455607641499,
+  "mean_new_input_tok_s": 8713.111044283969,
+  "relative_to_historical_B0_percent": 0.13339813362343023,
+  "relative_to_final_control_percent": 0,
+  "gsm8k_20": {
+    "accuracy": 0.95,
+    "invalid": 0.0,
+    "latency": 73.19915740401484,
+    "output_throughput": 29.18066376379961
+  },
+  "long_accuracy_100": {
+    "accuracy": 0.97,
+    "invalid": 0.01,
+    "latency": 327.57983398099896,
+    "output_throughput": 31.140500549223987,
+    "num_shots": 20,
+    "num_questions": 100,
+    "original_threshold": "accuracy > 0.8 unchanged",
+    "non_demonstration_questions": 80,
+    "non_demonstration_correct": 77,
+    "non_demonstration_accuracy": 0.9625,
+    "demonstration_correct": 20,
+    "prompt_tokens": [
+      3710,
+      3673,
+      3696,
+      3681,
+      3755,
+      3701,
+      3688,
+      3712,
+      3748,
+      3704,
+      3705,
+      3708,
+      3713,
+      3704,
+      3696,
+      3737,
+      3697,
+      3699,
+      3675,
+      3711,
+      3707,
+      3690,
+      3702,
+      3685,
+      3683,
+      3710,
+      3710,
+      3702,
+      3694,
+      3713,
+      3682,
+      3707,
+      3687,
+      3674,
+      3687,
+      3695,
+      3686,
+      3707,
+      3690,
+      3719,
+      3691,
+      3771,
+      3727,
+      3700,
+      3719,
+      3739,
+      3736,
+      3693,
+      3683,
+      3689,
+      3682,
+      3695,
+      3707,
+      3744,
+      3728,
+      3696,
+      3691,
+      3720,
+      3726,
+      3677,
+      3683,
+      3703,
+      3709,
+      3713,
+      3736,
+      3694,
+      3705,
+      3698,
+      3683,
+      3696,
+      3696,
+      3690,
+      3694,
+      3689,
+      3768,
+      3712,
+      3729,
+      3690,
+      3687,
+      3692,
+      3681,
+      3702,
+      3675,
+      3678,
+      3670,
+      3728,
+      3735,
+      3723,
+      3681,
+      3694,
+      3731,
+      3683,
+      3697,
+      3721,
+      3697,
+      3687,
+      3679,
+      3699,
+      3738,
+      3727
+    ],
+    "context_note": "Prompt token counts are actual response metadata. Shared20-shot prefix is fixed for both configurations; first20 examples overlap demonstrations and are reported separately.",
+    "dataset_sha256": "3730d312f6e3440559ace48831e51066acaca737f6eabec99bccb9e4b3c39d14",
+    "eval_source_sha256": "f4fa2a35b24f1fb5c7978df3d16b4806eb5a77fe0ee6ae058bff9cdac162ba32",
+    "eval_source_path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/baseline_source/sglang/test/few_shot_gsm8k.py",
+    "client_proxy_note": "localhost/cluster direct; external HTTP proxy172.20.0.172:3128 only"
+  },
+  "paired_long_accuracy_vs_final_control": null,
+  "long_invalid_details": [
+    {
+      "id_zero_based": 20,
+      "answer_characters": 395,
+      "last_numeric_fragment": "04",
+      "original_parser_observation": "leading zeros in decimal integer literals are not permitted; use an 0o prefix for octal integers",
+      "grading": "unchanged; remains invalid/incorrect, no answer substitution"
+    }
+  ],
+  "trace": {
+    "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-control/traces/1793801807.3815923/1793801807.3920882-TP-0-EP-0.trace.json.gz",
+    "bytes": 85595642,
+    "sha256": "be207f101b087ae345d793c41c83cd4479e89116c282b07a580b473be190e905"
+  },
+  "profile_step": {
+    "ph": "X",
+    "cat": "gpu_user_annotation",
+    "name": "step[EXTEND bs=6 toks=32768]",
+    "pid": 0,
+    "tid": 151,
+    "ts": 2944782413009.779,
+    "dur": 3276907.775,
+    "args": {
+      "External id": 35849
+    }
+  },
+  "profile_kernel_groups_us_sum_and_count": {
+    "Other": [
+      339071.4890000031,
+      3888
+    ],
+    "Other GEMM": [
+      393887.41399999976,
+      727
+    ],
+    "RCCL": [
+      36853.788000000015,
+      101
+    ],
+    "MQA logits": [
+      372973.14400000003,
+      126
+    ],
+    "TopK": [
+      139645.737,
+      126
+    ],
+    "KV dequantize": [
+      61765.18100000002,
+      78
+    ],
+    "FlashMLA sparse attention": [
+      777737.4770000002,
+      78
+    ],
+    "DeepEP dispatch/other": [
+      111273.808,
+      225
+    ],
+    "DeepGEMM MoE": [
+      431993.1029999999,
+      150
+    ],
+    "DeepEP combine notify/wait": [
+      353933.19999999995,
+      75
+    ],
+    "DeepEP combine data": [
+      230492.62,
+      75
+    ]
+  },
+  "gpu_fusion_annotations": {},
+  "mqa_native_kernel_inventory": {
+    "void at::native::_mqa_logits_32x128x128_TN_impl_fp8<32, 128, 32, 128, 128, true, true>(unsigned char*, unsigned char*, float*, float*, unsigned int*, unsigned int*, int, int, float const*)": {
+      "count": 126,
+      "sum_us": 372973.14400000003
+    }
+  },
+  "beta_specific_native_kernel_inventory": {},
+  "proof_scope": "8rank source/native/comm/env/HCA verification plus complete8trace manifest; rank0 timing/native inventory here. Sum of overlapping durations is not causal wall savings. Other model/platform regression suites not run locally.",
+  "model_metadata_sha256": {
+    "config.json": "bc21bd68d92085465810c3da72c4b8a43b16c65c2c8f55f52547045f36c1abbf",
+    "model.safetensors.index.json": "c3f9f10306a20dbcf151397b1e76c9faf2592aa3ab1fa5798a6d2a15a704b188",
+    "tokenizer_config.json": "98b1271574f41abf89427ae2dda030d94dc9478f0edc5a8bd240db213c6fd5fc",
+    "tokenizer.json": "19e773648cb4e65de8660ea6365e10acca112d42a854923df93db4a6f333a82d"
+  },
+  "weights_note": "Same model directory; full755.86GB weight content SHA not collected, metadata SHA retained. No EPLB mapping specified in this ordinary IFB protocol.",
+  "raw_local": "/Users/better/Desktop/SGLang相关/sglang_dcu_github_origin/dcu-sglang/profiles/glm53-prefill-opt-20261104/F-control",
+  "raw_remote": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-control",
+  "cleanup_note": "All formal/profile/additional clients0/0/0; exactPID/start-time owned services stopped, one transient read-only VRAM wait then bothhosts4cards2MiBverified beforeF-beta launch. Full memory observation history retainedraw andremote; no additional kills.",
+  "resource_release_verification": {
+    "p2c1": {
+      "remaining_owned_processes": [],
+      "final_free_time": 1793802364.5949888,
+      "used_MiB": [
+        2,
+        2,
+        2,
+        2
+      ],
+      "passed": true,
+      "readonly_observation_count": 2
+    },
+    "p2c9": {
+      "remaining_owned_processes": [],
+      "final_free_time": 1793802364.6149173,
+      "used_MiB": [
+        2,
+        2,
+        2,
+        2
+      ],
+      "passed": true,
+      "readonly_observation_count": 2
+    }
+  }
+}

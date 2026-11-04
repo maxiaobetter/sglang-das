@@ -86,3 +86,5 @@ profile 单独采集，并对齐同一主模型 32K chunk；同时报告整请�
 每项保留原始结果，不覆盖旧数据；单项验证后另建组合实验 ID，再决定是否合入旧分支。
 
 较长的逐次GEMM shape明细以无损 `full_analysis/*results.json.gz` 保留，结果JSON记录原始JSON及gzip的SHA256；摘要保留性能、准确率、源码/库哈希、整步/分组和融合信息。原始trace与命令仍在各项证据目录，未因压缩删除数据。
+
+最终源码及组合状态见 [FINAL_RESULTS.md](FINAL_RESULTS.md)，预先定义的变量和正确性协议见 [FINAL_MATRIX.md](FINAL_MATRIX.md)；源代码入口／回退复核见 [IMPLEMENTATION_REVIEW.md](IMPLEMENTATION_REVIEW.md)。
