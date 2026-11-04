@@ -55,9 +55,11 @@ _IS_HCU = is_hcu()
 
 _HCU_MEGA_MOE_RUNTIME_DEEP_GEMM = "deep_gemm"
 _HCU_MEGA_MOE_RUNTIME_MEGAMOE = "megamoe"
+_HCU_MEGA_MOE_RUNTIME_MERGED = "deepgemm_mega"
 _HCU_MEGA_MOE_RUNTIMES = {
     _HCU_MEGA_MOE_RUNTIME_DEEP_GEMM,
     _HCU_MEGA_MOE_RUNTIME_MEGAMOE,
+    _HCU_MEGA_MOE_RUNTIME_MERGED,
 }
 
 _MEGA_MOE_HCU_BACKEND_ENV = "MEGAMOE_HCU_BACKEND"
@@ -285,6 +287,11 @@ def _get_mega_moe_symm_buffer(
 
         package_key = _HCU_MEGA_MOE_RUNTIME_MEGAMOE
         factory = megamoe.get_symm_buffer_for_mega_moe
+    elif _IS_HCU and runtime == _HCU_MEGA_MOE_RUNTIME_MERGED:
+        from sglang.srt.layers.moe.deepgemm_mega import create_buffer
+
+        package_key = _HCU_MEGA_MOE_RUNTIME_MERGED
+        factory = create_buffer
     else:
         import deep_gemm
 
@@ -344,6 +351,8 @@ def should_use_mega_moe(moe: DeepseekV2MoE, hidden_states: torch.Tensor) -> bool
         if not is_sm90_fp8_mega_moe_available(moe.experts):
             return False
     if get_is_capture_mode():
+        if _IS_HCU and runtime == _HCU_MEGA_MOE_RUNTIME_MERGED:
+            raise RuntimeError("deepgemm_mega requires --disable-cuda-graph")
         if getattr(moe.experts, "_mega_moe_hcu_int4_weights", False):
             raise RuntimeError("HCU INT4 MegaMoE requires --disable-cuda-graph")
         return not _IS_HCU or _is_standalone_megamoe_runtime()
@@ -394,7 +403,8 @@ def forward_mega_moe(
         overlap_stream.wait_stream(current_stream)
         if eager_w4a8_overlap:
             for tensor in (
-                hidden_states, input_ids_global,
+                hidden_states,
+                input_ids_global,
                 getattr(forward_batch, "num_token_non_padded", None),
             ):
                 if isinstance(tensor, torch.Tensor) and tensor.is_cuda:
@@ -509,7 +519,11 @@ def _run_mega_routed(
         intermediate_hidden=intermediate_size,
         runtime=runtime,
         cuda_graph_max_tokens_per_rank=cuda_graph_max_tokens_per_rank,
-        quant_mode=("w4a8" if getattr(moe.experts, "_mega_moe_hcu_w4a8_weights", False) else "fp8"),
+        quant_mode=(
+            "w4a8"
+            if getattr(moe.experts, "_mega_moe_hcu_w4a8_weights", False)
+            else "fp8"
+        ),
     )
 
     if _IS_HCU:
@@ -524,6 +538,10 @@ def _run_mega_routed(
                 hidden_size=hidden_size,
                 dispatch_num_tokens=dispatch_num_tokens,
             )
+        elif runtime == _HCU_MEGA_MOE_RUNTIME_MERGED:
+            from sglang.srt.layers.moe.deepgemm_mega import run
+
+            y = run(hidden_states, topk_ids, topk_weights, moe, buf)
         elif runtime == _HCU_MEGA_MOE_RUNTIME_MEGAMOE:
             y = _run_standalone_hcu_w8a8_mega_moe(
                 hidden_states=hidden_states,
@@ -791,9 +809,9 @@ def _run_standalone_hcu_w4a8_mega_moe(
     return y
 
 
-
 def build_hcu_w4a8_mega_moe_experts_weights(experts) -> None:
     from deepgemm import pack_w4a8_moe_hipc_weight
+
     from sglang.srt.eplb.expert_location import get_global_expert_location_metadata
     from sglang.srt.server_args import get_global_server_args
 
@@ -801,31 +819,49 @@ def build_hcu_w4a8_mega_moe_experts_weights(experts) -> None:
         return
     args = get_global_server_args()
     if not _IS_HCU or get_hcu_mega_moe_runtime() != "megamoe":
-        raise ValueError("W4A8 MegaMoE requires HCU and SGLANG_HCU_MEGA_MOE_RUNTIME=megamoe")
+        raise ValueError(
+            "W4A8 MegaMoE requires HCU and SGLANG_HCU_MEGA_MOE_RUNTIME=megamoe"
+        )
     if args.enable_eplb:
-        raise ValueError("W4A8 MegaMoE supports offline EPLB via --init-expert-location; online EPLB is unsupported")
+        raise ValueError(
+            "W4A8 MegaMoE supports offline EPLB via --init-expert-location; online EPLB is unsupported"
+        )
     if not args.disable_cuda_graph:
         raise ValueError("W4A8 MegaMoE prefill currently requires --disable-cuda-graph")
     # The loader has already placed logical experts into the static physical
     # slots. Repack each slot independently without changing expert order.
     for name in ("w13_weight", "w2_weight"):
         weight = getattr(experts, name)
-        setattr(experts, name, torch.nn.Parameter(
-            pack_w4a8_moe_hipc_weight(weight.data), requires_grad=False,
-        ))
+        setattr(
+            experts,
+            name,
+            torch.nn.Parameter(
+                pack_w4a8_moe_hipc_weight(weight.data),
+                requires_grad=False,
+            ),
+        )
     for name in ("w13_weight_scale", "w2_weight_scale"):
         scale = getattr(experts, name)
-        setattr(experts, name, torch.nn.Parameter(scale.data * 16.0, requires_grad=False))
+        setattr(
+            experts, name, torch.nn.Parameter(scale.data * 16.0, requires_grad=False)
+        )
     experts.mega_l1_weights = (experts.w13_weight, experts.w13_weight_scale)
     experts.mega_l2_weights = (experts.w2_weight, experts.w2_weight_scale)
     metadata = get_global_expert_location_metadata()
     if metadata is not None:
         logical_experts = metadata.num_logical_experts
         if logical_experts % 8:
-            raise ValueError("W4A8 MegaMoE canonical reduction requires logical experts divisible by EP8")
+            raise ValueError(
+                "W4A8 MegaMoE canonical reduction requires logical experts divisible by EP8"
+            )
         groups = (
-            metadata.physical_to_logical_map[experts.layer_id] // (logical_experts // 8)
-        ).to(torch.int32).contiguous()
+            (
+                metadata.physical_to_logical_map[experts.layer_id]
+                // (logical_experts // 8)
+            )
+            .to(torch.int32)
+            .contiguous()
+        )
         physical_groups = torch.arange(
             groups.numel(), device=groups.device, dtype=torch.int32
         ) // (groups.numel() // 8)
@@ -990,7 +1026,14 @@ def build_hcu_w8a8_mega_moe_experts_weights(experts) -> None:
         "w2",
     )
 
-    if runtime == _HCU_MEGA_MOE_RUNTIME_DEEP_GEMM:
+    if runtime == _HCU_MEGA_MOE_RUNTIME_MERGED:
+        from sglang.srt.layers.moe.deepgemm_mega import transform_weights
+
+        experts.mega_l1_weights, experts.mega_l2_weights = transform_weights(
+            w13, w13_scale, w2, w2_scale
+        )
+        experts._mega_moe_hcu_weight_layout = "marlin_w6_interleaved8"
+    elif runtime == _HCU_MEGA_MOE_RUNTIME_DEEP_GEMM:
         if l1_rows % 16 != 0 or hidden % 16 != 0 or intermediate % 16 != 0:
             raise ValueError(
                 "deep_gemm HCU W8A8 MegaMoE requires rows and K divisible by 16"
