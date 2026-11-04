@@ -33,6 +33,8 @@ Fresh control 平均 TTFT **5019.78 ms**，与历史 B0 相差 +0.16%；P03-r1 �
 
 P11单项已完成：TTFT均值 **4962.62 ms**，相对framework-control低 **1.58%**；shared stream与routed区间相交102.51ms，整步低42.15ms，不能将相交量直接记为收益。GSM8K19/20，仍为小样本/两轮结果，详见 `P11.md`。
 
+P12单项也已完成：TTFT均值 **5015.97 ms**，比framework-control低 **0.52%**，比历史B0高 **0.084%**；Q projection并行命中，32K step只低5.16ms，未确立稳定收益，见 `P12.md`。
+
 | ID | 仅开启项 | 实现范围 / 前置条件 |
 | --- | --- | --- |
 | P03 | `SGLANG_GLM_PREFILL_CP_OVERLAP=1` | 主 KV AllGather 与 Q absorb BMM 重叠；支持 CP v1 round-robin 和基线 CP v2 interleave，保留逻辑 token 截断与 padding；不是 Q projection overlap |
@@ -42,13 +44,12 @@ P11单项已完成：TTFT均值 **4962.62 ms**，相对framework-control低 **1.
 | P09 | `SGLANG_GLM_PREFILL_INPUT_NORM_QUANT=1` | input/residual RMSNorm + FP8 量化；类型化显式传递给 fused QKV-A，BF16 保留给 indexer；要求 LightOp match_sglang ABI v1，显式 opt-in 匹配 FP32 residual/quant 语义，当前 B0 包不满足 |
 | P10 | `SGLANG_GLM_PREFILL_KV_ROPE_STORE=1` | prefix prefill 的 KV norm + Q/K RoPE + FP8 store + Q concat；CPv2 interleave 交换完整656-byte cache行并写全局loc，避免重复量化；原包无GLM Q stride能力声明，需兼容候选包；框架已实现、尚未实测 |
 | P11 | `SGLANG_GLM_PREFILL_SHARED_OVERLAP=1` | 复用现有 DeepEP shared/routed 双stream组织，普通GLM prefill显式开启；全模型复用一条shared stream，保持decode原门控，独立于P08量化融合；已测，详见P11.md |
-| P12 | `SGLANG_GLM_PREFILL_Q_PROJ_OVERLAP=1` | Q-B projection 与实际执行的DSA indexer重叠；独立compute stream，排除collective/LoRA，不复用indexer通信stream；不是P03的absorb BMM overlap；待测 |
+| P12 | `SGLANG_GLM_PREFILL_Q_PROJ_OVERLAP=1` | Q-B projection 与实际执行的DSA indexer重叠；独立compute stream，排除collective/LoRA，不复用indexer通信stream；不是P03的absorb BMM overlap；已测，默认关闭，见P12.md |
 | P08 | `SGLANG_GLM_PREFILL_SHARED_QUANT=1` | DeepEP GLM shared expert 的 SwiGLU + per-token FP8 量化，交给 down projection 消费；普通 eager prefill、channelwise动态FP8；要求显式SGLang SwiGLU FP8 ABI v1，旧融合核scale下限不同，不能直接替换；待测 |
-| P07 | `SGLANG_HCU_MEGA_MOE_RUNTIME=deepgemm_mega` + MegaMoE backend | 接入 DeepGEMM 的合并版 runtime，保留 checkpoint FP8 权重与 SwiGLU；仅 gfx938、eager、同宿主 HIP IPC；当前两节点基线暂不能直接使用 |
+| P07 | 当前pin不纳入运行矩阵 | groupwise激活量化不符合本组per-token约束，新增adapter已从交付移除；证据及后续要求见P07.md |
 
 P03–P06 限 GLM 普通 prefill。每项必须确认日志和 trace 命中，未命中标记“不适用”，不能填写性能收益。
-P07 是独立实验入口，不是本次两节点 DeepEP 的已验证替换。当前adapter暂拒绝不同boot_id的rank；已编译 pin a1efb4e619e2 的原生扩展，并在 p2c1/p2c9 各1 rank、2MiB uncached buffer上实测句柄交换；两端 hipIpcOpenMemHandle 均报 invalid device pointer。因此该 pin 的原样 HIP IPC backend 不能直接用于当前两宿主；这不代表 HyLink fabric 不可用，DeepEP normal MNVL 使用不同的 HSA fabric export/import 路径，仍需核对适配。在线EPLB receive stats尚未接入。
-如果必须改成单宿主或更新 DeepGEMM 包，需要独立的匹配对照，不能把拓扑/包差异计为 P07 单项收益。
+P07当前pin已排除，见 `P07.md`：实际L1→L2使用groupwise激活scale，与本组固定GLM per-token语义不同；跨宿主HIP IPC也有独立失败证据。实验adapter保留在提交历史，当前交付移除新增runtime入口，不更改原有MegaMoE后端。未将它放入任何性能组合。
 
 基线包不提供 P05/P06 所需接口时，先记录“包能力缺失”。确需升级则隔离安装，并以同一新包、开关关闭作为该单项的匹配对照，同时保留相对 B0 的结果。不能全量更新三个算子库后再声称单项收益。
 

@@ -48,10 +48,10 @@
 | P06 native KV gather/dequant | 基线有 kernel 符号，但缺少 `PREFILL_GATHER_TRITON_NAN_COMPAT_VERSION`，不能只凭符号开启 | B2数值通过，但81920tokens性能断言失败237.10us vs Triton145.93us；默认关闭，见LIGHTOP.md |
 | residual/input norm + quant | 基线无显式 `match_sglang` ABI v1；兼容内核将以 opt-in 保持 FP32 residual 语义，默认 API 保留原行为 | 框架已接入；B2原生norm/quant16组含residual逐位一致，模型验证待测 |
 | P10 KV norm/RoPE/store 融合 | 新增prefix CPv2 interleave入口，先写local656-byte行，再全局byte gather及physical loc store；不重复量化，不改cold BF16路径；限制普通DSA pool | 框架已实现；B2 stride256的168+2组原生数值通过，模型/性能待验 |
-| MegaMoE | 新 adapter 对应 develop 的 `deepgemm.mega`，不是容器原有 `deepgemm.op` 接口 | 原生扩展编译通过；p2c1/p2c9双rank跨宿主HIP IPC打开均报invalid device pointer，需fabric allocator适配；尚无模型收益 |
+| MegaMoE | 原型曾对应develop的deepgemm.mega，但原生L1/L2实际使用groupwise激活scale | 固定GLM per-token约束下排除；新增adapter已移除，现有后端保留；另有双宿主HIP IPC失败，见P07.md |
 | 历史 KV 下一层预取 | 分支已有 `maybe_prefetch_next_full_attention_kv`，依赖 layer split；B0 的 IFB layer split 关闭 | 普通IFB不允许启用LayerSplit，server_args限定PD prefill；本协议不直接加flag，详见COVERAGE.md |
 | P11 shared expert overlap | `forward_deepep` 已有 alt_stream + event；B0未开 `SGLANG_ROCM_USE_MULTI_STREAM`，MoE将alt_stream置None。P11复用已有组织，只对GLM普通prefill启用一条缓存stream，显式记录跨stream生命周期 | 单项两轮TTFT低1.58%，GSM8K19/20，shared stream命中；稳定收益尚未确立，见P11.md |
-| P12 Q projection / indexer overlap | 原 `q_b_proj` / indexer重叠只在capture decode门控内；新增独立prefill开关，只在indexer确实执行时启动非collective投影并join | 已实现；独立于P03，待正确性/运行命中/性能验证 |
+| P12 Q projection / indexer overlap | 原 `q_b_proj` / indexer重叠只在capture decode门控内；新增独立prefill开关，只在indexer确实执行时启动非collective投影并join | GSM8K19/20、并行命中，TTFT低0.52%但无稳定收益，默认关闭，见P12.md |
 | P08 shared expert SwiGLU + quant | 旧融合核带最小scale，基线per-token量化不带；已改为要求显式SGLang SwiGLU FP8 ABI v1，保持BF16激活/乘法中间舍入，再按amax直接量化 | 框架已接入；B2 SwiGLU的8组FP8字节/scale逐位一致，B0原包不满足；模型待验 |
 | indexer overlap / TopK reuse | 基线21个full/57个shared层，已有21次Indexer-K AG与query Hadamard重叠；FP8量化/store融合也已命中 | 覆盖核验已完成，详见COVERAGE.md；不计新增收益 |
 

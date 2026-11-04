@@ -1,0 +1,154 @@
+{
+  "case": "P12",
+  "unique_change": "SGLANG_GLM_PREFILL_Q_PROJ_OVERLAP=1; other new flags0; original B0 native packages",
+  "deployed_source": {
+    "commit": "69fbccd6ed8d0ac9614c71203fd9c9c7d6c8d699",
+    "base_commit": "086ff10241",
+    "base_snapshot": "baseline_source",
+    "patched_files_sha256": {
+      "sglang/srt/distributed/bootstrap.py": "225362938ccb577e5bb717c58c485d1af8854e5ad17e42e0c3665d1cee9475d7",
+      "sglang/srt/environ.py": "2e79a37f63ff4271f29811c83e1979dcfa37fc78e25546c90dcca3328bfc642d",
+      "sglang/srt/layers/attention/dsa/glm_prefill_kv.py": "2ba3f293e193cb398e54d96bfd7bd50f0f877f3e9665cc5b754578af9c29ff61",
+      "sglang/srt/layers/attention/dsa_backend.py": "0943f5970d06971a584ef21442611af66efce7e185e45c95d24d5130e81a8174",
+      "sglang/srt/layers/communicator.py": "a2f0cb8bafe9782ee0fea4340e2b3cc572f0688189f4fd773f665336c2048b6e",
+      "sglang/srt/layers/layernorm.py": "cd8b8e3038ebe311623573f58a6ee355db848fe597c0db4ba0f378dcc5d89ebb",
+      "sglang/srt/layers/moe/deepgemm_mega.py": "db1fe63a1550916721dd4a18db3df042a1691cf92ce74c2513bcc00a50b52908",
+      "sglang/srt/layers/moe/mega_moe.py": "2d8b655eccbe22665203f24bd35c008a4a4986163e239843fdc4da3f52dcc25c",
+      "sglang/srt/layers/quantization/compressed_tensors/schemes/compressed_tensors_w8a8_fp8.py": "afd3e9928346e6fbdcc9c7f4f1755ec7d3f13eed532dfa6566e0ea94affc9253",
+      "sglang/srt/layers/quantization/fp8_utils.py": "8520a9ca47ae3e16733f892607b86e50fc73239ce5c0b53641c6a2cf80bc3dde",
+      "sglang/srt/layers/quantization/prefill_input.py": "fe0babcc4f7cce14eb811127ef998c83f0da8e207f1e8d1bfbb4b1bdffc6eab8",
+      "sglang/srt/models/deepseek_common/attention_forward_methods/forward_mla_rocm.py": "9739a102167dd8a4d58fc2b2b8a0df63b7b20940d72df3b05a0409dc7d2aae9f",
+      "sglang/srt/models/deepseek_common/glm_prefill.py": "0a08b9bdddcf7f214d292303e4ca9e22ab2e0d6cac34f43fd57719af4b3e7a5e",
+      "sglang/srt/models/deepseek_common/glm_prefill_kv_fusion.py": "4430e7df7ea995826d925b48c5caf236a7b84f4371fc59bfa1444e1095342aa0",
+      "sglang/srt/models/deepseek_common/glm_prefill_mlp.py": "36c729f2587c20238efecbac058bc75f2adc34171da138fcc704771cd5347666",
+      "sglang/srt/models/deepseek_v2.py": "e2977761687722d8822baa7c8cfc5713fb69ab3f536a747d1e503a7553a28e67"
+    },
+    "package_directory": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/candidate_framework_69fbccd6ed8d0ac9614c71203fd9c9c7d6c8d699",
+    "native_packages": "original B0; no replacement",
+    "known_installed_kv_cache_configurator_difference_preserved": true,
+    "case": "P12",
+    "only_enabled_new_optimization": "SGLANG_GLM_PREFILL_Q_PROJ_OVERLAP",
+    "comparison": "framework-control on identical source and original B0 native packages"
+  },
+  "matching_control": "framework_control_results.json",
+  "repeats": [
+    {
+      "repeat": 1,
+      "ttft_ms": 5019.309951032483,
+      "new_input_tok_s": 8714.091762145186,
+      "duration": 20.681902935990365
+    },
+    {
+      "repeat": 2,
+      "ttft_ms": 5012.630310843633,
+      "new_input_tok_s": 8729.896158013542,
+      "duration": 20.64446091200807
+    }
+  ],
+  "gsm8k_20": {
+    "accuracy": 0.95,
+    "invalid": 0.0,
+    "latency": 78.84854114500922,
+    "output_throughput": 28.294753049355723
+  },
+  "mean_ttft_ms": 5015.970130938058,
+  "mean_new_input_tok_s": 8721.993960079364,
+  "relative_to_matching_control_percent": -0.5200134585882421,
+  "relative_to_historical_B0_percent": 0.08380534098846315,
+  "step": {
+    "ph": "X",
+    "cat": "gpu_user_annotation",
+    "name": "step[EXTEND bs=6 toks=32768]",
+    "pid": 0,
+    "tid": 151,
+    "ts": 2935484249749.467,
+    "dur": 3270311.875,
+    "args": {
+      "External id": 35903
+    }
+  },
+  "groups": {
+    "Other": [
+      344049.2350000007,
+      3888
+    ],
+    "Other GEMM": [
+      422432.01999999984,
+      727
+    ],
+    "RCCL": [
+      37927.40099999997,
+      101
+    ],
+    "MQA logits": [
+      373011.0710000001,
+      126
+    ],
+    "TopK": [
+      138643.1570000001,
+      126
+    ],
+    "KV dequantize": [
+      61755.414,
+      78
+    ],
+    "FlashMLA sparse attention": [
+      777703.0839999998,
+      78
+    ],
+    "DeepEP dispatch/other": [
+      110473.31299999997,
+      225
+    ],
+    "DeepGEMM MoE": [
+      431898.8410000001,
+      150
+    ],
+    "DeepEP combine notify/wait": [
+      349804.06799999997,
+      75
+    ],
+    "DeepEP combine data": [
+      231011.33799999996,
+      75
+    ]
+  },
+  "Q_projection_overlap": {
+    "step": {
+      "ph": "X",
+      "cat": "gpu_user_annotation",
+      "name": "step[EXTEND bs=6 toks=32768]",
+      "pid": 0,
+      "tid": 151,
+      "ts": 2935484249749.467,
+      "dur": 3270311.875,
+      "args": {
+        "External id": 35903
+      }
+    },
+    "main_stream": 151,
+    "Q_projection_stream": 152,
+    "Q_stream_groups": {
+      "FP8 token quant": {
+        "count": 21,
+        "ms_sum": 0.701577
+      },
+      "FP8 Q projection GEMM": {
+        "count": 21,
+        "ms_sum": 34.612765
+      }
+    },
+    "Q_kernel_ms_sum": 35.314342,
+    "Q_main_compute_interval_intersection_union_ms": 28.79479931640625,
+    "Q_indexer_AG_interval_intersection_union_ms": 2.8698994140625,
+    "note": "Q stream identified by the only non-main stream channelwise GEMMs with P12 enabled alone. Code joins Q immediately after the indexer; the main compute overlap during this live interval is the indexer path, but broad intersection includes all noncommunication main kernels and is not an exclusive critical path saving. Compare whole GPU step and formal TTFT independently."
+  },
+  "trace": {
+    "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P12/traces/1793792509.2061179/1793792509.21596-TP-0-EP-0.trace.json.gz",
+    "bytes": 86757276,
+    "sha256": "a3aef1456fe0bd84cc9f8910cec9cee5264bb5b68b01ded6ee8450b495ecfa97"
+  },
+  "remote_root": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/P12",
+  "cleanup": "owned PID/start-time cleanup; all8cards2MiB verified before B2-control launch",
+  "conclusion": "Two rounds small TTFT delta -0.52% vs matched framework control, +0.084% vs B0. Q projection overlap executes, but Other GEMM sum increases28.99ms and whole-step interval improves only5.16ms. No stable e2e gain established; default OFF."
+}
