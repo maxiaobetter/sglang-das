@@ -15,6 +15,7 @@ from sglang.srt.model_executor.forward_batch_info import (
     ForwardBatch,
     ForwardMode,
 )
+from sglang.srt.model_executor.forward_context import ForwardContext, forward_context
 from sglang.srt.speculative.eagle_info import EagleDraftInput, EagleVerifyInput
 from sglang.srt.speculative.eagle_utils import (
     TreeMaskMode,
@@ -195,7 +196,12 @@ def prepare_for_draft_extend(
         forward_batch
     )
     if not batch.forward_mode.is_idle() and not can_run_decode_cuda_graph:
-        draft_model_runner.attn_backend.init_forward_metadata(forward_batch)
+        # Planning runs before ModelRunner.forward establishes its context.
+        # Select the draft pools even if a caller still has a target context.
+        with forward_context(
+            ForwardContext(attn_backend=draft_model_runner.attn_backend)
+        ):
+            draft_model_runner.attn_backend.init_forward_metadata(forward_batch)
         # Planned pre-pad; do NOT opt into post-pad re-plan. DSA's indexer
         # cannot rebuild its deep_gemm schedule_meta on a DP-padded batch
         # (the `_batch_size == batch_size` assertion, see #27091); the
