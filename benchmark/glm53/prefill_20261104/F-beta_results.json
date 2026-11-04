@@ -1,0 +1,355 @@
+{
+  "case": "F-beta",
+  "status": "single-variable measurement complete; all8rank beta native hit and original correctness thresholds passed; paired97vs96 sample difference requires confirmation before final configuration acceptance",
+  "source_commit": "7684f58399ad70de47de7678897f7ea5aab6107e",
+  "source_files_sha256": {
+    "sglang/srt/distributed/bootstrap.py": "225362938ccb577e5bb717c58c485d1af8854e5ad17e42e0c3665d1cee9475d7",
+    "sglang/srt/environ.py": "2e79a37f63ff4271f29811c83e1979dcfa37fc78e25546c90dcca3328bfc642d",
+    "sglang/srt/layers/attention/dsa/glm_prefill_kv.py": "2ba3f293e193cb398e54d96bfd7bd50f0f877f3e9665cc5b754578af9c29ff61",
+    "sglang/srt/layers/attention/dsa_backend.py": "0943f5970d06971a584ef21442611af66efce7e185e45c95d24d5130e81a8174",
+    "sglang/srt/layers/communicator.py": "a2f0cb8bafe9782ee0fea4340e2b3cc572f0688189f4fd773f665336c2048b6e",
+    "sglang/srt/layers/layernorm.py": "cd8b8e3038ebe311623573f58a6ee355db848fe597c0db4ba0f378dcc5d89ebb",
+    "sglang/srt/layers/moe/mega_moe.py": "553097662386b808b4dfba224a2897dcbe9437b55d52723f5df625080bbafd6d",
+    "sglang/srt/layers/quantization/compressed_tensors/schemes/compressed_tensors_w8a8_fp8.py": "afd3e9928346e6fbdcc9c7f4f1755ec7d3f13eed532dfa6566e0ea94affc9253",
+    "sglang/srt/layers/quantization/fp8_utils.py": "8520a9ca47ae3e16733f892607b86e50fc73239ce5c0b53641c6a2cf80bc3dde",
+    "sglang/srt/layers/quantization/prefill_input.py": "fe0babcc4f7cce14eb811127ef998c83f0da8e207f1e8d1bfbb4b1bdffc6eab8",
+    "sglang/srt/models/deepseek_common/attention_forward_methods/forward_mla_rocm.py": "9739a102167dd8a4d58fc2b2b8a0df63b7b20940d72df3b05a0409dc7d2aae9f",
+    "sglang/srt/models/deepseek_common/glm_prefill.py": "0a08b9bdddcf7f214d292303e4ca9e22ab2e0d6cac34f43fd57719af4b3e7a5e",
+    "sglang/srt/models/deepseek_common/glm_prefill_kv_fusion.py": "4430e7df7ea995826d925b48c5caf236a7b84f4371fc59bfa1444e1095342aa0",
+    "sglang/srt/models/deepseek_common/glm_prefill_mlp.py": "36c729f2587c20238efecbac058bc75f2adc34171da138fcc704771cd5347666",
+    "sglang/srt/models/deepseek_v2.py": "e2977761687722d8822baa7c8cfc5713fb69ab3f536a747d1e503a7553a28e67"
+  },
+  "required_native_sha256": [
+    "f4d69b478289cf93a2be4c0f8f92c7374877609276bd6ba40476ab5a10abee6c",
+    "b0ea2f7f108da6ba22e951c3e795a1ba8a8f95bd70a6843758cb434e1296d66e",
+    "79325b382a56de60f69cfaf8f75fe2b725d2092c002d1cf67bd1248f1537af7a"
+  ],
+  "enabled_new_flags": [],
+  "mqa_beta": "1",
+  "matching_control": "F-control",
+  "repeats": [
+    {
+      "repeat": 1,
+      "ttft_ms": 4789.292991846196,
+      "new_input_tok_s": 9117.15301857244,
+      "duration": 19.767574333003722
+    },
+    {
+      "repeat": 2,
+      "ttft_ms": 4784.07703303219,
+      "new_input_tok_s": 9135.769472288646,
+      "duration": 19.72729287299444
+    }
+  ],
+  "mean_ttft_ms": 4786.685012439193,
+  "mean_new_input_tok_s": 9126.461245430542,
+  "relative_to_historical_B0_percent": -4.491127636759218,
+  "relative_to_final_control_percent": -4.6183649577251185,
+  "gsm8k_20": {
+    "accuracy": 0.95,
+    "invalid": 0.0,
+    "latency": 73.45346829199116,
+    "output_throughput": 29.079634354486895
+  },
+  "long_accuracy_100": {
+    "accuracy": 0.96,
+    "invalid": 0.0,
+    "latency": 328.3565700869949,
+    "output_throughput": 31.127746270744773,
+    "num_shots": 20,
+    "num_questions": 100,
+    "original_threshold": "accuracy > 0.8 unchanged",
+    "non_demonstration_questions": 80,
+    "non_demonstration_correct": 76,
+    "non_demonstration_accuracy": 0.95,
+    "demonstration_correct": 20,
+    "prompt_tokens": [
+      3710,
+      3673,
+      3696,
+      3681,
+      3755,
+      3701,
+      3688,
+      3712,
+      3748,
+      3704,
+      3705,
+      3708,
+      3713,
+      3704,
+      3696,
+      3737,
+      3697,
+      3699,
+      3675,
+      3711,
+      3707,
+      3690,
+      3702,
+      3685,
+      3683,
+      3710,
+      3710,
+      3702,
+      3694,
+      3713,
+      3682,
+      3707,
+      3687,
+      3674,
+      3687,
+      3695,
+      3686,
+      3707,
+      3690,
+      3719,
+      3691,
+      3771,
+      3727,
+      3700,
+      3719,
+      3739,
+      3736,
+      3693,
+      3683,
+      3689,
+      3682,
+      3695,
+      3707,
+      3744,
+      3728,
+      3696,
+      3691,
+      3720,
+      3726,
+      3677,
+      3683,
+      3703,
+      3709,
+      3713,
+      3736,
+      3694,
+      3705,
+      3698,
+      3683,
+      3696,
+      3696,
+      3690,
+      3694,
+      3689,
+      3768,
+      3712,
+      3729,
+      3690,
+      3687,
+      3692,
+      3681,
+      3702,
+      3675,
+      3678,
+      3670,
+      3728,
+      3735,
+      3723,
+      3681,
+      3694,
+      3731,
+      3683,
+      3697,
+      3721,
+      3697,
+      3687,
+      3679,
+      3699,
+      3738,
+      3727
+    ],
+    "context_note": "Prompt token counts are actual response metadata. Shared20-shot prefix is fixed for both configurations; first20 examples overlap demonstrations and are reported separately.",
+    "dataset_sha256": "3730d312f6e3440559ace48831e51066acaca737f6eabec99bccb9e4b3c39d14",
+    "eval_source_sha256": "f4fa2a35b24f1fb5c7978df3d16b4806eb5a77fe0ee6ae058bff9cdac162ba32",
+    "eval_source_path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/baseline_source/sglang/test/few_shot_gsm8k.py",
+    "client_proxy_note": "localhost/cluster direct; external HTTP proxy172.20.0.172:3128 only"
+  },
+  "paired_long_accuracy_vs_final_control": {
+    "matching_prompt_dataset_evaluator_hashes": true,
+    "exact_answer_strings_equal": 31,
+    "both_invalid_ids_zero_based": [],
+    "equal_numeric_predictions": 96,
+    "new_wrong_ids_zero_based": [
+      27,
+      33
+    ],
+    "new_correct_ids_zero_based": [
+      37
+    ]
+  },
+  "long_invalid_details": [],
+  "trace": {
+    "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta/traces/1793803171.50107/1793803171.5100627-TP-0-EP-0.trace.json.gz",
+    "bytes": 85366711,
+    "sha256": "a9b9a93252619e2a56d17a4e77b67c1ddae4bbcd4ebe5bc69af14d357a0bf715"
+  },
+  "profile_step": {
+    "ph": "X",
+    "cat": "gpu_user_annotation",
+    "name": "step[EXTEND bs=6 toks=32768]",
+    "pid": 0,
+    "tid": 151,
+    "ts": 2946146524550.045,
+    "dur": 3116185.145,
+    "args": {
+      "External id": 35729
+    }
+  },
+  "profile_kernel_groups_us_sum_and_count": {
+    "Other": [
+      339525.5219999998,
+      3888
+    ],
+    "Other GEMM": [
+      393565.9470000002,
+      727
+    ],
+    "RCCL": [
+      36736.84299999999,
+      101
+    ],
+    "MQA logits": [
+      213372.96900000004,
+      126
+    ],
+    "TopK": [
+      138993.299,
+      126
+    ],
+    "KV dequantize": [
+      61760.077,
+      78
+    ],
+    "FlashMLA sparse attention": [
+      777777.5920000001,
+      78
+    ],
+    "DeepEP dispatch/other": [
+      110293.33000000003,
+      225
+    ],
+    "DeepGEMM MoE": [
+      432123.003,
+      150
+    ],
+    "DeepEP combine notify/wait": [
+      349788.0289999999,
+      75
+    ],
+    "DeepEP combine data": [
+      232358.6120000001,
+      75
+    ]
+  },
+  "gpu_fusion_annotations": {},
+  "mqa_native_kernel_inventory": {
+    "void lightop::mqa_fp8::mqa_fp8_64x256_kernel<true, true, 4, true, false, false>(lightop::mqa_beta::MqaParams)": {
+      "count": 126,
+      "sum_us": 213372.96900000004
+    }
+  },
+  "beta_specific_native_kernel_inventory": {
+    "void lightop::mqa_fp8::mqa_fp8_64x256_kernel<true, true, 4, true, false, false>(lightop::mqa_beta::MqaParams)": {
+      "count": 126,
+      "sum_us": 213372.96900000004
+    }
+  },
+  "all_rank_mqa_native_dispatch": {
+    "case": "F-beta",
+    "expected_beta": true,
+    "all8rank_native_dispatch_verified": true,
+    "matches_only_cat_kernel": true,
+    "traces": [
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta/traces/1793803171.50107/1793803171.5100627-TP-0-EP-0.trace.json.gz",
+        "sha256": "a9b9a93252619e2a56d17a4e77b67c1ddae4bbcd4ebe5bc69af14d357a0bf715",
+        "beta_kernel_events": 726,
+        "legacy_fp8_kernel_events": 0
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta/traces/1793803171.50107/1793803171.5100627-TP-1-EP-1.trace.json.gz",
+        "sha256": "7261c1e8239a9620e98c8d2f762565e618dbe9e9c2968dc9ba13bdebbb5e6d1c",
+        "beta_kernel_events": 726,
+        "legacy_fp8_kernel_events": 0
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta/traces/1793803171.50107/1793803171.5100627-TP-2-EP-2.trace.json.gz",
+        "sha256": "57ab8cd6a332134b177dfd78571ec219b3f8380210325948b1f88c76c12fec0c",
+        "beta_kernel_events": 726,
+        "legacy_fp8_kernel_events": 0
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta/traces/1793803171.50107/1793803171.5100627-TP-3-EP-3.trace.json.gz",
+        "sha256": "2155f59ef1c47402c63abcda4e1f264a4e62d3f3a93f5e45970c51ca8c3285a0",
+        "beta_kernel_events": 726,
+        "legacy_fp8_kernel_events": 0
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta/traces/1793803171.50107/1793803171.5100627-TP-4-EP-4.trace.json.gz",
+        "sha256": "c6dc3b92cf9d08f020c328ca3d217be3c7ff05905ca709d14765d4462401e0ba",
+        "beta_kernel_events": 726,
+        "legacy_fp8_kernel_events": 0
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta/traces/1793803171.50107/1793803171.5100627-TP-5-EP-5.trace.json.gz",
+        "sha256": "27819f0b3edfb28a40f885c284ea48f7f14a6af504dee23982d9da989c98ece7",
+        "beta_kernel_events": 726,
+        "legacy_fp8_kernel_events": 0
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta/traces/1793803171.50107/1793803171.5100627-TP-6-EP-6.trace.json.gz",
+        "sha256": "443b24f169c5a4bafa506fb3918c8dd53d76266b84fc98d535c6c9b7bec1996f",
+        "beta_kernel_events": 726,
+        "legacy_fp8_kernel_events": 0
+      },
+      {
+        "trace": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta/traces/1793803171.50107/1793803171.5100627-TP-7-EP-7.trace.json.gz",
+        "sha256": "9b81ae9a48bd2f465548c57812492129ff14b15163bab1de620eed1b28e8c4aa",
+        "beta_kernel_events": 726,
+        "legacy_fp8_kernel_events": 0
+      }
+    ],
+    "scope": "Complete trace event counts include all captured steps, not just main32K; rank0 whole-step analysis reports timing separately. Known native beta FP8 entrynames from pinnedLightOp c388. No numerical threshold change."
+  },
+  "proof_scope": "8rank source/native/comm/env/HCA verification plus complete8trace manifest; rank0 timing/native inventory here. Sum of overlapping durations is not causal wall savings. Other model/platform regression suites not run locally.",
+  "model_metadata_sha256": {
+    "config.json": "bc21bd68d92085465810c3da72c4b8a43b16c65c2c8f55f52547045f36c1abbf",
+    "model.safetensors.index.json": "c3f9f10306a20dbcf151397b1e76c9faf2592aa3ab1fa5798a6d2a15a704b188",
+    "tokenizer_config.json": "98b1271574f41abf89427ae2dda030d94dc9478f0edc5a8bd240db213c6fd5fc",
+    "tokenizer.json": "19e773648cb4e65de8660ea6365e10acca112d42a854923df93db4a6f333a82d"
+  },
+  "weights_note": "Same model directory; full755.86GB weight content SHA not collected, metadata SHA retained. No EPLB mapping specified in this ordinary IFB protocol.",
+  "raw_local": "/Users/better/Desktop/SGLang相关/sglang_dcu_github_origin/dcu-sglang/profiles/glm53-prefill-opt-20261104/F-beta",
+  "raw_remote": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta",
+  "cleanup_note": "Exact PID/start-time cleanup and separate memory observation records are preserved remotely; acceptance of resource release is a distinct step, not inferred from trace archive.",
+  "accuracy_observation": {
+    "control_correct_100": 97,
+    "beta_correct_100": 96,
+    "new_wrong_ids_zero_based": [
+      27,
+      33
+    ],
+    "new_correct_ids_zero_based": [
+      37
+    ],
+    "numeric_predictions_equal": 96,
+    "exact_answer_strings_equal": 31,
+    "case20": "Both wrong. Beta extraction666666666666667 is the trailing digits of14.666..., not evidence of a huge intermediate GPU tensor.",
+    "case27": "Beta final16.2 is parsed as2 under unchanged last-integer parser; reference16. No scoring fix/substitution.",
+    "causal_limit": "One hundred questions under parallel4, greedy, same model/source/prompt/data/evaluator; no matched repeat yet. Changed math answers do not prove GPU arithmetic failure or a unique kernel root cause.",
+    "next": "Preserve all samples; predeclare repeated control/candidate/control with unchanged scoring and actual semantic HTTP JSON observation for quality confirmation."
+  },
+  "profile_differences_vs_final_control": {
+    "main_step_ms": -160.7226299999999,
+    "mqa_kernel_sum_ms": -159.60017499999998,
+    "note": "MQA actualnative126 calls in both main32K steps; othermain groups close. Cumulative kernel differences are not generally additive wall savings."
+  },
+  "report_notes_markdown": "Beta-only：两轮4789.29／4784.08ms，TTFT低4.62%；主32K整步3276.91→3116.19ms，MQA kernel累计372.973→213.373ms。8rank完整trace各确认726个beta native kernel事件、0个旧FP8事件（全trace计数，主32K为126次）。\n\n长评测96/100、非示例76/80，对照97/100、77/80；新增错题27/33、改对37，96题数值预测相同、31题完整回答相同。题20的巨大抽取数字来自小数后缀，不能当GPU张量异常；题27回答16.2由原解析器抽为2。分数保持原口径，原门槛均通过；配置相关性和自身波动仍需配对重复确认，当前不把4.62%记作最终配置已验收收益。"
+}
