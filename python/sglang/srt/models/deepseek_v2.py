@@ -816,6 +816,12 @@ class DeepseekV2MoE(nn.Module):
                 prefix=add_prefix("shared_experts", prefix),
                 **(dict(tp_rank=0, tp_size=1) if _shared_expert_use_tp1 else {}),
             )
+            self.shared_experts._glm_prefill_shared_overlap = (
+                _is_hcu
+                and not is_nextn
+                and "GlmMoeDsaForCausalLM"
+                in (getattr(config, "architectures", None) or ())
+            )
             # Flags must be set before weight load so
             # process_weights_after_loading sees them and builds the
             # [Up, Gate]-interleaved weight + scale.
@@ -1336,6 +1342,16 @@ class DeepseekV2MoE(nn.Module):
         input_ids_global: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         shared_output = None
+        shared_stream = self.alt_stream
+        prefill_stream = None
+        if envs.SGLANG_GLM_PREFILL_SHARED_OVERLAP.get():
+            from sglang.srt.models.deepseek_common.glm_prefill_mlp import (
+                try_shared_stream,
+            )
+
+            prefill_stream = try_shared_stream(self, forward_batch, hidden_states)
+            if prefill_stream is not None:
+                shared_stream = prefill_stream
         sbo_enabled_flag = self._fuse_shared_experts_inside_sbo and not self.is_nextn
         sbo_overlap_dispatch_flag = (
             sbo_enabled_flag and SboFlags.enable_dispatch_shared_one_stream_overlap()
@@ -1348,12 +1364,14 @@ class DeepseekV2MoE(nn.Module):
             # router_logits: (num_tokens, n_experts)
             router_logits = self.gate(hidden_states, forward_batch=forward_batch)
             if not sbo_enabled_flag and self.num_fused_shared_experts == 0:
-                if self.alt_stream is not None:
-                    self.alt_stream.wait_stream(torch.cuda.current_stream())
-                    with torch.cuda.stream(self.alt_stream):
+                if shared_stream is not None:
+                    shared_stream.wait_stream(torch.cuda.current_stream())
+                    with torch.cuda.stream(shared_stream):
                         shared_output = self._forward_shared_experts(hidden_states)
-                        shared_output.record_stream(self.alt_stream)
-                        shared_event = self.alt_stream.record_event()
+                        if prefill_stream is not None:
+                            hidden_states.record_stream(shared_stream)
+                        shared_output.record_stream(shared_stream)
+                        shared_event = shared_stream.record_event()
                     if is_in_breakable_cuda_graph():
                         # The MoE call below is an eager break, so record
                         # and wait must share one capture; joining here means
@@ -1543,10 +1561,12 @@ class DeepseekV2MoE(nn.Module):
             hidden_states.shape[0] > 0
             and not sbo_enabled_flag
             and self.num_fused_shared_experts == 0
-            and self.alt_stream is not None
+            and shared_stream is not None
             and not is_in_breakable_cuda_graph()
         ):
             torch.cuda.current_stream().wait_event(shared_event)
+            if prefill_stream is not None:
+                shared_output.record_stream(torch.cuda.current_stream())
 
         if shared_output is not None:
             x = shared_output
@@ -1844,6 +1864,11 @@ class DeepseekV2AttentionMLA(
         self.kv_lora_rank = kv_lora_rank
         self.quant_config = quant_config
         self.is_nextn = is_nextn
+        self._hcu_glm_prefill = (
+            _is_hcu
+            and not is_nextn
+            and "GlmMoeDsaForCausalLM" in (getattr(config, "architectures", None) or ())
+        )
         attn_tp_rank = get_parallel().attn_tp_rank
         attn_tp_size = get_parallel().attn_tp_size
         self.use_dsa = is_deepseek_dsa(config)
