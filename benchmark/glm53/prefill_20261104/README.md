@@ -93,10 +93,14 @@ profile 单独采集，并对齐同一主模型 32K chunk；同时报告整请�
 
 R01阶段结果见 [R01.md](R01.md)：关闭A已完成，两轮5019.05／5020.10ms、长评测95/100（非示例75/80）；候选现为4807.33ms、96/100（非示例76/80），相对前后关闭四轮均值低4.22%；关闭B为5018.35ms、96/100（非示例76/80），R01已完成。新增框架增量和最终推荐等待R02参考，筛选6.88%未复现。
 
-固定配置、选定开关、包位置、逐项结论及交付门槛汇总在 [DELIVERY.md](DELIVERY.md)，当前R02增量参考和最终推荐及PR／CI仍待完成。
+固定配置、选定开关、包位置、逐项结论及交付门槛汇总在 [DELIVERY.md](DELIVERY.md)，当前剩余框架候选的独立确认、最终推荐及PR／CI仍待完成。
 
 原始B0／P01／P02引用保留核验见 `BASELINE_PRESERVATION.json`：baseline.json及四份命令快照与最初提交字节一致，成绩账本三行的原始字段未改。该核验不代表R01或CI已完成。
 
-针对候选复测收益低于筛选、框架增量尚未确认，已预先记录单组beta-only补测协议 [BETA_REFERENCE.md](BETA_REFERENCE.md)；R01已结束并完成8卡释放核验，R02现按独立资源体检启动。
+针对候选复测收益低于筛选、框架增量尚未确认，已预先记录单组beta-only补测协议 [BETA_REFERENCE.md](BETA_REFERENCE.md)；R02现已完整结束：4796.03ms、长100题96分（非示例76/80），相对R01关闭均值低4.44%；证据见[R02.md](R02.md)。
 
-原目标逐项交付核验见 [ACCEPTANCE.md](ACCEPTANCE.md)；目前R02及最终推荐／PR／CI未完成，源码15文件当前与已部署字节一致的独立检查见 `PRE_PR_SOURCE_CHECK.json`。
+原目标逐项交付核验见 [ACCEPTANCE.md](ACCEPTANCE.md)；目前剩余两组框架候选确认及最终推荐／PR／CI未完成，源码15文件当前与已部署字节一致的独立检查见 `PRE_PR_SOURCE_CHECK.json`。
+
+R02未显示CP/Q组合额外增量；原矩阵的KV融合＋shared、shared-only及后置beta-only按[FRAMEWORK_CONFIRMATION.md](FRAMEWORK_CONFIRMATION.md)顺序独立确认。当前尚未形成这些组合的重复结论。
+
+用户最新要求为先提交已有base收益及正确性证据的PR，兼容点组合后补；当前在途R03保留，旧增量队列取消。交付顺序见[WORKFLOW_UPDATE.md](WORKFLOW_UPDATE.md)。新增开关默认关闭、收益及精度限制继续分别记录。
