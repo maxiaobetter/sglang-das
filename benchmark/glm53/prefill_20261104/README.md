@@ -4,6 +4,8 @@
 原始结果保存在 `/public/home/maxiao1/scripts/glm5.3/fp8/runs/ifb_ab_20261104_1548/`。
 历史 B0/P01/P02 保留原结果；本轮独立测量的结果逐项记录，下方区分已测结论、未完成项及拟验证组合。
 
+全部优化代码和测试记录统一在[feat/glm53-prefill-opt](https://github.com/maxiaobetter/sglang-das/tree/feat/glm53-prefill-opt)分支；到旧分支的[汇总PR #52](https://github.com/maxiaobetter/sglang-das/pull/52)保持Draft，组合验证完成后再转正式审核。当前发布头的本地CI等价lint通过，GitHub检查仍排队；最新交付顺序见[WORKFLOW_UPDATE.md](WORKFLOW_UPDATE.md)。
+
 ## 固定基线
 
 p2c1+p2c9，`sglang_glm_mx`，TP8/CP8/EP8，CP v2 interleave。

@@ -1,6 +1,6 @@
 # GLM5.3 普通 prefill 优化交付记录
 
-**当前状态：筛选及R01交替复测已完成；R01整体低4.22%，未复现筛选6.88%。R02 beta-only已完成，均值4796.03ms、长100题96分；剩余KV／shared候选独立确认仍在进行，尚未提PR。** R01阶段结果见[R01.md](R01.md)，完整逐项证据见[README.md](README.md)、[COVERAGE.md](COVERAGE.md)。
+**当前状态：全部优化统一在`feat/glm53-prefill-opt`分支；[汇总PR #52](https://github.com/maxiaobetter/sglang-das/pull/52)为Draft。** 筛选及R01交替复测已完成；R01整体低4.22%，未复现筛选6.88%。R02 beta-only均值4796.03ms、长100题96分；在途R03及后续兼容组合的验证尚未完成。R01阶段结果见[R01.md](R01.md)，完整逐项证据见[README.md](README.md)、[COVERAGE.md](COVERAGE.md)。
 
 ## 固定复现条件
 
@@ -72,7 +72,7 @@ R01按关闭A→候选→关闭B，每组两轮无profiler正式性能及既有2
 
 ## 尚未完成的交付门槛
 
-原矩阵另两组KV／shared候选的独立确认及新增框架增量判断、最终推荐；最终源码15文件与PR内容再次核对；按项目当前CI配置跑最终diff lint、Python语法／脚本语法及diff检查；向`fix/dsa-hicache-index-k-layer-mapping`提PR并处理相关GitHub CI。其他模型、拓扑、Graph、PD和完整准确率套件不在本次已验证范围，不声称普遍加速。
+在途R03及后续兼容组合的验证、最终推荐，以及相关GitHub CI仍待完成；旧R04／R05未启动队列已取消。全部改动已推送到同一优化分支，汇总PR保持Draft。发布头712c959501的15个代码文件与已测部署一致，完整PR diff lint、Python语法／脚本语法及diff检查已通过，GitHub任务仍排队。后续组合结果也提交到该分支，组合验证完成后再转正式审核。其他模型、拓扑、Graph、PD和完整准确率套件不在本次已验证范围，不声称普遍加速。
 
 针对复测4.23%与筛选6.88%的差异，另准备同包同源码的单组beta-only参考，协议见[BETA_REFERENCE.md](BETA_REFERENCE.md)。R02已完整结束，成绩见[R02.md](R02.md)；CP/Q组合的额外增量未复现，另两条原候选的确认见[FRAMEWORK_CONFIRMATION.md](FRAMEWORK_CONFIRMATION.md)。
 
