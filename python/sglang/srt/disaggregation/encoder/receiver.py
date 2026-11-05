@@ -1970,7 +1970,7 @@ class GlmRDMAFollowerRequest(GlmWaitingRDMARequest):
         self._ensure_part_routes()
         self.status = WaitingMMRequestStatus.SUCCESS
 
-    def alloc_broadcast_parts(self, part_nbytes, stream) -> List[torch.Tensor]:
+    def alloc_broadcast_parts(self, part_nbytes) -> List[torch.Tensor]:
         """Allocate one landing buffer per part, in part order."""
         tensors = []
         for idx, nbytes in enumerate(part_nbytes):
@@ -1985,7 +1985,6 @@ class GlmRDMAFollowerRequest(GlmWaitingRDMARequest):
                 buffer = torch.empty(
                     nbytes, dtype=torch.uint8, device=f"cuda:{self.gpu_id}"
                 )
-                buffer.record_stream(stream)
                 slot = None
             self._part_buffers[idx] = (buffer, slot, nbytes)
             tensors.append(buffer[:nbytes])
@@ -2764,6 +2763,14 @@ class MMReceiverBase(ABC):
             backend=torch.distributed.get_backend(self.tp_group.device_group),
         )
         self.bcast_stream = torch.cuda.Stream(device=self.gpu_id)
+        # NCCL communicators init lazily; warm up now so the first request
+        # neither pays the setup nor allocates comm buffers mid-serving.
+        warmup = torch.zeros(1, dtype=torch.uint8, device=f"cuda:{self.gpu_id}")
+        with torch.cuda.stream(self.bcast_stream):
+            torch.distributed.broadcast(
+                warmup, src=self.tp_group.ranks[0], group=self.bcast_group
+            )
+        self.bcast_stream.synchronize()
         self.rdma_leader_broadcast = True
         if self.tp_group.rank_in_group == 0:
             logger.info(
@@ -2802,6 +2809,12 @@ class MMReceiverBase(ABC):
         )
         schedule_stream = torch.cuda.current_stream()
         self.bcast_stream.wait_stream(schedule_stream)
+        # Two communicators with kernels resident at once can deadlock, and
+        # the WAR barrier that would serialize them is off on HIP. Queue the
+        # broadcast behind the in-flight forward (GPU-side wait, no CPU sync).
+        forward_stream = getattr(self.scheduler, "forward_stream", None)
+        if forward_stream is not None:
+            self.bcast_stream.wait_stream(forward_stream)
         src = self.tp_group.ranks[0]
         checked = []
         with torch.cuda.stream(self.bcast_stream):
@@ -2809,9 +2822,7 @@ class MMReceiverBase(ABC):
                 tensors = (
                     waiting_req.broadcast_parts or []
                     if is_leader
-                    else waiting_req.alloc_broadcast_parts(
-                        part_nbytes, self.bcast_stream
-                    )
+                    else waiting_req.alloc_broadcast_parts(part_nbytes)
                 )
                 checked.append(tensors)
                 for tensor in tensors:
