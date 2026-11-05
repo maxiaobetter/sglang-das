@@ -1,0 +1,77 @@
+[
+  {
+    "case": "R06-candidate",
+    "parent": "F-beta-kv-shared",
+    "add_flag": "SGLANG_GLM_PREFILL_Q_PROJ_OVERLAP",
+    "label": "beta＋KV融合＋共享专家重叠＋Q投影重叠",
+    "enabled_new_flags": [
+      "SGLANG_GLM_PREFILL_SHARED_OVERLAP",
+      "SGLANG_GLM_PREFILL_KV_ROPE_STORE",
+      "SGLANG_GLM_PREFILL_Q_PROJ_OVERLAP"
+    ],
+    "mqa_beta": "1",
+    "server_script_sha256": "418f70e087e65788c6236241fd8310c9a52e67b7f5c78e0cc24a00be5840db00",
+    "run_protocol": "repeat_without_profiler",
+    "experiment_design": "speed_first_compatible_combination_search",
+    "formal_seeds": [
+      2026110401,
+      2026110402,
+      2026110401,
+      2026110402
+    ],
+    "formal_rounds": 4,
+    "accuracy": "existing GSM20 and paired20shot100Q, originalparser/>.8; accept up to2extra wrong answers vs same-run closing beta reference for performance selection; preserve all scores",
+    "profiler": "None during search; no fake profile completion",
+    "shape": "112640 input,107008 cached,1 output,BS8,32 requests,chunk32768,TP8/CP8/EP8,EAGLE5/1/6",
+    "selection": "Rank four-round mean TTFT within finite tested set. User accepts1-2extra wrong answers, accuracy is still checked. Same seeds01/02 repeated twice within one server session; not four independent restarts."
+  },
+  {
+    "case": "R07-candidate",
+    "parent": "F-beta-comm-copy-shared",
+    "add_flag": "SGLANG_GLM_PREFILL_Q_PROJ_OVERLAP",
+    "label": "beta＋CP重叠＋Q直写＋共享专家重叠＋Q投影重叠",
+    "enabled_new_flags": [
+      "SGLANG_GLM_PREFILL_SHARED_OVERLAP",
+      "SGLANG_GLM_PREFILL_CP_OVERLAP",
+      "SGLANG_GLM_PREFILL_DIRECT_Q",
+      "SGLANG_GLM_PREFILL_Q_PROJ_OVERLAP"
+    ],
+    "mqa_beta": "1",
+    "server_script_sha256": "0d554a33ba3299721d8902789b71b4eb851cdcaf98a5004d26783ac9142b0de9",
+    "run_protocol": "repeat_without_profiler",
+    "experiment_design": "speed_first_compatible_combination_search",
+    "formal_seeds": [
+      2026110401,
+      2026110402,
+      2026110401,
+      2026110402
+    ],
+    "formal_rounds": 4,
+    "accuracy": "existing GSM20 and paired20shot100Q, originalparser/>.8; accept up to2extra wrong answers vs same-run closing beta reference for performance selection; preserve all scores",
+    "profiler": "None during search; no fake profile completion",
+    "shape": "112640 input,107008 cached,1 output,BS8,32 requests,chunk32768,TP8/CP8/EP8,EAGLE5/1/6",
+    "selection": "Rank four-round mean TTFT within finite tested set. User accepts1-2extra wrong answers, accuracy is still checked. Same seeds01/02 repeated twice within one server session; not four independent restarts."
+  },
+  {
+    "case": "R08-candidate",
+    "parent": "F-beta",
+    "add_flag": null,
+    "label": "仅beta，同源码同包的本轮性能参考",
+    "enabled_new_flags": [],
+    "mqa_beta": "1",
+    "server_script_sha256": "1c987eb4c8c661da2dc6ebde31213cee6a08b0c955832a012913c66411088df7",
+    "run_protocol": "repeat_without_profiler",
+    "experiment_design": "speed_first_compatible_combination_search",
+    "formal_seeds": [
+      2026110401,
+      2026110402,
+      2026110401,
+      2026110402
+    ],
+    "formal_rounds": 4,
+    "accuracy": "existing GSM20 and paired20shot100Q, originalparser/>.8; accept up to2extra wrong answers vs same-run closing beta reference for performance selection; preserve all scores",
+    "profiler": "None during search; no fake profile completion",
+    "shape": "112640 input,107008 cached,1 output,BS8,32 requests,chunk32768,TP8/CP8/EP8,EAGLE5/1/6",
+    "selection": "Rank four-round mean TTFT within finite tested set. User accepts1-2extra wrong answers, accuracy is still checked. Same seeds01/02 repeated twice within one server session; not four independent restarts."
+  }
+]

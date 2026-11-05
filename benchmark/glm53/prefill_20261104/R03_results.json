@@ -1,0 +1,695 @@
+{
+  "case": "R03-candidate",
+  "complete": true,
+  "record": {
+    "case": "R03-candidate",
+    "parent": "F-beta-kv-shared",
+    "repeats": [
+      {
+        "repeat": 1,
+        "ttft_ms": 4691.678382870123,
+        "new_input_tok_s": 9313.942641396556,
+        "duration": 19.349915169004817
+      },
+      {
+        "repeat": 2,
+        "ttft_ms": 4695.858138345102,
+        "new_input_tok_s": 9296.900345630045,
+        "duration": 19.385385806002887
+      }
+    ],
+    "mean_ttft_ms": 4693.768260607612,
+    "mean_new_input_tok_s": 9305.4214935133,
+    "gsm20": {
+      "accuracy": 0.95,
+      "invalid": 0.0,
+      "latency": 73.42472711001756,
+      "output_throughput": 29.091017210039848
+    },
+    "long100": {
+      "accuracy": 0.93,
+      "invalid": 0.0,
+      "latency": 319.90623123402474,
+      "output_throughput": 32.04689061683276,
+      "num_shots": 20,
+      "num_questions": 100,
+      "original_threshold": "accuracy > 0.8 unchanged",
+      "non_demonstration_questions": 80,
+      "non_demonstration_correct": 73,
+      "non_demonstration_accuracy": 0.9125,
+      "demonstration_correct": 20,
+      "prompt_tokens": [
+        3710,
+        3673,
+        3696,
+        3681,
+        3755,
+        3701,
+        3688,
+        3712,
+        3748,
+        3704,
+        3705,
+        3708,
+        3713,
+        3704,
+        3696,
+        3737,
+        3697,
+        3699,
+        3675,
+        3711,
+        3707,
+        3690,
+        3702,
+        3685,
+        3683,
+        3710,
+        3710,
+        3702,
+        3694,
+        3713,
+        3682,
+        3707,
+        3687,
+        3674,
+        3687,
+        3695,
+        3686,
+        3707,
+        3690,
+        3719,
+        3691,
+        3771,
+        3727,
+        3700,
+        3719,
+        3739,
+        3736,
+        3693,
+        3683,
+        3689,
+        3682,
+        3695,
+        3707,
+        3744,
+        3728,
+        3696,
+        3691,
+        3720,
+        3726,
+        3677,
+        3683,
+        3703,
+        3709,
+        3713,
+        3736,
+        3694,
+        3705,
+        3698,
+        3683,
+        3696,
+        3696,
+        3690,
+        3694,
+        3689,
+        3768,
+        3712,
+        3729,
+        3690,
+        3687,
+        3692,
+        3681,
+        3702,
+        3675,
+        3678,
+        3670,
+        3728,
+        3735,
+        3723,
+        3681,
+        3694,
+        3731,
+        3683,
+        3697,
+        3721,
+        3697,
+        3687,
+        3679,
+        3699,
+        3738,
+        3727
+      ],
+      "context_note": "Prompt token counts are actual response metadata. Shared20-shot prefix is fixed for both configurations; first20 examples overlap demonstrations and are reported separately.",
+      "dataset_sha256": "3730d312f6e3440559ace48831e51066acaca737f6eabec99bccb9e4b3c39d14",
+      "eval_source_sha256": "f4fa2a35b24f1fb5c7978df3d16b4806eb5a77fe0ee6ae058bff9cdac162ba32",
+      "eval_source_path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/baseline_source/sglang/test/few_shot_gsm8k.py",
+      "client_proxy_note": "localhost/cluster direct; external HTTP proxy172.20.0.172:3128 only",
+      "actual_http_json_capture": "actual_requests.jsonl",
+      "actual_request_count": 101,
+      "actual_generation_question_ids": [
+        0,
+        2,
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99
+      ],
+      "request_capture_note": "Semantic JSON observed at original http_request boundary; authentication not recorded, sampling/body and return values forwarded unchanged. Diagnostic CPU logging may perturb timing; this is not formal performance.",
+      "runtime_endpoint_source_sha256": "0756492a98f1fda8f1b9277c7f2a3c1be45919157b85c65029d8b05f16845f93"
+    },
+    "source_files_sha256": {
+      "sglang/srt/distributed/bootstrap.py": "225362938ccb577e5bb717c58c485d1af8854e5ad17e42e0c3665d1cee9475d7",
+      "sglang/srt/environ.py": "2e79a37f63ff4271f29811c83e1979dcfa37fc78e25546c90dcca3328bfc642d",
+      "sglang/srt/layers/attention/dsa/glm_prefill_kv.py": "2ba3f293e193cb398e54d96bfd7bd50f0f877f3e9665cc5b754578af9c29ff61",
+      "sglang/srt/layers/attention/dsa_backend.py": "0943f5970d06971a584ef21442611af66efce7e185e45c95d24d5130e81a8174",
+      "sglang/srt/layers/communicator.py": "a2f0cb8bafe9782ee0fea4340e2b3cc572f0688189f4fd773f665336c2048b6e",
+      "sglang/srt/layers/layernorm.py": "cd8b8e3038ebe311623573f58a6ee355db848fe597c0db4ba0f378dcc5d89ebb",
+      "sglang/srt/layers/moe/mega_moe.py": "553097662386b808b4dfba224a2897dcbe9437b55d52723f5df625080bbafd6d",
+      "sglang/srt/layers/quantization/compressed_tensors/schemes/compressed_tensors_w8a8_fp8.py": "afd3e9928346e6fbdcc9c7f4f1755ec7d3f13eed532dfa6566e0ea94affc9253",
+      "sglang/srt/layers/quantization/fp8_utils.py": "8520a9ca47ae3e16733f892607b86e50fc73239ce5c0b53641c6a2cf80bc3dde",
+      "sglang/srt/layers/quantization/prefill_input.py": "fe0babcc4f7cce14eb811127ef998c83f0da8e207f1e8d1bfbb4b1bdffc6eab8",
+      "sglang/srt/models/deepseek_common/attention_forward_methods/forward_mla_rocm.py": "9739a102167dd8a4d58fc2b2b8a0df63b7b20940d72df3b05a0409dc7d2aae9f",
+      "sglang/srt/models/deepseek_common/glm_prefill.py": "0a08b9bdddcf7f214d292303e4ca9e22ab2e0d6cac34f43fd57719af4b3e7a5e",
+      "sglang/srt/models/deepseek_common/glm_prefill_kv_fusion.py": "4430e7df7ea995826d925b48c5caf236a7b84f4371fc59bfa1444e1095342aa0",
+      "sglang/srt/models/deepseek_common/glm_prefill_mlp.py": "36c729f2587c20238efecbac058bc75f2adc34171da138fcc704771cd5347666",
+      "sglang/srt/models/deepseek_v2.py": "e2977761687722d8822baa7c8cfc5713fb69ab3f536a747d1e503a7553a28e67"
+    },
+    "required_native_sha256": [
+      "f4d69b478289cf93a2be4c0f8f92c7374877609276bd6ba40476ab5a10abee6c",
+      "b0ea2f7f108da6ba22e951c3e795a1ba8a8f95bd70a6843758cb434e1296d66e",
+      "79325b382a56de60f69cfaf8f75fe2b725d2092c002d1cf67bd1248f1537af7a"
+    ],
+    "enabled_new_flags": [
+      "SGLANG_GLM_PREFILL_SHARED_OVERLAP",
+      "SGLANG_GLM_PREFILL_KV_ROPE_STORE"
+    ],
+    "mqa_beta": "1",
+    "actual_generation_requests": 100,
+    "actual_generation_semantic_sha256": {
+      "0": "4a563ac74c1287fa66c81449d75b83a8482bfeb7f2f35e3d22caf96db956f3a4",
+      "2": "3a02952818c1aace66a1296560e905587476143b7b8130b0e8a8b7079f6fa7e4",
+      "1": "b1faddd12bf4d680d9ea58fa14379dfb52edcfb4ef3dad04efe57f0ef2b374db",
+      "3": "104c0a0edb3586d724ead508d0184399ced8d61c11c2d0512b9472bda4c3f1d6",
+      "4": "1edc6bd27af4cb2c97a2e5dc2ba91c253cb5018878bfb233b2d8e9a986b4512e",
+      "5": "017a189ba7295acbca899e6cd3f9a4794ce47be3f15f11e859ca466dd1d05253",
+      "6": "bc2cfd6fd14b92129f9cd7e8f82ebd9103d523cd5486955a766818af67fb43b2",
+      "7": "e6cd580f420e4661f5d972550f0585db7fd0825b439221779a398dc196171c49",
+      "8": "71e640bd614fe9ac3f366d27a19415396af0eae3e7c9c2b03a3c2b6e613cebcb",
+      "9": "29255cfc3c98d1272a7fe5e404d799a7168b47cb2b6204cb3822888a770cf2c6",
+      "10": "96b19a87efceeec21bfabd43f0677bdea912054807a2166664dc3478d955a154",
+      "11": "061e7f98b2d9bb8a6274a890aa8343ec707906585724c16050455b9197590c37",
+      "12": "95997c28c72269b0a077e971d6de58e741235983ae134b56f0f1396ff278c863",
+      "13": "07561cf15632e1774f6452c90a8dc7ebca87dadb397a1361653c7dc9f32ea0f5",
+      "14": "a4876319f8e3e685dcf8fa54c82b119ed1fd6287bf1efe0aa918980f3f0e29a0",
+      "15": "88d749000175202936e655da130789a0d1d4f773fc9aec858c87da14dca03ef3",
+      "16": "07b30225c9c5b996d539372abf6381d305365ce115721e334b154768937fa92e",
+      "17": "12f13a1919934ecd99233e9b7e4d2122404c360e8bd2c2120a1bd075bb44ca99",
+      "18": "a395394aae128a9e8efb97edefabf37f7610c507826367ad0a08e7b69eb1d985",
+      "19": "d6e578f3924d5ef662f37c02cd5528ed85bea72d9c19776d2233871f0e616997",
+      "20": "6423599e9f139204d5cece3f4edeb870af21233acfa66d6cac1321a3ea8dd10d",
+      "21": "781d7b17c61e4087c51f3c248b4572e479da3bd8fc836ae7e4f0ca8b9a4f3319",
+      "22": "53b1a820854a5793bf7b8e272f521d5d6c47d631e85dbcf486482d7f8da6bb9d",
+      "23": "33828330b78853ff06cb9232ab18040ca1641208178ab7ead44d435a649ea1ba",
+      "24": "3599277e94d3939f1e2db5a0d62beb3e8b2e6baee34a5ee82afb94a09b0a3e60",
+      "25": "4712abea7d4239dd304261dd9f37ae97ab653d44ad1b35c138a5d6aea2f2d3c5",
+      "26": "510c38ab0770bc3c05d6b58d13d4d7f6a479d05f5791ed3e83be4fff48115f97",
+      "27": "983517ea9d463773d3ab247d14b591220a55197379b5b405f3c638adc88049a3",
+      "28": "47cd549098e7fd423c08b79bda659b74bcc5565ddfeb03227ad2e767621feaf9",
+      "29": "05f38b57841701b3da86e298124ea350ce76aa9e89890e614f8e7123b044027c",
+      "30": "e883590ee34cc5808b7d46778293000720954e910af27ee44fd64da4f4050bb7",
+      "31": "ffe542a70dc72d3c78f2d23cab23b3b53c4048dd1080080e942403275d24f989",
+      "32": "75eb04456616e5ef5c4309f764d911da86c9031e628c80fc0b8194cd1b2efaaa",
+      "33": "e3f64ab65689ed699a5c8051babf63bcbfcca874380dd561c3aef41493b5e5eb",
+      "34": "8c80fb6f4f02bdd3de22ff7bc7681e3d1bd84b5e19dcd26f7c808789da93040b",
+      "35": "2e5c12f5951c60f78b7ae3d270eb1a69c98b5228f6d683e55e70c9b613c14c2c",
+      "36": "034c67cf63240bf342fc0dc0bdf3d7744ee6a179270107d4856810dfa0896c94",
+      "37": "ec86efd7a1dfc22a199eb5486f8e78114e15c9bf3de4126ec88a80bb0364994c",
+      "38": "2d45ab27a80e83a0ee073da9fc6fb21a9bea88841bcbdb2d29edb45dc448088f",
+      "39": "3952a6f886762b9ef5f482e50add43584c9f0e8f99a9dae2ba670c6f7a1cae13",
+      "40": "d60cff83eecbb446e47acd3579c72b209804c8d295c5f897ebc3bc44516bb6ac",
+      "41": "77e6f1c41293dc9759ec540e9449c5c58b40e56b5d1a8cea03c1ac179b708fbe",
+      "42": "dbc6566756676612d7b2b5f6a3a1a28e605845a6b62120aff3917e88a59d1a00",
+      "43": "754f0b9a7796cb8238839fbbaee1bc86380863a2cf53f7a91c6df68cc733f910",
+      "44": "b893a90bfe08a8b9960831d09d0e92367b0772b395020f2f4e2d26a76ba6c2ac",
+      "45": "a412de5b7d365a0d30a0bdf0df7ddfbf560abcc4e1696865dae24408cb091fc7",
+      "46": "ca54c5e2208fa134876bec108b45a48d35e35d9297fe66ebd2835c87c0471cbc",
+      "47": "a49fd6157cd81ef367cc1fad76a8701ae6fe021f300e56b8b2e0d0bef366f651",
+      "48": "2c0c546ad7c36da8b349a4dfc8c7683425b7889c839f11e1930b5e8408541e72",
+      "49": "fb8fcaff5939de53bb781126c1a3115dc6427d4bd14297b21a4812a5a06c5ddc",
+      "50": "84779fe332664ee698110a47c3f8fdec8e26bd714d687f233414ce7d9c75e6a1",
+      "51": "8e82394e9de3d6dfbacab6d776dee113028a77163ddf13f381b6bd865032a7e0",
+      "52": "8a987b48f3b36d71506ca546ceb5fa630a217273b8685976c74b7f5a4348f14e",
+      "53": "3c956c027379abcaae45d92d4fe07e73baf4f2f08da55a7055c0144986d080c2",
+      "54": "d22df685999333fe5f55047cfd41e51c40ae3fba9a9b1662154616fa39f5ec4d",
+      "55": "49f5f580911fc6ab76a32820714bca2a9ef1b0197bc3bc60f6923f4075acd057",
+      "56": "aaa70fc7d1939f446f03f3b5a03793945696016c5cc9b3c66e89848731aa9db5",
+      "57": "76b32e5d62c2dfaf877674133d6c41feb6d264bac1daf5a056080e6bf15631ae",
+      "58": "43877df594b446211bb4fa5e886b9a6059f7d45d0891eaff2dc9fc36f2f5ccad",
+      "59": "8585450a4dbe972532653b7fabf15afe1192769e54caf717b28d49ac05382a85",
+      "60": "fd7a69f263c32c4d4a5304872177cefeecea722a658b797cf82337cfc6895194",
+      "61": "c676824b0a99f4bebcc38e46a282dff31b102b6e608df27b6627596a83d28488",
+      "62": "03ec8264b9e36a183dfdf3f5e54d989c5dfedfc735d139f6a544e91c0c6ac6f5",
+      "63": "c45e9a04b6a6f4385d45636ca45a67aa41ab46add94692ce1353fb8a20a5b0df",
+      "64": "689292fefe245a6ea0336438d220a9ac04b390e1039638724fe8fccfa2491a28",
+      "65": "ffd5597f4c95561163757112cb672a09807bcd193ba34d7468b6a73e3d1505ff",
+      "66": "3944efce7c96c7a0a9810b3982485506329057df0afea69d1168b6f35415ba4b",
+      "67": "82d463525d29ad2c7a4accd8628743828f95232ca4a20e54eaaf64e2cc61f21e",
+      "68": "57f188115dd3f7db54ce2b578f926c9183dca2a14e448e172d0dd502a5cdf1b1",
+      "69": "b5630a213588877c56e610fe83ecd37b76524a3839e1a9252a817f4a4ad1211e",
+      "70": "9a672f6985f6c31ce35656089234fac13d958ce37d1627a14c4343603dbbdb70",
+      "71": "1767b7ad2d22740509c2f43bb6dfc3b4335e210f277367f656855c8468e99006",
+      "72": "719f35e0f00760d497d0802e51a8673474f941510028340bd5cb72bad30e48d6",
+      "73": "ebb18cc76df97a56643661a379c19948836dde32ef4b388431183803d640e194",
+      "74": "5e9aa4f1a35fd0a2fd3c0bdb2028aae0e2dc71d310ec8954d5be47ba0e6b04bc",
+      "75": "e39da49806397dc6e57a3649a7a79b0674581446eb523bd43d85d7363a2a4d88",
+      "76": "498f6a02ba1c85cb11b0db9d76da89c77385bd1090abe0dae2eab19909b95b37",
+      "77": "4e39c01f78f80c17057344cb0a8cd3699385896f608562c489b681166844be83",
+      "78": "b866506ca83e82c8deff8eaf4e98ba399b89d3d0e81fa832eaf5832083b58391",
+      "79": "3c828967bcd1dc89805ed72a6ea0caba4ebc74f5cd3c16d2d7c5d0e2b9fe06f3",
+      "80": "6ab67180505b9ab47ca5ff1c5f2963febc5befd844a06ef6f424b4d19cc1b71c",
+      "81": "84cadc70c2bff623f92c57889f3cdd64a0f788d39dde02fbf1a5d127ae543d25",
+      "82": "0bc8ab83c997848a2999ad0c8e4daa6159b49b0a3b529fefa8ee41c8eb0737e7",
+      "83": "36dd1c26eb820e6f067f9c6ade500d2ea37b7f5a6bd336d95f0d41a68ec84c93",
+      "84": "7fe078d08cb406b9f23e57aff087ae3f4c38d87b05a28b77528e05c28da559a0",
+      "85": "dd7b1ff5e7ab4af148b04df594b359794102774115bdeb0c36f774691468ebec",
+      "86": "7e9a05eaeda2734e1e28e4e6a222444b07e8a3810fc2e77a62de5339ca94897c",
+      "87": "8b21ce68f565a802a4339789510aac8db9b944419aec0e255a1ffe2925d31a57",
+      "88": "0086906f22cff9a607f20ef3e94243f841de62d9e7e5cf2ef1a35d1624ca37d3",
+      "89": "7847c3ebd11ea2113e6afc52445f995fa24cec6b63e5e28510835a43f1b1c9c1",
+      "90": "30460820ed44d6f750b1d72e0ebe6366432f2bc64a7e70e3c380a664fd2dfa17",
+      "91": "7abb710fc68eb2f671e1279cdfd33de22a1e15515dd807d38aabe43c1153b49d",
+      "92": "d35c25b1751f20b997a597fa09bd26b323f0840f86fc075ccdd4fb977e101b6f",
+      "93": "77319267426745462836466e520c18918a14e82381c0440b4d2526cdef498327",
+      "94": "10d6c52b8dcc1f43e13a4b21e7a267ff11f1a237b797823e6fb811d77b989be8",
+      "95": "a178a5570a1516dc0007f696c7dd36f058b1ce7e333792d178840b5a29adf6b6",
+      "96": "5fbc409dbdffe16414d76a4c2816e19e137a205ad734d8071eefaeaac3eab298",
+      "97": "b0acec7cad127e6b95bf287388e23a65aee279f2cd7bcb9c08ae872804941006",
+      "98": "94ed70a9e611e6d4ee2025051618713ddc7d2b23b9449b9ebdd8a257278aa3e3",
+      "99": "88b5e4422b08f90e49e00addd33e92b91bea86a554926e8604829669e9527a6b"
+    },
+    "profile_reference": {
+      "experiment": "F-beta-kv-shared",
+      "source_commit": "7684f58399ad70de47de7678897f7ea5aab6107e",
+      "reference_rank0": {
+        "path": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/F-beta-kv-shared/traces/1793806746.5997472/1793806746.609558-TP-0-EP-0.trace.json.gz",
+        "bytes": 89686812,
+        "sha256": "e6c1f1daa8341de9d756ba89536e45e486763c41dfdd33bf2cd5a3740fdaa12d"
+      },
+      "scope": "No profiler run in current repeat. Reference is earlier measured identical source/package/flags, not a new trace."
+    },
+    "no_new_profiler": true,
+    "resource_release_historical": {
+      "p2c1_stop_processes.json": {
+        "209056": {
+          "parent": 208817,
+          "start": "21598605",
+          "state": "S",
+          "cmd": "/usr/bin/python3 -c from multiprocessing.resource_tracker import main;main(16) "
+        },
+        "209057": {
+          "parent": 208817,
+          "start": "21598605",
+          "state": "R",
+          "cmd": "sglang::scheduler_ATTN_CP0_TP0_EP0                                                                                                 "
+        },
+        "209058": {
+          "parent": 208817,
+          "start": "21598605",
+          "state": "R",
+          "cmd": "sglang::scheduler_ATTN_CP1_TP1_EP1                                                                                                 "
+        },
+        "209059": {
+          "parent": 208817,
+          "start": "21598605",
+          "state": "S",
+          "cmd": "sglang::scheduler_ATTN_CP2_TP2_EP2                                                                                                 "
+        },
+        "208804": {
+          "parent": 0,
+          "start": "21595932",
+          "state": "S",
+          "cmd": "bash /public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/serve_R03-candidate.sh 0 "
+        },
+        "209060": {
+          "parent": 208817,
+          "start": "21598605",
+          "state": "S",
+          "cmd": "sglang::scheduler_ATTN_CP3_TP3_EP3                                                                                                 "
+        },
+        "209061": {
+          "parent": 208817,
+          "start": "21598605",
+          "state": "S",
+          "cmd": "sglang::detokenizer                                                                                                                "
+        },
+        "208817": {
+          "parent": 208804,
+          "start": "21595940",
+          "state": "S",
+          "cmd": "python3 -m sglang.launch_server --model-path /public/share/gxntljsb/models/GLM-5.3-Channel-FP8-w8a8 --trust-remote-code --weight-loader-disable-mmap --model-loader-extra-config {\"enable_multithread_load\":true,\"num_threads\":2} --enable-cache-report --reasoning-parser glm45 --tool-call-parser glm47 --served-model-name GLM-5.3-Channel-FP8-w8a8 --host 0.0.0.0 --port 31023 --dist-init-addr 11.16.100.199:31500 --nnodes 2 --node-rank 0 --tp-size 8 --ep-size 8 --attn-cp-size 8 --moe-dense-tp-size 1 --moe-a2a-backend deepep --deepep-mode normal --deepep-config /public/home/maxiao1/scripts/ep_config.json --enable-prefill-cp --cp-strategy interleave --dsa-prefill-backend flashmla_sparse --dsa-decode-backend flashmla_kv --context-length 1048576 --dtype bfloat16 --dist-timeout 10000 --watchdog-timeout 3600 --page-size 64 --kv-cache-dtype fp8_e4m3 --mem-fraction-static 0.9 --chunked-prefill-size 32768 --max-prefill-tokens 32768 --max-running-requests 128 --speculative-algorithm EAGLE --speculative-num-steps 5 --speculative-eagle-topk 1 --speculative-num-draft-tokens 6 --disable-cuda-graph "
+        }
+      },
+      "p2c9_stop_result.json": {
+        "host": "p2c9",
+        "remaining": [],
+        "memory_rc": 0,
+        "memory": "{\"card0\": {\"vram Total Memory (MiB)\": \"147440\", \"vram Total Used Memory (MiB)\": \"115762\"}, \"card1\": {\"vram Total Memory (MiB)\": \"147440\", \"vram Total Used Memory (MiB)\": \"117422\"}, \"card2\": {\"vram Total Memory (MiB)\": \"147440\", \"vram Total Used Memory (MiB)\": \"118700\"}, \"card3\": {\"vram Total Memory (MiB)\": \"147440\", \"vram Total Used Memory (MiB)\": \"114952\"}}\n",
+        "memory_err": "",
+        "memory_release_verified_separately": false
+      },
+      "p2c9_release_verified.json": {
+        "host": "p2c9",
+        "time": 1793841933.6035523,
+        "used_MiB": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "memory": {
+          "card0": {
+            "vram Total Memory (MiB)": "147440",
+            "vram Total Used Memory (MiB)": "2"
+          },
+          "card1": {
+            "vram Total Memory (MiB)": "147440",
+            "vram Total Used Memory (MiB)": "2"
+          },
+          "card2": {
+            "vram Total Memory (MiB)": "147440",
+            "vram Total Used Memory (MiB)": "2"
+          },
+          "card3": {
+            "vram Total Memory (MiB)": "147440",
+            "vram Total Used Memory (MiB)": "2"
+          }
+        },
+        "passed": true
+      },
+      "p2c9_stop_processes.json": {
+        "158829": {
+          "parent": 158619,
+          "start": "21597820",
+          "state": "S",
+          "cmd": "/usr/bin/python3 -c from multiprocessing.resource_tracker import main;main(16) "
+        },
+        "158606": {
+          "parent": 0,
+          "start": "21595030",
+          "state": "S",
+          "cmd": "bash /public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/serve_R03-candidate.sh 1 "
+        },
+        "158830": {
+          "parent": 158619,
+          "start": "21597820",
+          "state": "S",
+          "cmd": "sglang::scheduler_ATTN_CP4_TP4_EP4                                                                                                 "
+        },
+        "158831": {
+          "parent": 158619,
+          "start": "21597820",
+          "state": "S",
+          "cmd": "sglang::scheduler_ATTN_CP5_TP5_EP5                                                                                                 "
+        },
+        "158832": {
+          "parent": 158619,
+          "start": "21597820",
+          "state": "S",
+          "cmd": "sglang::scheduler_ATTN_CP6_TP6_EP6                                                                                                 "
+        },
+        "158833": {
+          "parent": 158619,
+          "start": "21597820",
+          "state": "S",
+          "cmd": "sglang::scheduler_ATTN_CP7_TP7_EP7                                                                                                 "
+        },
+        "158619": {
+          "parent": 158606,
+          "start": "21595036",
+          "state": "S",
+          "cmd": "python3 -m sglang.launch_server --model-path /public/share/gxntljsb/models/GLM-5.3-Channel-FP8-w8a8 --trust-remote-code --weight-loader-disable-mmap --model-loader-extra-config {\"enable_multithread_load\":true,\"num_threads\":2} --enable-cache-report --reasoning-parser glm45 --tool-call-parser glm47 --served-model-name GLM-5.3-Channel-FP8-w8a8 --host 0.0.0.0 --port 31023 --dist-init-addr 11.16.100.199:31500 --nnodes 2 --node-rank 1 --tp-size 8 --ep-size 8 --attn-cp-size 8 --moe-dense-tp-size 1 --moe-a2a-backend deepep --deepep-mode normal --deepep-config /public/home/maxiao1/scripts/ep_config.json --enable-prefill-cp --cp-strategy interleave --dsa-prefill-backend flashmla_sparse --dsa-decode-backend flashmla_kv --context-length 1048576 --dtype bfloat16 --dist-timeout 10000 --watchdog-timeout 3600 --page-size 64 --kv-cache-dtype fp8_e4m3 --mem-fraction-static 0.9 --chunked-prefill-size 32768 --max-prefill-tokens 32768 --max-running-requests 128 --speculative-algorithm EAGLE --speculative-num-steps 5 --speculative-eagle-topk 1 --speculative-num-draft-tokens 6 --disable-cuda-graph "
+        }
+      },
+      "p2c1_stop_result.json": {
+        "host": "p2c1",
+        "remaining": [],
+        "memory_rc": 0,
+        "memory": "{\"card0\": {\"vram Total Memory (MiB)\": \"147440\", \"vram Total Used Memory (MiB)\": \"2\"}, \"card1\": {\"vram Total Memory (MiB)\": \"147440\", \"vram Total Used Memory (MiB)\": \"2\"}, \"card2\": {\"vram Total Memory (MiB)\": \"147440\", \"vram Total Used Memory (MiB)\": \"2\"}, \"card3\": {\"vram Total Memory (MiB)\": \"147440\", \"vram Total Used Memory (MiB)\": \"2\"}}\n",
+        "memory_err": "",
+        "memory_release_verified_separately": false
+      },
+      "p2c9_release_observation_1793841933603590519.json": {
+        "host": "p2c9",
+        "time": 1793841933.6035523,
+        "used_MiB": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "memory": {
+          "card0": {
+            "vram Total Memory (MiB)": "147440",
+            "vram Total Used Memory (MiB)": "2"
+          },
+          "card1": {
+            "vram Total Memory (MiB)": "147440",
+            "vram Total Used Memory (MiB)": "2"
+          },
+          "card2": {
+            "vram Total Memory (MiB)": "147440",
+            "vram Total Used Memory (MiB)": "2"
+          },
+          "card3": {
+            "vram Total Memory (MiB)": "147440",
+            "vram Total Used Memory (MiB)": "2"
+          }
+        },
+        "passed": true
+      },
+      "p2c1_release_observation_1793841933679707053.json": {
+        "host": "p2c1",
+        "time": 1793841933.6796756,
+        "used_MiB": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "memory": {
+          "card0": {
+            "vram Total Memory (MiB)": "147440",
+            "vram Total Used Memory (MiB)": "2"
+          },
+          "card1": {
+            "vram Total Memory (MiB)": "147440",
+            "vram Total Used Memory (MiB)": "2"
+          },
+          "card2": {
+            "vram Total Memory (MiB)": "147440",
+            "vram Total Used Memory (MiB)": "2"
+          },
+          "card3": {
+            "vram Total Memory (MiB)": "147440",
+            "vram Total Used Memory (MiB)": "2"
+          }
+        },
+        "passed": true
+      },
+      "p2c1_release_verified.json": {
+        "host": "p2c1",
+        "time": 1793841933.6796756,
+        "used_MiB": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "memory": {
+          "card0": {
+            "vram Total Memory (MiB)": "147440",
+            "vram Total Used Memory (MiB)": "2"
+          },
+          "card1": {
+            "vram Total Memory (MiB)": "147440",
+            "vram Total Used Memory (MiB)": "2"
+          },
+          "card2": {
+            "vram Total Memory (MiB)": "147440",
+            "vram Total Used Memory (MiB)": "2"
+          },
+          "card3": {
+            "vram Total Memory (MiB)": "147440",
+            "vram Total Used Memory (MiB)": "2"
+          }
+        },
+        "passed": true
+      }
+    },
+    "raw_local": "/Users/better/Desktop/SGLang相关/sglang_dcu_github_origin/dcu-sglang/profiles/glm53-prefill-opt-20261104/R03-candidate",
+    "raw_remote": "/public/home/maxiao1/scripts/glm5.3/fp8/runs/prefill_opt_20261104_171515/R03-candidate",
+    "archive_sha256": "f9c6546af9873b3d97e33545a69da0e2f6e4f87be8edd2e28ce3b07fee345181"
+  },
+  "performance": {
+    "mean_ttft_ms": 4693.768260607612,
+    "percent_vs_R01_off_mean": -6.4793360454464715,
+    "percent_vs_R02_beta_only": -2.1322996721362952,
+    "scope": "Sequential same-source/package references; R02 ended around01:03 and R03 started09:06. These are not closely bracketing controls, not a population significance test."
+  },
+  "paired_accuracy": {
+    "control-a": {
+      "all100_actual_semantic_request_sha_equal": true,
+      "equal_numeric_predictions": 92,
+      "exact_full_answers_equal": 32,
+      "new_wrong_ids_zero_based": [
+        38,
+        58,
+        76,
+        87
+      ],
+      "new_correct_ids_zero_based": [
+        27,
+        33
+      ]
+    },
+    "candidate": {
+      "all100_actual_semantic_request_sha_equal": true,
+      "equal_numeric_predictions": 96,
+      "exact_full_answers_equal": 36,
+      "new_wrong_ids_zero_based": [
+        38,
+        58,
+        76
+      ],
+      "new_correct_ids_zero_based": []
+    },
+    "control-b": {
+      "all100_actual_semantic_request_sha_equal": true,
+      "equal_numeric_predictions": 93,
+      "exact_full_answers_equal": 35,
+      "new_wrong_ids_zero_based": [
+        20,
+        37,
+        38,
+        58,
+        76
+      ],
+      "new_correct_ids_zero_based": [
+        62,
+        92
+      ]
+    },
+    "beta_only_R02": {
+      "all100_actual_semantic_request_sha_equal": true,
+      "equal_numeric_predictions": 94,
+      "exact_full_answers_equal": 32,
+      "new_wrong_ids_zero_based": [
+        38,
+        58,
+        76,
+        87
+      ],
+      "new_correct_ids_zero_based": [
+        92
+      ]
+    }
+  },
+  "R01_reference_sha256": "a4b47b5f25722036047015d04ac529714ba98659144a46d25127d94fff7e02ea",
+  "R02_reference_sha256": "4f3e2b0441bb5ef0bdc46152f8293e5d687a98b2d9b8704af6125fe22bcad330",
+  "recommendation": "Performance candidate only.93/100 and73/80 vs prior off95/96 and beta96; do not select a final optimum until paired correctness follow-up. Preserve original >0.8 and parser; this sample is not a unique numerical root-cause proof."
+}

@@ -6,6 +6,8 @@
 
 全部优化代码和测试记录统一在[feat/glm53-prefill-opt](https://github.com/maxiaobetter/sglang-das/tree/feat/glm53-prefill-opt)分支；到旧分支的[汇总PR #52](https://github.com/maxiaobetter/sglang-das/pull/52)保持Draft，组合验证完成后再转正式审核。当前发布头的本地CI等价lint通过，GitHub检查仍排队；最新交付顺序见[WORKFLOW_UPDATE.md](WORKFLOW_UPDATE.md)。
 
+当前继续[兼容组合性能搜索](SPEED_SEARCH.md)：保留精度检查，按用户允许多错1～2题的口径先选性能候选；R06／R07两条路线与R08 beta参考串行执行。R03补测已完成，4693.77ms、93/100，详细见[R03.md](R03.md)。
+
 ## 固定基线
 
 p2c1+p2c9，`sglang_glm_mx`，TP8/CP8/EP8，CP v2 interleave。
