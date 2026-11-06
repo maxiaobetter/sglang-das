@@ -210,6 +210,89 @@ def _build_processor_manually(
     return proc_cls(**init_kwargs)
 
 
+def _find_glm5next_processor_config(tokenizer_name, model_name, revision):
+    """Find the legacy nested GLM-5-Next processor configuration.
+
+    Some GLM-5 checkpoints ship ``processor_config.json`` with nested
+    ``image_processor``/``video_processor`` sections but no ``auto_map`` and
+    no Python processor files. Transformers 5.12 then resolves the declared
+    ``Glm5NextProcessor`` name to a tokenizer-only fallback. Prefer the
+    tokenizer path, then the model path, because SGLang allows them to differ.
+    """
+    candidates = []
+    for candidate in (tokenizer_name, model_name):
+        if candidate is not None and candidate not in candidates:
+            candidates.append(candidate)
+    for candidate in candidates:
+        try:
+            filename = _resolve_local_or_cached_file(
+                candidate, "processor_config.json", revision
+            )
+            with open(filename) as file:
+                processor_config = json.load(file)
+            if isinstance(processor_config.get("image_processor"), dict):
+                return candidate, processor_config
+        except (OSError, ValueError, json.JSONDecodeError):
+            continue
+    return None, None
+
+
+def _build_glm5next_processor_from_legacy_config(
+    tokenizer_name, model_name, config, trust_remote_code, revision, *args, **kwargs
+):
+    """Build GLM-5-Next's processor without checkpoint remote-code files.
+
+    This is the in-tree equivalent of the processor implementation shipped by
+    the working INT8 checkpoint. It consumes the FP8 checkpoint's existing
+    nested processor_config.json, so model files and external processor paths
+    do not need to be modified or mounted.
+    """
+    processor_path, processor_config = _find_glm5next_processor_config(
+        tokenizer_name, model_name, revision
+    )
+    if processor_config is None:
+        return None
+
+    from .glm5next import (
+        Glm5nextImageProcessorFast,
+        Glm5nextProcessor,
+        Glm5nextVideoProcessor,
+    )
+
+    load_kwargs = dict(kwargs)
+    load_kwargs.pop("model_name", None)
+    tokenizer = AutoTokenizer.from_pretrained(
+        tokenizer_name,
+        *args,
+        trust_remote_code=trust_remote_code,
+        revision=revision,
+        **load_kwargs,
+    )
+
+    image_kwargs = dict(processor_config["image_processor"])
+    image_kwargs.pop("image_processor_type", None)
+    image_processor = Glm5nextImageProcessorFast(**image_kwargs)
+
+    video_kwargs = dict(processor_config.get("video_processor", {}))
+    video_kwargs.pop("video_processor_type", None)
+    video_processor = (
+        Glm5nextVideoProcessor(**video_kwargs) if video_kwargs else None
+    )
+
+    processor = Glm5nextProcessor(
+        image_processor=image_processor,
+        tokenizer=tokenizer,
+        video_processor=video_processor,
+        chat_template=getattr(tokenizer, "chat_template", None),
+    )
+    logger.info(
+        "Using SGLang-bundled Glm5nextProcessor for legacy checkpoint "
+        "processor_config.json at %s",
+        processor_path,
+    )
+    return processor
+
+
 def _escape_processor_special_tokens(processor) -> None:
     """Synchronize processor-owned strings after its tokenizer is escaped."""
     from sglang.srt.constrained.glm.escape import (
@@ -372,8 +455,27 @@ def get_processor(
         if "size" not in kwargs:
             kwargs["size"] = {"shortest_edge": 3136, "longest_edge": 1003520}
 
+    # GLM-5-Next FP8 checkpoints produced with the legacy nested
+    # processor_config.json do not provide Transformers' auto_map entries.
+    # Route them to the in-tree implementation before AutoProcessor can
+    # silently degrade the whole processor to TokenizersBackend.
+    if config.model_type in {"glm5_next", "glm5v_next"}:
+        processor = _build_glm5next_processor_from_legacy_config(
+            tokenizer_name,
+            model_name,
+            config,
+            trust_remote_code,
+            revision,
+            *args,
+            **kwargs,
+        )
+    else:
+        processor = None
+
     try:
-        if "InternVL3_5" in tokenizer_name:
+        if processor is not None:
+            pass
+        elif "InternVL3_5" in tokenizer_name:
             processor = AutoTokenizer.from_pretrained(
                 tokenizer_name,
                 *args,
