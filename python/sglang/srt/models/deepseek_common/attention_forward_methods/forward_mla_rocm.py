@@ -703,7 +703,11 @@ class DeepseekMLARocmForwardMixin:
 
         save_kv_cache = not isinstance(q_nope_out, PrefillQWithStoredKV)
         if not save_kv_cache:
-            q_nope_out = q_nope_out.query
+            # DSA prefill expects separate no-RoPE/RoPE views, even when the
+            # producer packed Q and already wrote the global KV cache.
+            query = q_nope_out.query
+            q_nope_out = query[..., : self.kv_lora_rank]
+            q_pe = query[..., self.kv_lora_rank :]
         # HYV4 carries a per-head learnable attention sink logit that the
         # sparse backend folds into the softmax denominator.
         sink_args = (
