@@ -953,6 +953,8 @@ class Envs:
     SGLANG_HACK_SKIP_FP4_FP8_GEMM = EnvBool(False)
     SGLANG_LIGHTOP_TOPK = EnvBool(False)
     SGLANG_OPT_SWA_EVICT_DROP_PAGE_MARGIN = EnvBool(False)
+    SGLANG_GLM_PREFILL_KV_ROPE_STORE = EnvBool(False)
+    SGLANG_GLM_PREFILL_SHARED_OVERLAP = EnvBool(False)
     SGLANG_HCU_MEGA_MOE_RUNTIME = EnvStr("deep_gemm")
 
     # ===================================================================

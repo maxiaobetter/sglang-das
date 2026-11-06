@@ -373,6 +373,7 @@ class DeepseekMLARocmForwardMixin:
         )
         q_lora = None
         topk_indices = None
+        kv_fusion = False
         if self.q_lora_rank is not None:
             q, latent_cache = (
                 get_attn_tp_context()
@@ -384,6 +385,13 @@ class DeepseekMLARocmForwardMixin:
             )
             k_nope = latent_cache[..., : self.kv_lora_rank]
 
+            from sglang.srt.models.deepseek_common.glm_prefill_kv_fusion import (
+                use_fused_kv_producer,
+            )
+
+            kv_fusion = llama_4_scaling is None and use_fused_kv_producer(
+                self, forward_batch, latent_cache
+            )
             # overlap qk norm
             if self.alt_stream is not None and get_is_capture_mode():
                 current_stream = torch.cuda.current_stream()
@@ -446,7 +454,8 @@ class DeepseekMLARocmForwardMixin:
                 )
             else:
                 q = self.q_a_layernorm(q)
-                k_nope = self.kv_a_layernorm(k_nope)
+                if not kv_fusion:
+                    k_nope = self.kv_a_layernorm(k_nope)
 
             # q_lora needed by indexer
             if self.use_dsa:
@@ -576,9 +585,20 @@ class DeepseekMLARocmForwardMixin:
             elif is_kv_b_lora_active(self):
                 q_nope_out = apply_kv_b_lora_q_correction(self, q_nope, q_nope_out)
 
+        if kv_fusion:
+            from sglang.srt.models.deepseek_common.glm_prefill_kv_fusion import (
+                fuse_kv_rope_store,
+            )
+
+            q_nope_out = fuse_kv_rope_store(
+                self, forward_batch, positions, q_nope_out, q_pe, latent_cache
+            )
+            q_pe, k_nope, k_pe = None, None, None
+
         fuse_rope_for_trtllm_mla = self._fuse_rope_for_trtllm_mla(forward_batch)
         if (
-            self.rotary_emb is not None
+            not kv_fusion
+            and self.rotary_emb is not None
             and (not fuse_rope_for_trtllm_mla)
             and (not self._skip_rope_for_dsa_tilelang_fused())
             and (not self._skip_rope_for_aiter_fused_mla())
@@ -597,7 +617,9 @@ class DeepseekMLARocmForwardMixin:
             dsa_prefill_cp=dsa_prefill_cp,
             fuse_rope_for_trtllm_mla=fuse_rope_for_trtllm_mla,
         )
-        if dsa_prefill_cp and not defer_kv_gather_until_after_rope:
+        if kv_fusion:
+            pass  # The fused producer already stored global packed KV.
+        elif dsa_prefill_cp and not defer_kv_gather_until_after_rope:
             from sglang.srt.layers.attention.dsa_backend import materialize_full_kv_cp
 
             k_nope, k_pe = materialize_full_kv_cp(
@@ -675,7 +697,17 @@ class DeepseekMLARocmForwardMixin:
         llama_4_scaling,
         attention_output_gate=None,
     ):
-        save_kv_cache = True
+        from sglang.srt.models.deepseek_common.glm_prefill_kv_fusion import (
+            PrefillQWithStoredKV,
+        )
+
+        save_kv_cache = not isinstance(q_nope_out, PrefillQWithStoredKV)
+        if not save_kv_cache:
+            # DSA prefill expects separate no-RoPE/RoPE views, even when the
+            # producer packed Q and already wrote the global KV cache.
+            query = q_nope_out.query
+            q_nope_out = query[..., : self.kv_lora_rank]
+            q_pe = query[..., self.kv_lora_rank :]
         # HYV4 carries a per-head learnable attention sink logit that the
         # sparse backend folds into the softmax denominator.
         sink_args = (
@@ -776,6 +808,7 @@ class DeepseekMLARocmForwardMixin:
                         k_nope,
                         k_nope,
                         forward_batch,
+                        save_kv_cache=save_kv_cache,
                         q_rope=q_pe,
                         k_rope=k_pe,
                         **extra_args,
