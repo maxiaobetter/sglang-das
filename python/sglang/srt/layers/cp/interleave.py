@@ -169,7 +169,12 @@ class InterleaveCPStrategy(ContextParallelStrategy):
     ) -> Any:
         return self._gather_interleaved_tensor(x, forward_batch)
 
-    def _gather_interleaved_tensor(self, x: Any, forward_batch) -> Any:
+    def gather_packed_kv_cache_and_store(self, x, forward_batch, cache) -> None:
+        self._gather_interleaved_tensor(x, forward_batch, packed_cache=cache)
+
+    def _gather_interleaved_tensor(
+        self, x: Any, forward_batch, packed_cache: Optional[torch.Tensor] = None
+    ) -> Any:
         metadata = getattr(forward_batch, "attn_cp_metadata", None)
         if metadata is None:
             raise RuntimeError("Interleave CP gather requires attn_cp_metadata.")
@@ -204,6 +209,21 @@ class InterleaveCPStrategy(ContextParallelStrategy):
         ):
             gathered = x.new_empty((self.cp_size * physical_rank_len, *x.shape[1:]))
         attn_cp_all_gather_into_tensor(gathered, padded_x.contiguous())
+
+        if packed_cache is not None:
+            from sglang.kernels.ops.attention.dsa.prefill_micro_fusions import (
+                store_interleaved_packed_kv,
+            )
+
+            assert forward_batch.out_cache_loc.numel() == total_tokens
+            store_interleaved_packed_kv(
+                gathered,
+                forward_batch.out_cache_loc,
+                packed_cache,
+                self.cp_size,
+                physical_rank_len,
+            )
+            return None
 
         flat_indices = torch.arange(total_tokens, device=x.device)
         gather_indices = (

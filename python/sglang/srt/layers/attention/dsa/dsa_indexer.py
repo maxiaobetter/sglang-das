@@ -38,6 +38,7 @@ from sglang.srt.layers.attention.dsa.utils import (
     is_graph_dsa_split_op_surface,
 )
 from sglang.srt.layers.layernorm import LayerNorm, RMSNorm
+from sglang.srt.model_executor.forward_batch_info import ForwardMode
 from sglang.srt.model_executor.runner_backend_utils.breakable_cuda_graph.context import (
     is_in_breakable_cuda_graph,
 )
@@ -270,7 +271,6 @@ def rotate_activation(x: torch.Tensor, apply_scale: bool = True) -> torch.Tensor
     if _is_hcu:
         return hadamard_transform_optimized(x, scale=scale)
     return hadamard_transform(x, scale=scale)
-
 
 
 def _get_index_page_size(pool) -> int:
@@ -1023,7 +1023,9 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
         kv_cache = self._get_index_k_read_buffer(pool, layer_id)
         assert len(kv_cache.shape) == 2
         return (
-            kv_cache.view(kv_cache.shape[0], _get_index_page_size(pool), 1, self.head_dim + 4),
+            kv_cache.view(
+                kv_cache.shape[0], _get_index_page_size(pool), 1, self.head_dim + 4
+            ),
             False,
         )
 
@@ -2384,7 +2386,21 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
                     weights_raw = self._weights_proj_bf16_in_fp32_out(x_for_gate)
                     current_stream.wait_stream(self.alt_stream)
                     q_fp8 = q_fp8_raw.view(fp8_dtype)
-                    weights = fused_get_logits_head_gate_triton(
+                    gate_fn = fused_get_logits_head_gate_triton
+                    if (
+                        forward_mode == ForwardMode.EXTEND
+                        and forward_batch.attn_cp_metadata is not None
+                        and envs.SGLANG_GLM_PREFILL_GATE_K1_VECTOR.get()
+                        and not in_piecewise_or_breakable_cuda_graph
+                        and not torch.compiler.is_compiling()
+                        and not torch.cuda.is_current_stream_capturing()
+                    ):
+                        from sglang.kernels.ops.attention.dsa.prefill_micro_fusions import (
+                            prefill_gate_k1,
+                        )
+
+                        gate_fn = prefill_gate_k1
+                    weights = gate_fn(
                         weights=weights_raw,
                         q_scale=q_scale,
                         n_heads=self.n_heads,

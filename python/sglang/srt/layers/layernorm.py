@@ -746,6 +746,18 @@ class RMSNorm(BaseFusedOp):
             x = x.contiguous()
 
         if residual is not None:
+            if (
+                envs.SGLANG_GLM_PREFILL_ADD_RMS_ALIGN16.get()
+                or envs.SGLANG_GLM_PREFILL_ADD_RMS_ALIGN16_TRACE.get()
+            ):
+                from sglang.srt.layers.glm_prefill_add_rms import (
+                    try_glm_prefill_add_rms_align16,
+                )
+
+                if try_glm_prefill_add_rms_align16(
+                    self, x, residual, post_residual_addition
+                ):
+                    return x, residual
             try:
                 op.fused_add_rms_norm_opt(
                     x,

@@ -728,6 +728,18 @@ class DeepseekV2MoE(nn.Module):
             prefix=add_prefix("experts", prefix),
         )
 
+        # Bind the opt-in K1 path to main GLM routed experts, never NextN.
+        self.experts._glm_prefill_k1_main_owner = (
+            _is_hcu
+            and not is_nextn
+            and not is_deepseek_v4
+            and not self.is_hash
+            and "GlmMoeDsaForCausalLM" in (getattr(config, "architectures", None) or ())
+            and config.n_routed_experts == 256
+            and config.num_experts_per_tok == 8
+            and self.num_fused_shared_experts == 0
+        )
+
         if self.is_hash and not (is_nextn and is_deepseek_v4):
             self.topk = HashTopK(
                 topk=config.num_experts_per_tok + self.num_fused_shared_experts,
@@ -2489,6 +2501,11 @@ class DeepseekV2DecoderLayer(nn.Module):
         self.post_attention_layernorm = RMSNorm(
             config.hidden_size, eps=config.rms_norm_eps
         )
+
+        if _is_hcu and self.self_attn._hcu_glm_prefill:
+            from sglang.srt.layers.glm_prefill_add_rms import mark_decoder_norms
+
+            mark_decoder_norms(self)
 
         self._gfx95_quant_format = self._detect_gfx95_quant_format()
 
