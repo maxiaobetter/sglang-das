@@ -1,5 +1,8 @@
 import asyncio
+import json
+import os
 import pickle
+import tempfile
 import threading
 import unittest
 from http import HTTPStatus
@@ -8,7 +11,9 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import numpy as np
 import torch
+from transformers.video_utils import VideoMetadata
 
+import sglang.srt.disaggregation.encoder.preprocessor as encoder_preprocessor
 import sglang.srt.disaggregation.encoder.server as encoder_server
 from sglang.srt.disaggregation.encoder import http_server
 from sglang.srt.disaggregation.encoder import runtime as encoder_runtime
@@ -49,6 +54,9 @@ from sglang.srt.mem_cache.multimodal_cache import (
     MultiModalStaticCache,
 )
 from sglang.srt.utils.common import safe_pickle_loads
+from sglang.srt.utils.hf_transformers.processor import (
+    load_glm5next_legacy_media_processors,
+)
 from sglang.test.ci.ci_register import register_cpu_ci
 from sglang.test.test_utils import CustomTestCase
 
@@ -377,6 +385,115 @@ class TestEncoderPreprocessorKimiGrid(CustomTestCase):
         )
 
         torch.testing.assert_close(restored.grid_dim, torch.tensor([[40, 60]]))
+
+
+# Nested processor_config.json of the GLM-5.3-Flash FP8 checkpoint, which ships
+# no auto_map, no preprocessor_config.json and no processor code.
+_GLM5NEXT_LEGACY_PROCESSOR_CONFIG = {
+    "image_processor": {
+        "do_rescale": True,
+        "patch_expand_factor": 1,
+        "merge_size": 2,
+        "image_mean": [0.48145466, 0.4578275, 0.40821073],
+        "image_std": [0.26862954, 0.26130258, 0.27577711],
+        "temporal_patch_size": 2,
+        "patch_size": 14,
+        "min_image_tokens": 16,
+        "max_image_tokens": 8000,
+        "image_processor_type": "Glm5NextImageProcessor",
+    },
+    "video_processor": {
+        "do_rescale": True,
+        "video_processor_type": "Glm5NextVideoProcessor",
+        "patch_expand_factor": 1,
+        "merge_size": 2,
+        "image_mean": [0.48145466, 0.4578275, 0.40821073],
+        "image_std": [0.26862954, 0.26130258, 0.27577711],
+        "temporal_patch_size": 2,
+        "patch_size": 14,
+        "min_image_tokens": 16,
+        "max_image_tokens": 240000,
+        "fps": 2,
+    },
+    "processor_class": "Glm5NextProcessor",
+}
+
+
+class TestEncoderPreprocessorGlm5NextLegacyCheckpoint(CustomTestCase):
+    def _write_checkpoint(self, files):
+        checkpoint = tempfile.TemporaryDirectory()
+        self.addCleanup(checkpoint.cleanup)
+        for filename, content in files.items():
+            with open(os.path.join(checkpoint.name, filename), "w") as file:
+                json.dump(content, file)
+        return checkpoint.name
+
+    @staticmethod
+    def _load_encoder_processors(path):
+        preprocessor = EncoderPreprocessor.__new__(EncoderPreprocessor)
+        preprocessor.model_type = "glm5_next"
+        with patch.multiple(
+            encoder_preprocessor,
+            get_serving=lambda: SimpleNamespace(tokenizer_path=path),
+            get_model=lambda: SimpleNamespace(
+                model_path=path, trust_remote_code=True, revision=None
+            ),
+            get_mm=lambda: SimpleNamespace(
+                disable_fast_image_processor=False, image_processor_backend="auto"
+            ),
+        ):
+            preprocessor._load_mm_processor(server_args=None)
+        return preprocessor
+
+    def test_legacy_nested_config_gives_encoder_image_and_video_processors(self):
+        """A checkpoint with only the nested processor_config.json left the EPD
+        encoder without an image processor, so every image request was rejected."""
+        path = self._write_checkpoint(
+            {"processor_config.json": _GLM5NEXT_LEGACY_PROCESSOR_CONFIG}
+        )
+        preprocessor = self._load_encoder_processors(path)
+
+        image = np.zeros((480, 640, 3), dtype=np.uint8)
+        output = preprocessor.image_processor(images=[image], return_tensors="pt")
+        torch.testing.assert_close(
+            output["image_grid_thw"], torch.tensor([[1, 36, 46]])
+        )
+        # The legacy config omits the sampling fields; 10 s at its 2 fps is 20 frames.
+        frames = preprocessor.video_processor.sample_frames(
+            VideoMetadata(total_num_frames=300, fps=30.0, duration=10.0)
+        )
+        self.assertEqual(len(frames), 20)
+
+    def test_processor_definitions_outside_the_legacy_format_win(self):
+        """Only the legacy format gets bundled processors; others load as declared."""
+        legacy = self._write_checkpoint(
+            {"processor_config.json": _GLM5NEXT_LEGACY_PROCESSOR_CONFIG}
+        )
+        auto_map_config = {
+            **_GLM5NEXT_LEGACY_PROCESSOR_CONFIG,
+            "auto_map": {"AutoProcessor": "processing_glm5next.Glm5nextProcessor"},
+        }
+        with_auto_map = self._write_checkpoint(
+            {"processor_config.json": auto_map_config}
+        )
+        with_preprocessor_config = self._write_checkpoint(
+            {"preprocessor_config.json": {"min_image_tokens": 16}}
+        )
+        cases = [
+            ("auto_map", "glm5_next", with_auto_map, with_auto_map),
+            ("preprocessor_config", "glm5_next", with_preprocessor_config, legacy),
+            ("model_type", "qwen3_vl", legacy, legacy),
+        ]
+        for name, model_type, tokenizer_path, model_path in cases:
+            with self.subTest(name):
+                self.assertIsNone(
+                    load_glm5next_legacy_media_processors(
+                        model_type=model_type,
+                        tokenizer_name=tokenizer_path,
+                        model_name=model_path,
+                        revision=None,
+                    )
+                )
 
 
 class TestEncoderDelivery(CustomTestCase):

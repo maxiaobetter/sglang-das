@@ -31,6 +31,7 @@ from sglang.srt.utils import logger
 
 from .common import (
     AutoConfig,
+    _cached_file_exists,
     _is_deepseek_ocr2_model,
     _is_deepseek_ocr_model,
     _override_v_head_dim_if_zero,
@@ -210,6 +211,148 @@ def _build_processor_manually(
     return proc_cls(**init_kwargs)
 
 
+_GLM5NEXT_MODEL_TYPES = frozenset({"glm5_next", "glm5v_next"})
+# From the video_preprocessor_config.json shipped with the GLM-5-Next processor code.
+_GLM5NEXT_VIDEO_MAX_FRAME_COUNT = 2048
+
+
+def _read_processor_config(path, revision):
+    try:
+        filename = _resolve_local_or_cached_file(
+            path, "processor_config.json", revision
+        )
+        with open(filename) as file:
+            return json.load(file)
+    except (OSError, ValueError):
+        return {}
+
+
+def _find_glm5next_legacy_processor_config(*, tokenizer_name, model_name, revision):
+    """Return ``(path, config)`` of a nested processor_config.json without auto_map.
+
+    Transformers reads the nested sections before preprocessor_config.json and
+    cannot resolve ``Glm5NextImageProcessor`` without remote code, so these
+    checkpoints load as tokenizer-only. The tokenizer path is checked first.
+    """
+    candidates = []
+    for candidate in (tokenizer_name, model_name):
+        if candidate is not None and candidate not in candidates:
+            candidates.append(candidate)
+    for candidate in candidates:
+        processor_config = _read_processor_config(candidate, revision)
+        image_config = processor_config.get("image_processor")
+        if isinstance(image_config, dict):
+            if "auto_map" in processor_config or "auto_map" in image_config:
+                # The checkpoint ships its own processor code; Transformers loads it.
+                return None, None
+            return candidate, processor_config
+        if _cached_file_exists(candidate, "preprocessor_config.json", revision):
+            # This path defines its processor the standard way; Transformers loads it.
+            return None, None
+    return None, None
+
+
+def _build_glm5next_image_processor(*, image_config):
+    from .glm5next import Glm5nextImageProcessorFast
+
+    image_kwargs = {
+        key: value
+        for key, value in image_config.items()
+        if key != "image_processor_type"
+    }
+    # Fast class for every backend, as with the checkpoint code, whose auto_map
+    # names only Glm5nextImageProcessorFast.
+    image_processor = Glm5nextImageProcessorFast(**image_kwargs)
+    adapt_glm5next_image_processor(image_processor)
+    return image_processor
+
+
+def _build_glm5next_video_processor(*, video_config):
+    from .glm5next import Glm5nextVideoProcessor
+
+    video_kwargs = {
+        key: value
+        for key, value in video_config.items()
+        if key != "video_processor_type"
+    }
+    # The legacy config records only fps, while sample_frames reads both of these.
+    video_kwargs.setdefault(
+        "fps_interval", video_kwargs.get("fps", Glm5nextVideoProcessor.fps)
+    )
+    video_kwargs.setdefault("max_frame_count_dynamic", _GLM5NEXT_VIDEO_MAX_FRAME_COUNT)
+    return Glm5nextVideoProcessor(**video_kwargs)
+
+
+def load_glm5next_legacy_media_processors(
+    *, model_type, tokenizer_name, model_name, revision
+):
+    """Build ``(image_processor, video_processor)`` for a legacy GLM-5-Next checkpoint.
+
+    Returns None for any other checkpoint. The EPD encoder loads its processors
+    without get_processor; both must use these so encoder and language-side grids match.
+    """
+    if model_type not in _GLM5NEXT_MODEL_TYPES:
+        return None
+    processor_path, processor_config = _find_glm5next_legacy_processor_config(
+        tokenizer_name=tokenizer_name, model_name=model_name, revision=revision
+    )
+    if processor_config is None:
+        return None
+
+    image_processor = _build_glm5next_image_processor(
+        image_config=processor_config["image_processor"]
+    )
+    video_config = processor_config.get("video_processor")
+    video_processor = (
+        _build_glm5next_video_processor(video_config=video_config)
+        if isinstance(video_config, dict) and video_config
+        else None
+    )
+    logger.info(
+        "Using SGLang-bundled GLM-5-Next processors for legacy checkpoint "
+        "processor_config.json at %s",
+        processor_path,
+    )
+    return image_processor, video_processor
+
+
+def _build_glm5next_processor_from_legacy_config(
+    tokenizer_name,
+    *args,
+    model_type,
+    model_name,
+    trust_remote_code,
+    revision,
+    **kwargs,
+):
+    """In-tree equivalent of the processor code shipped with the INT8 checkpoint."""
+    media_processors = load_glm5next_legacy_media_processors(
+        model_type=model_type,
+        tokenizer_name=tokenizer_name,
+        model_name=model_name,
+        revision=revision,
+    )
+    if media_processors is None:
+        return None
+    image_processor, video_processor = media_processors
+
+    from .glm5next import Glm5nextProcessor
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        tokenizer_name,
+        *args,
+        trust_remote_code=trust_remote_code,
+        revision=revision,
+        **kwargs,
+    )
+    return Glm5nextProcessor(
+        image_processor=image_processor,
+        tokenizer=tokenizer,
+        video_processor=video_processor,
+        chat_template=tokenizer.chat_template,
+    )
+
+
 def _escape_processor_special_tokens(processor) -> None:
     """Synchronize processor-owned strings after its tokenizer is escaped."""
     from sglang.srt.constrained.glm.escape import (
@@ -372,8 +515,23 @@ def get_processor(
         if "size" not in kwargs:
             kwargs["size"] = {"shortest_edge": 3136, "longest_edge": 1003520}
 
+    # Checked before AutoProcessor, which silently degrades legacy GLM-5-Next
+    # checkpoints to a tokenizer-only processor that drops the image pixels.
+    processor = _build_glm5next_processor_from_legacy_config(
+        tokenizer_name,
+        *args,
+        model_type=config.model_type,
+        model_name=model_name,
+        trust_remote_code=trust_remote_code,
+        revision=revision,
+        **kwargs,
+    )
+    is_bundled_glm5next = processor is not None
+
     try:
-        if "InternVL3_5" in tokenizer_name:
+        if is_bundled_glm5next:
+            pass
+        elif "InternVL3_5" in tokenizer_name:
             processor = AutoTokenizer.from_pretrained(
                 tokenizer_name,
                 *args,
@@ -432,15 +590,18 @@ def get_processor(
         else:
             raise
 
-    processor = _apply_image_processor_backend(
-        processor,
-        tokenizer_name,
-        args,
-        trust_remote_code,
-        revision,
-        image_processor_backend,
-        kwargs,
-    )
+    # AutoImageProcessor cannot reload a legacy GLM-5-Next checkpoint, and the
+    # bundled processor has only the fast class anyway.
+    if not is_bundled_glm5next:
+        processor = _apply_image_processor_backend(
+            processor,
+            tokenizer_name,
+            args,
+            trust_remote_code,
+            revision,
+            image_processor_backend,
+            kwargs,
+        )
     if (
         isinstance(processor, PreTrainedTokenizerBase)
         and getattr(config, "model_type", None) == "pixtral"

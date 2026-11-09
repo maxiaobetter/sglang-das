@@ -56,7 +56,10 @@ from sglang.srt.utils import (
     load_image,
     load_video,
 )
-from sglang.srt.utils.hf_transformers.processor import adapt_glm5next_image_processor
+from sglang.srt.utils.hf_transformers.processor import (
+    adapt_glm5next_image_processor,
+    load_glm5next_legacy_media_processors,
+)
 from sglang.srt.utils.hf_transformers_utils import resolve_image_processor_backend
 
 logger = logging.getLogger(__name__)
@@ -98,6 +101,38 @@ def _get_original_image_size(image):
         width, height = image.size
         return [int(width), int(height)]
     raise TypeError(f"Cannot determine original image size from {type(image)}")
+
+
+def _load_hf_media_processors(*, processor_path, image_processor_backend):
+    from transformers import AutoImageProcessor, AutoVideoProcessor
+
+    image_processor_kwargs = (
+        {}
+        if image_processor_backend == "auto"
+        else {"backend": image_processor_backend}
+    )
+    try:
+        image_processor = AutoImageProcessor.from_pretrained(
+            processor_path,
+            trust_remote_code=get_model().trust_remote_code,
+            revision=get_model().revision,
+            **image_processor_kwargs,
+        )
+        adapt_glm5next_image_processor(image_processor)
+    except Exception as e:
+        logger.warning(f"Failed to load image processor: {e}")
+        image_processor = None
+
+    try:
+        video_processor = AutoVideoProcessor.from_pretrained(
+            processor_path,
+            trust_remote_code=get_model().trust_remote_code,
+            revision=get_model().revision,
+        )
+    except Exception as e:
+        logger.warning(f"Failed to load video processor: {e}")
+        video_processor = None
+    return image_processor, video_processor
 
 
 @dataclass
@@ -199,39 +234,25 @@ class EncoderPreprocessor:
     # ------------------------------------------------------------------
 
     def _load_mm_processor(self, server_args: ServerArgs):
-        from transformers import AutoImageProcessor, AutoVideoProcessor
-
-        image_processor_backend = resolve_image_processor_backend(get_mm())
-        image_processor_kwargs = (
-            {}
-            if image_processor_backend == "auto"
-            else {"backend": image_processor_backend}
+        processor_path = get_serving().tokenizer_path or get_model().model_path
+        # Must make the same choice as get_processor on the language side,
+        # whose grids lay out the prompt for these embeddings.
+        media_processors = load_glm5next_legacy_media_processors(
+            model_type=self.model_type,
+            tokenizer_name=processor_path,
+            model_name=get_model().model_path,
+            revision=get_model().revision,
         )
-        try:
-            self.image_processor = AutoImageProcessor.from_pretrained(
-                get_serving().tokenizer_path or get_model().model_path,
-                trust_remote_code=get_model().trust_remote_code,
-                revision=get_model().revision,
-                **image_processor_kwargs,
+        if media_processors is None:
+            media_processors = _load_hf_media_processors(
+                processor_path=processor_path,
+                image_processor_backend=resolve_image_processor_backend(get_mm()),
             )
-            adapt_glm5next_image_processor(self.image_processor)
-        except Exception as e:
-            logger.warning(f"Failed to load image processor: {e}")
-            self.image_processor = None
-
-        try:
-            self.video_processor = AutoVideoProcessor.from_pretrained(
-                get_serving().tokenizer_path or get_model().model_path,
-                trust_remote_code=get_model().trust_remote_code,
-                revision=get_model().revision,
-            )
-        except Exception as e:
-            logger.warning(f"Failed to load video processor: {e}")
-            self.video_processor = None
+        self.image_processor, self.video_processor = media_processors
 
         try:
             _audio_proc = AutoProcessor.from_pretrained(
-                get_serving().tokenizer_path or get_model().model_path,
+                processor_path,
                 trust_remote_code=get_model().trust_remote_code,
                 revision=get_model().revision,
             )
