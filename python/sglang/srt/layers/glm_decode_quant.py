@@ -85,5 +85,7 @@ def try_o_proj_quant(x, output, scale):
         a < d and c < b for i, (a, b) in enumerate(ranges) for c, d in ranges[i + 1 :]
     ):
         return False
-    lightop_glm_op("glm53_decode_token_quant_broadcast")(output, x, scale)
+    lightop_glm_op("per_token_quant_fp8", "broadcast_inverse")(
+        output, x, scale, broadcast_inverse=True
+    )
     return True

@@ -73,5 +73,13 @@ def try_glm_prefill_ep_gather_k8(
         return False
     # The caller is exclusively the FP8 contiguous method's existing LightOp
     # no-map branch. Keep the supplied output and ordered FP32 K0..7 FMA math.
-    lightop_glm_op("glm53_prefill_ep_gather_k8")(*tensors)
+    lightop_glm_op("ep_gather", "specialize_k8")(
+        input_tensor,
+        topk_ids,
+        topk_weights,
+        input_index,
+        None,
+        output_tensor,
+        specialize_k8=True,
+    )
     return True

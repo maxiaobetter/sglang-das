@@ -80,7 +80,7 @@ def _record(kind, value):
                     shape=list(value.shape),
                     phase="ordinary_extend",
                     candidate_dispatched=True,
-                    lightop_glm_abi=1,
+                    broadcast_inverse=True,
                 ),
                 sort_keys=True,
             ),
@@ -113,7 +113,9 @@ def try_token_quant_inverse(input, output, scale):
         or len({t.untyped_storage().data_ptr() for t in (input, output, scale)}) != 3
     ):
         return False
-    lightop_glm_op("glm53_prefill_token_quant_inverse")(input, output, scale)
+    lightop_glm_op("per_token_quant_fp8", "broadcast_inverse")(
+        output, input, scale, broadcast_inverse=True
+    )
     _record("token", input)
     return True
 
@@ -139,8 +141,16 @@ def try_expert_activation_inverse(input):
     scale = torch.empty((rows, 1), dtype=torch.float32, device=input.device)
     assert len({t.untyped_storage().data_ptr() for t in (input, output, scale)}) == 3
     assert output.data_ptr() % 16 == 0 and scale.data_ptr() % 16 == 0
-    lightop_glm_op("glm53_prefill_activation_inverse")(
-        input, output.view(torch.uint8), scale
+    lightop_glm_op("fuse_silu_mul_fp8_quant", "broadcast_inverse")(
+        input,
+        output.view(torch.uint8),
+        scale,
+        0,
+        None,
+        1,
+        -1,
+        None,
+        broadcast_inverse=True,
     )
     _record("activation", input)
     return output, scale

@@ -176,8 +176,8 @@ def try_glm_prefill_add_rms_align16(norm, x, residual, post_residual_addition):
         != "gfx938"
     ):
         return reject("architecture")
-    lightop_glm_op("glm53_prefill_add_rms_align16")(
-        x, residual, weight, norm.variance_epsilon
+    lightop_glm_op("fused_add_rms_norm_opt", "use_aligned_loads")(
+        x, residual, weight, norm.variance_epsilon, use_aligned_loads=True
     )
     _record(norm, x, "dispatch", scope)
     return True

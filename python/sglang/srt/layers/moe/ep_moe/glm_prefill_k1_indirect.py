@@ -46,11 +46,8 @@ def _load_extension():
         != _DEEPEP_SHA256
         or hashlib.sha256(Path(deepgemm_op.__file__).read_bytes()).hexdigest()
         != _DEEPGEMM_SHA256
-        or (
-            hashlib.sha256(Path(lightop_op.__file__).read_bytes()).hexdigest()
-            != _LIGHTOP_SHA256
-            and getattr(lightop_op, "GLM53_OPT_ABI_VERSION", None) != 1
-        )
+        or hashlib.sha256(Path(lightop_op.__file__).read_bytes()).hexdigest()
+        != _LIGHTOP_SHA256
     ):
         raise RuntimeError("Indirect K1 requires the validated Torch/HIP/operator ABI")
     configured_path = os.environ.get(_EXTENSION_ENV)
