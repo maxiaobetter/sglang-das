@@ -49,6 +49,12 @@ D-only 使用同一 `sglang-das` 版本，输入 87,040 token，输出 1,024 tok
 
 使用 E/P/D Router 和自然接受长度，沿用上面的 Decode 开关约束。每侧各跑一次，采样参数为 seed 42、temperature 1、top_p 0.95，输出上限 64,000 token。AIME25 为 26/30 → 25/30，HumanEval pass@1 为 162/164 → 163/164，顺序为关闭到开启。AIME25 两组各三题触及输出上限，其中两题相同；完整但错误的答案由一题增至两题。HumanEval 两组同一道词排序题使用了方向相反的选择逻辑，关闭组另有一题触及输出上限。 单轮每项相差一题，无法确认稳定的精度变化。
 
+### PREBUILT 补入时序对齐
+
+参考 `sglang-model` 的 `a19c0ab7d` 和 `7e2994066`，使用 pinned buffer 异步传输 PREBUILT draft metadata，为 fake-prefill 补齐位置 0 的 seed。HCU 异步调度在 verify 发布长度时异步复制 CPU 镜像。对于 `sglang-das` 的 EAGLE chunk-cache 路径，先构造并校验 draft 输入，再等待旧 forward，最后写入 FutureMap 槽位。非 chunk-cache、统一内存及其他推测解码路径沿用原屏障位置。
+
+TX 的 60-step trace 覆盖 7→8，60 步均为 draft graph replay。seed 校验的同步拷贝由 22.38 ms 降至 0.088 ms。非 TX 的 W8A8 E/P/D 无 profiler 回归为 AIME25 27/30、HumanEval 164/164。AIME25 三道错题均达到 64,000 token 输出上限。
+
 ## 逐提交账本
 
 | 源完整 SHA | 原主题 | 结论 | 目标提交 | 依据与适配说明 |
