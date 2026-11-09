@@ -238,7 +238,7 @@ class CompressedTensorsW8A8Fp8(CompressedTensorsLinearScheme):
     ) -> torch.Tensor:
         if isinstance(x, tuple):
             # Pre-quantized activation from a fused RMSNorm+FP8 quant kernel:
-            # x = (fp8_input, per_tensor_input_scale[, orig_dtype]).
+            # x = (fp8_input, input_scale[, orig_dtype]).
             # apply_fp8_linear detects the fp8 dtype and skips re-quantizing;
             # orig_dtype (when present) sets the GEMM output dtype.
             qx, x_scale = x[0], x[1]
@@ -283,3 +283,18 @@ class CompressedTensorsW8A8Fp8(CompressedTensorsLinearScheme):
                 use_per_token_if_dynamic=True,
                 compressed_tensor_quant=True,
             )
+
+
+def supports_lightop_input_quant(layer):
+    if layer is None or _use_aiter:
+        return False
+    scheme = getattr(layer, "scheme", None)
+    return (
+        isinstance(scheme, CompressedTensorsW8A8Fp8)
+        and scheme.strategy == QuantizationStrategy.CHANNEL
+        and scheme.weight_block_size is None
+        and not scheme.is_static_input_scheme
+        and getattr(layer, "input_scale", None) is None
+        and layer.weight.dtype == torch.float8_e4m3fn
+        and layer.weight_scale.dtype == torch.float32
+    )

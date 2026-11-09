@@ -530,7 +530,10 @@ class DeepseekSparseAttnBackend(
     ):
         """Opt-in ordinary IFB prefix path; all other callers keep full dequant."""
         if not (
-            envs.SGLANG_GLM_PREFILL_PHYSICAL_KV_COMPACT.get()
+            (
+                envs.SGLANG_GLM_OPT_PREFILL.get()
+                or envs.SGLANG_GLM_PREFILL_PHYSICAL_KV_COMPACT.get()
+            )
             and self._glm_prefill_ep_gather_k8_eligible
         ):
             return None
@@ -633,7 +636,23 @@ class DeepseekSparseAttnBackend(
                 )
             )
         )
+        self._glm53_model = bool(
+            set(
+                getattr(model_runner.model_config.hf_config, "architectures", None)
+                or ()
+            )
+            & {"GlmMoeDsaForCausalLM", "GlmMoeDsaForCausalLMNextN"}
+        )
         self.device = model_runner.device
+        self._use_hcu_draft_concat = (
+            _is_hcu
+            and (envs.SGLANG_GLM_OPT_DECODE.get() or envs.SGLANG_HCU_DRAFT_CONCAT.get())
+            and self._glm53_model
+            and model_runner.is_draft_worker
+            and torch.cuda.get_device_properties(self.device).gcnArchName.split(":")[0]
+            == "gfx938"
+        )
+        self._hcu_draft_concat_shapes = set()
         assert isinstance(model_runner.page_size, int)
         self.real_page_size = model_runner.page_size
         self.num_splits = (
@@ -1554,9 +1573,18 @@ class DeepseekSparseAttnBackend(
         self.forward_metadata = metadata
         # Shared ordinary-prefill scope; each opt-in operator checks its own ABI.
         self._glm_prefill_ep_gather_k8_eligible = (
-            envs.SGLANG_GLM_PREFILL_PHYSICAL_KV_COMPACT.get()
-            or envs.SGLANG_GLM_PREFILL_EP_GATHER_K8.get()
-            or envs.SGLANG_GLM_PREFILL_ADD_RMS_ALIGN16.get()
+            (
+                envs.SGLANG_GLM_OPT_PREFILL.get()
+                or envs.SGLANG_GLM_PREFILL_PHYSICAL_KV_COMPACT.get()
+            )
+            or (
+                envs.SGLANG_GLM_OPT_PREFILL.get()
+                or envs.SGLANG_GLM_PREFILL_EP_GATHER_K8.get()
+            )
+            or (
+                envs.SGLANG_GLM_OPT_PREFILL.get()
+                or envs.SGLANG_GLM_PREFILL_ADD_RMS_ALIGN16.get()
+            )
             or envs.SGLANG_GLM_PREFILL_K1_INDIRECT_A.get()
         ) and self._ordinary_glm_cp_prefill_scope(forward_batch)
 
@@ -2398,6 +2426,31 @@ class DeepseekSparseAttnBackend(
 
         self.forward_metadata = metadata
 
+    def _concat_mla_q(self, q_nope, q_rope, layer, forward_batch):
+        if self._use_hcu_draft_concat and layer.layer_id == 0:
+            mode = effective_forward_mode(forward_batch)
+            if mode in (ForwardMode.DECODE, ForwardMode.DRAFT_EXTEND_V2):
+                from sglang.kernels.ops.attention.concat_mla_hcu import (
+                    try_concat_mla_draft_hcu,
+                )
+
+                output = try_concat_mla_draft_hcu(
+                    q_nope,
+                    q_rope,
+                    batch_size=forward_batch.batch_size,
+                    is_draft_extend=mode == ForwardMode.DRAFT_EXTEND_V2,
+                )
+                if output is not None:
+                    signature = (mode, tuple(q_nope.shape), q_nope.stride())
+                    if signature not in self._hcu_draft_concat_shapes:
+                        logger.info(
+                            "HCU draft concat selected: mode=%s shape=%s stride=%s",
+                            *signature,
+                        )
+                        self._hcu_draft_concat_shapes.add(signature)
+                    return output
+        return concat_mla_absorb_q_general(q_nope, q_rope)
+
     def forward_extend(
         self,
         q: torch.Tensor,
@@ -2414,6 +2467,7 @@ class DeepseekSparseAttnBackend(
         is_neox: Optional[bool] = False,
         llama_4_scaling: Optional[torch.Tensor] = None,
         attn_sink: Optional[torch.Tensor] = None,
+        lightop_fused_q: bool = False,
     ) -> torch.Tensor:
 
         causal = not layer.is_cross_attention
@@ -2482,8 +2536,18 @@ class DeepseekSparseAttnBackend(
                 metadata=metadata,
             )
 
-        # Do absorbed multi-latent attention (MLA path)
-        assert q_rope is not None
+        # FlashMLA KV can consume Q already joined by the LightOp fusion.
+        # Other extend implementations retain their split-Q contract.
+        assert q_rope is not None or (
+            lightop_fused_q
+            and (
+                envs.SGLANG_GLM_OPT_DECODE.get()
+                or envs.SGLANG_GLM_LIGHTOP_FUSIONS.get()
+            )
+            and dsa_impl == "flashmla_kv"
+            and (forward_mode.is_target_verify() or forward_mode.is_draft_extend_v2())
+        )
+        q_all = None
         kv_cache = self.token_to_kv_pool.get_key_buffer(layer.layer_id)
 
         if q_rope is not None:
@@ -2722,8 +2786,8 @@ class DeepseekSparseAttnBackend(
                 skip_softmax_threshold_scale_factor=envs.SGLANG_SKIP_SOFTMAX_PREFILL_THRESHOLD_SCALE_FACTOR.get(),
             )
         elif dsa_impl == "flashmla_kv":
-            if q_rope is not None:
-                q_all = concat_mla_absorb_q_general(q_nope, q_rope)
+            if not lightop_fused_q or q_all is None:
+                q_all = self._concat_mla_q(q_nope, q_rope, layer, forward_batch)
             return self._forward_flashmla_kv(
                 q_all=q_all,
                 kv_cache=kv_cache,
@@ -2781,6 +2845,7 @@ class DeepseekSparseAttnBackend(
         is_neox: Optional[bool] = False,
         llama_4_scaling: Optional[torch.Tensor] = None,
         attn_sink: Optional[torch.Tensor] = None,
+        lightop_fused_q: bool = False,
     ) -> torch.Tensor:
 
         causal = not layer.is_cross_attention
@@ -2885,8 +2950,8 @@ class DeepseekSparseAttnBackend(
                 skip_softmax_threshold_scale_factor=envs.SGLANG_SKIP_SOFTMAX_DECODE_THRESHOLD_SCALE_FACTOR.get(),
             )
         elif self.dsa_decode_impl == "flashmla_kv":
-            if q_rope is not None:
-                q_all = concat_mla_absorb_q_general(q_nope, q_rope)
+            if not lightop_fused_q or q_all is None:
+                q_all = self._concat_mla_q(q_nope, q_rope, layer, forward_batch)
             return self._forward_flashmla_kv(
                 q_all=q_all,
                 kv_cache=kv_cache,

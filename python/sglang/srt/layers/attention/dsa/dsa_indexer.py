@@ -2390,7 +2390,10 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
                     if (
                         forward_mode == ForwardMode.EXTEND
                         and forward_batch.attn_cp_metadata is not None
-                        and envs.SGLANG_GLM_PREFILL_GATE_K1_VECTOR.get()
+                        and (
+                            envs.SGLANG_GLM_OPT_PREFILL.get()
+                            or envs.SGLANG_GLM_PREFILL_GATE_K1_VECTOR.get()
+                        )
                         and not in_piecewise_or_breakable_cuda_graph
                         and not torch.compiler.is_compiling()
                         and not torch.cuda.is_current_stream_capturing()

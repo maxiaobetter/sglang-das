@@ -327,6 +327,16 @@ class DeepseekV2MLP(nn.Module):
         gemm_output_zero_allocator: BumpAllocator = None,
         gateup_pre_quant: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
     ):
+        if (
+            getattr(self, "_lightop_norm_input", False)
+            and envs.SGLANG_LIGHTOP_NORM_QUANT.get()
+            and isinstance(x, tuple)
+            and len(x) == 3
+            and isinstance(x[2], torch.Tensor)
+        ):
+            quant, scale, x = x
+            if gateup_pre_quant is None:
+                gateup_pre_quant = (quant, scale, x.dtype)
         if (self.tp_size == 1) and x.shape[0] == 0:
             return x
 
@@ -1356,7 +1366,10 @@ class DeepseekV2MoE(nn.Module):
         shared_output = None
         shared_stream = self.alt_stream
         prefill_stream = None
-        if envs.SGLANG_GLM_PREFILL_SHARED_OVERLAP.get():
+        if (
+            envs.SGLANG_GLM_OPT_PREFILL.get()
+            or envs.SGLANG_GLM_PREFILL_SHARED_OVERLAP.get()
+        ):
             from sglang.srt.models.deepseek_common.glm_prefill_mlp import (
                 try_shared_stream,
             )
@@ -1881,6 +1894,31 @@ class DeepseekV2AttentionMLA(
             and not is_nextn
             and "GlmMoeDsaForCausalLM" in (getattr(config, "architectures", None) or ())
         )
+        self._lightop_glm_fusions = (
+            _is_hcu
+            and (
+                envs.SGLANG_GLM_OPT_DECODE.get()
+                or envs.SGLANG_GLM_LIGHTOP_FUSIONS.get()
+            )
+            and bool(
+                set(getattr(config, "architectures", None) or ())
+                & {
+                    "GlmMoeDsaForCausalLM",
+                    "GlmMoeDsaForCausalLMNextN",
+                }
+            )
+        )
+        self._hcu_glm_gemm = (
+            _is_hcu
+            and envs.SGLANG_GLM_HCU_GEMM.get()
+            and bool(
+                set(getattr(config, "architectures", None) or ())
+                & {
+                    "GlmMoeDsaForCausalLM",
+                    "GlmMoeDsaForCausalLMNextN",
+                }
+            )
+        )
         attn_tp_rank = get_parallel().attn_tp_rank
         attn_tp_size = get_parallel().attn_tp_size
         self.use_dsa = is_deepseek_dsa(config)
@@ -2202,6 +2240,16 @@ class DeepseekV2AttentionMLA(
         llama_4_scaling: Optional[torch.Tensor] = None,
         prev_topk_indices: Optional[torch.Tensor] = None,
     ):
+        if (
+            self._lightop_glm_fusions
+            and envs.SGLANG_LIGHTOP_NORM_QUANT.get()
+            and isinstance(hidden_states, tuple)
+            and len(hidden_states) == 3
+            and isinstance(hidden_states[2], torch.Tensor)
+        ):
+            # AttentionInputs retains (FP8, scale, BF16) for QKV projection;
+            # the DSA indexer consumes the BF16 activation directly.
+            hidden_states = hidden_states[2]
         if self.attn_mha.kv_b_proj is None:
             self.attn_mha.kv_b_proj = self.kv_b_proj
 
@@ -2342,6 +2390,15 @@ class DeepseekV2AttentionMLA(
         self, hidden_states: torch.Tensor, forward_batch: ForwardBatch
     ):
         assert self.q_lora_rank is not None
+        if (
+            self._lightop_glm_fusions
+            and envs.SGLANG_LIGHTOP_NORM_QUANT.get()
+            and isinstance(hidden_states, tuple)
+            and len(hidden_states) == 3
+            and isinstance(hidden_states[2], torch.Tensor)
+        ):
+            quant, scale, bf16 = hidden_states
+            return self.fused_qkv_a_proj_with_mqa((quant, scale, bf16.dtype))[0]
         if self._use_min_latency_fused_a_gemm is None:
             self._use_min_latency_fused_a_gemm = (
                 self.has_fused_proj
@@ -2497,6 +2554,9 @@ class DeepseekV2DecoderLayer(nn.Module):
                 swiglu_limit=getattr(config, "swiglu_limit", None),
             )
 
+        if isinstance(self.mlp, DeepseekV2MLP):
+            self.mlp._lightop_norm_input = self.self_attn._lightop_glm_fusions
+
         self.input_layernorm = RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.post_attention_layernorm = RMSNorm(
             config.hidden_size, eps=config.rms_norm_eps
@@ -2567,6 +2627,47 @@ class DeepseekV2DecoderLayer(nn.Module):
             self._gfx95_quant_format = fmt
         return fmt
 
+    def _prepare_hcu_linear_layouts(self):
+        # Once on GLM layers, after weights load and before graph capture.
+        # Other architectures and quantized linear weights retain their layout.
+        if getattr(self, "_hcu_layouts_checked", False):
+            return
+        self._hcu_layouts_checked = True
+        if torch.cuda.is_current_stream_capturing():
+            return
+        for module in self.modules():
+            method = getattr(module, "quant_method", None)
+            w = getattr(module, "weight", None)
+            if (
+                type(method).__name__ == "UnquantizedLinearMethod"
+                and isinstance(w, torch.Tensor)
+                and type(w.data) is torch.Tensor
+                and w.is_cuda
+                and w.dtype == torch.bfloat16
+                and w.dim() == 2
+                and min(w.shape) >= 1024
+                and w.is_contiguous()
+            ):
+                w.data = w.data.t().contiguous().t()
+
+    def _use_lightop_norm_quant(self, forward_batch, linear):
+        if (
+            not self.self_attn._lightop_glm_fusions
+            or not envs.SGLANG_LIGHTOP_NORM_QUANT.get()
+            or not self.self_attn.use_dsa
+            or not self.self_attn._lightop_fusion_phase_enabled(forward_batch)
+            or self.self_attn.dispatch_attn_forward_method(forward_batch)
+            != AttnForwardMethod.MLA_ROCM
+            or dsa_use_prefill_cp(forward_batch)
+            or mla_use_prefill_cp(forward_batch)
+        ):
+            return False
+        from sglang.srt.layers.quantization.compressed_tensors.schemes.compressed_tensors_w8a8_fp8 import (
+            supports_lightop_input_quant,
+        )
+
+        return supports_lightop_input_quant(linear)
+
     def _is_layer_sparse(self, layer_id: int, is_nextn: bool) -> bool:
         return is_nextn or (
             self.config.n_routed_experts is not None
@@ -2587,6 +2688,8 @@ class DeepseekV2DecoderLayer(nn.Module):
         captured_last_layer_outputs: Optional[AuxHiddenStateAccumulator] = None,
         next_full_attention_layer_id: Optional[int] = None,
     ) -> torch.Tensor:
+        if self.self_attn._hcu_glm_gemm:
+            self._prepare_hcu_linear_layouts()
         hidden_states_orig = hidden_states
         hidden_states, residual = (
             self.layer_communicator.prepare_attn_and_capture_last_layer_outputs(
@@ -2594,7 +2697,14 @@ class DeepseekV2DecoderLayer(nn.Module):
                 residual,
                 forward_batch,
                 captured_last_layer_outputs=captured_last_layer_outputs,
-                quant_format=self._resolve_gfx95_quant_format(),
+                quant_format=(
+                    "lightop_fp8_per_token"
+                    if self._use_lightop_norm_quant(
+                        forward_batch,
+                        getattr(self.self_attn, "fused_qkv_a_proj_with_mqa", None),
+                    )
+                    else self._resolve_gfx95_quant_format()
+                ),
             )
         )
 
@@ -2619,7 +2729,12 @@ class DeepseekV2DecoderLayer(nn.Module):
         )
 
         hidden_states, residual = self.layer_communicator.prepare_mlp(
-            hidden_states, residual, forward_batch
+            hidden_states,
+            residual,
+            forward_batch,
+            lightop_quant=self._use_lightop_norm_quant(
+                forward_batch, getattr(self.mlp, "gate_up_proj", None)
+            ),
         )
 
         fuse_mlp_allreduce = (

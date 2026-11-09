@@ -26,6 +26,7 @@ from sglang.kernels.ops.activation.softcap import (
 )
 from sglang.srt.distributed import get_tp_group
 from sglang.srt.distributed.device_communicators import triton_symm_mem_ag
+from sglang.srt.environ import envs
 from sglang.srt.layers.aux_hidden_states import (
     AuxHiddenStates,
     pack_aux_hidden_states,
@@ -55,6 +56,7 @@ from sglang.srt.model_executor.forward_batch_info import (
 from sglang.srt.runtime_context import get_exec, get_parallel
 from sglang.srt.sampling.sampling_observer import DeviceAuxiliaryOutput
 from sglang.srt.speculative.spec_info import SpecInputType
+from sglang.srt.utils import is_hcu
 from sglang.srt.utils.common import (
     is_cpu,
     is_npu,
@@ -63,6 +65,29 @@ from sglang.srt.utils.common import (
 )
 
 logger = logging.getLogger(__name__)
+
+_hcu_lm_head = None
+if is_hcu() and envs.SGLANG_GLM_HCU_GEMM.get():
+    import hcu_ops as _hcu_lm_head
+
+
+def _maybe_relayout_hcu_lm_head(lm_head):
+    if getattr(lm_head, "_hcu_nn_checked", False):
+        return
+    lm_head._hcu_nn_checked = True
+    w = lm_head.weight
+    if (
+        torch.cuda.is_current_stream_capturing()
+        or w.dim() != 2
+        or w.dtype != torch.bfloat16
+        or not w.is_cuda
+        or not w.is_contiguous()
+    ):
+        return
+    w.data = w.data.t().contiguous().t()
+    logger.info("HCU LM-head NN layout selected: shape=%s", tuple(w.shape))
+    torch.cuda.empty_cache()
+
 
 _is_npu = is_npu()
 _is_cpu = is_cpu()
@@ -303,6 +328,10 @@ class LogitsProcessor(nn.Module):
     ):
         super().__init__()
         self.config = config
+        self._hcu_gemm = _hcu_lm_head is not None and bool(
+            set(getattr(config, "architectures", None) or ())
+            & {"GlmMoeDsaForCausalLM", "GlmMoeDsaForCausalLMNextN"}
+        )
         self.vocab_size = config.vocab_size
         self.logit_scale = logit_scale
         self.use_attn_tp_group = get_parallel().enable_dp_lm_head
@@ -787,9 +816,17 @@ class LogitsProcessor(nn.Module):
                     hidden_states.bfloat16(), lm_head.weight.T.bfloat16()
                 )
             else:
-                logits = torch.matmul(
-                    hidden_states.to(lm_head.weight.dtype), lm_head.weight.T
-                )
+                logits = None
+                if self._hcu_gemm:
+                    _maybe_relayout_hcu_lm_head(lm_head)
+                    if hidden_states.dtype == lm_head.weight.dtype:
+                        logits = _hcu_lm_head.try_skinny_nn_bf16(
+                            hidden_states, lm_head.weight.T
+                        )
+                if logits is None:
+                    logits = torch.matmul(
+                        hidden_states.to(lm_head.weight.dtype), lm_head.weight.T
+                    )
         else:
             # GGUF models
             # TODO: use weight_packed_linear for GGUF models

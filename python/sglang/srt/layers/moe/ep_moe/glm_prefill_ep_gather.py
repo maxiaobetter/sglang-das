@@ -1,14 +1,9 @@
 """Default-off dispatch for the captured GLM FP8 prefill K8 gather kernel."""
 
-import hashlib
-import importlib
-import importlib.util
-from functools import lru_cache
-from pathlib import Path
-
 import torch
 
 from sglang.srt.environ import envs
+from sglang.srt.layers.glm_prefill_native import lightop_glm_op
 from sglang.srt.model_executor.forward_context import (
     get_forward_context,
     has_forward_context,
@@ -20,30 +15,6 @@ from sglang.srt.model_executor.runner_backend_utils.tc_piecewise_cuda_graph impo
     is_in_tc_piecewise_cuda_graph,
 )
 
-_EXTENSION_SHA256 = "e225959f6b88a57af897471241ae994ed24d1e1de48b6a0ef07c0383df6f638d"
-
-
-@lru_cache(maxsize=1)
-def _load_extension():
-    name = "epgather_k8_diag"
-    spec = importlib.util.find_spec(name)
-    if spec is None or spec.origin is None:
-        raise RuntimeError(
-            "SGLANG_GLM_PREFILL_EP_GATHER_K8 requires the validated "
-            "epgather_k8_diag extension on PYTHONPATH"
-        )
-    path = Path(spec.origin)
-    actual = hashlib.sha256(path.read_bytes()).hexdigest()
-    if actual != _EXTENSION_SHA256:
-        raise RuntimeError(
-            f"Unvalidated epgather_k8_diag binary at {path}: SHA256 {actual}; "
-            f"expected {_EXTENSION_SHA256}"
-        )
-    module = importlib.import_module(name)
-    if Path(module.__file__).resolve() != path.resolve():
-        raise RuntimeError("epgather_k8_diag import resolved to a different binary")
-    return module
-
 
 def try_glm_prefill_ep_gather_k8(
     input_tensor: torch.Tensor,
@@ -52,7 +23,9 @@ def try_glm_prefill_ep_gather_k8(
     input_index: torch.Tensor,
     output_tensor: torch.Tensor,
 ) -> bool:
-    if not envs.SGLANG_GLM_PREFILL_EP_GATHER_K8.get():
+    if not (
+        envs.SGLANG_GLM_OPT_PREFILL.get() or envs.SGLANG_GLM_PREFILL_EP_GATHER_K8.get()
+    ):
         return False
     if not has_forward_context():
         return False
@@ -100,5 +73,5 @@ def try_glm_prefill_ep_gather_k8(
         return False
     # The caller is exclusively the FP8 contiguous method's existing LightOp
     # no-map branch. Keep the supplied output and ordered FP32 K0..7 FMA math.
-    _load_extension().run(*tensors, 1)
+    lightop_glm_op("glm53_prefill_ep_gather_k8")(*tensors)
     return True

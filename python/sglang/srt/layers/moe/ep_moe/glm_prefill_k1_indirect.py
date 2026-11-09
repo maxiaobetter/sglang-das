@@ -46,13 +46,22 @@ def _load_extension():
         != _DEEPEP_SHA256
         or hashlib.sha256(Path(deepgemm_op.__file__).read_bytes()).hexdigest()
         != _DEEPGEMM_SHA256
-        or hashlib.sha256(Path(lightop_op.__file__).read_bytes()).hexdigest()
-        != _LIGHTOP_SHA256
+        or (
+            hashlib.sha256(Path(lightop_op.__file__).read_bytes()).hexdigest()
+            != _LIGHTOP_SHA256
+            and getattr(lightop_op, "GLM53_OPT_ABI_VERSION", None) != 1
+        )
     ):
         raise RuntimeError("Indirect K1 requires the validated Torch/HIP/operator ABI")
     configured_path = os.environ.get(_EXTENSION_ENV)
     if not configured_path:
-        raise RuntimeError(f"Set {_EXTENSION_ENV} to the validated extension path")
+        spec = importlib.util.find_spec("r09plus_wasp_indirect")
+        if spec is None or spec.origin is None:
+            raise RuntimeError(
+                "Install the matching r09plus_wasp_indirect dependency or set "
+                + _EXTENSION_ENV
+            )
+        configured_path = spec.origin
     path = Path(configured_path)
     if hashlib.sha256(path.read_bytes()).hexdigest() != _EXTENSION_SHA256:
         raise RuntimeError(f"Unvalidated indirect K1 extension at {path}")

@@ -177,6 +177,24 @@ if _is_cuda:
 
 logger = logging.getLogger(__name__)
 
+_lightop_norm_quant = None
+_lightop_norm_quant_widths = ()
+if (
+    _is_hcu
+    and (envs.SGLANG_GLM_OPT_DECODE.get() or envs.SGLANG_GLM_LIGHTOP_FUSIONS.get())
+    and envs.SGLANG_LIGHTOP_NORM_QUANT.get()
+):
+    try:
+        from lightop import rmsnorm as _lightop_rmsnorm
+
+        getattr(_lightop_rmsnorm.op, "rms_norm_fp8_quant")
+        _lightop_norm_quant = _lightop_rmsnorm.rms_norm_per_token_fp8_quant
+        _lightop_norm_quant_widths = getattr(
+            _lightop_rmsnorm.op, "RMS_NORM_FP8_FP32_RESIDUAL_WIDTHS", ()
+        )
+    except (ImportError, AttributeError, OSError) as exc:
+        logger.warning("LightOp norm quant unavailable; using original path: %s", exc)
+
 
 if _is_npu:
     import torch_npu
@@ -718,6 +736,66 @@ class RMSNorm(BaseFusedOp):
             output = output.reshape(original_shape)
         return output
 
+    def forward_with_lightop_per_token_quant(
+        self, x, residual=None, post_residual_addition=None
+    ):
+        """Return ((FP8, scale, BF16), residual), or the original BF16 path.
+
+        The caller checks the consuming linear's quantization scheme. No tensor
+        cache or module state is used to pass activations between operators.
+        """
+        compatible = (
+            _lightop_norm_quant is not None
+            and self._forward_method == self.forward_hip
+            and not torch.compiler.is_compiling()
+            and not is_batch_invariant_mode_enabled()
+            and not get_exec().deterministic.enable_deterministic_inference
+            and post_residual_addition is None
+            and not self.cast_x_before_out_mul
+            and self.variance_size_override is None
+            and not self.fp32_residual
+            and self.override_orig_dtype is None
+            and not getattr(self, "x_pad_to_multiple", 0)
+            and x.is_cuda
+            and x.dtype == torch.bfloat16
+            and x.ndim == 2
+            and x.shape[0] > 0
+            # Older fused kernels round the residual before normalization.
+            # Only use widths with verified FP32 residual-sum semantics.
+            and x.shape[1] in _lightop_norm_quant_widths
+            and x.is_contiguous()
+            and x.data_ptr() % 16 == 0
+            and self.weight.dtype == x.dtype
+            and self.weight.device == x.device
+            and self.weight.is_contiguous()
+            and self.weight.shape == (x.shape[1],)
+            and self.weight.data_ptr() % 16 == 0
+        )
+        if residual is not None:
+            compatible = compatible and (
+                residual.dtype == x.dtype
+                and residual.device == x.device
+                and residual.shape == x.shape
+                and residual.is_contiguous()
+                and residual.data_ptr() % 16 == 0
+                and residual.data_ptr() != x.data_ptr()
+            )
+        if not compatible:
+            if residual is None:
+                return self(x), x
+            return self(x, residual, post_residual_addition)
+        # Preserve x when the caller uses the original activation as residual.
+        out = x.clone() if residual is None else x
+        quant, scale = _lightop_norm_quant(
+            out,
+            self.weight,
+            epsilon=self.variance_epsilon,
+            fp8type=0,
+            residual=residual,
+            update_input=True,
+        )
+        return (quant, scale, out), (x if residual is None else residual)
+
     def forward_hip(
         self,
         x: torch.Tensor,
@@ -747,9 +825,9 @@ class RMSNorm(BaseFusedOp):
 
         if residual is not None:
             if (
-                envs.SGLANG_GLM_PREFILL_ADD_RMS_ALIGN16.get()
-                or envs.SGLANG_GLM_PREFILL_ADD_RMS_ALIGN16_TRACE.get()
-            ):
+                envs.SGLANG_GLM_OPT_PREFILL.get()
+                or envs.SGLANG_GLM_PREFILL_ADD_RMS_ALIGN16.get()
+            ) or envs.SGLANG_GLM_PREFILL_ADD_RMS_ALIGN16_TRACE.get():
                 from sglang.srt.layers.glm_prefill_add_rms import (
                     try_glm_prefill_add_rms_align16,
                 )

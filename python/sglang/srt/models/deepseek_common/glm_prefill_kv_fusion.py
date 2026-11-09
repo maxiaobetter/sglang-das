@@ -26,7 +26,10 @@ class PrefillQWithStoredKV(NamedTuple):
 
 def use_fused_kv_producer(attn, batch, latent):
     if not (
-        envs.SGLANG_GLM_PREFILL_KV_ROPE_STORE.get()
+        (
+            envs.SGLANG_GLM_OPT_PREFILL.get()
+            or envs.SGLANG_GLM_PREFILL_KV_ROPE_STORE.get()
+        )
         and eligible(attn, batch)
         and dsa_use_prefill_cp(batch)
         and is_cp_v2_active(batch)
@@ -136,7 +139,10 @@ def fuse_kv_rope_store(attn, batch, positions, query_nope, query_rope, latent):
     with torch.profiler.record_function("glm_prefill_packed_kv_cp_gather_store"):
         cache = get_token_to_kv_pool().get_key_buffer(attn.attn_mqa.layer_id)
         cache_bytes = cache.view(torch.uint8).view(-1, 656)
-        if envs.SGLANG_GLM_PREFILL_PACKED_KV_DIRECT_STORE.get():
+        if (
+            envs.SGLANG_GLM_OPT_PREFILL.get()
+            or envs.SGLANG_GLM_PREFILL_PACKED_KV_DIRECT_STORE.get()
+        ):
             # Eligibility already excludes compact/layer-split pools and
             # layer-transfer counters; these locations are physical cache IDs.
             get_cp_strategy().gather_packed_kv_cache_and_store(

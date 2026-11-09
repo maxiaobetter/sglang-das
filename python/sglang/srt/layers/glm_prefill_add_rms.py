@@ -1,17 +1,13 @@
 """Default-off, real-input-validated GLM main-prefill Add RMS dispatch."""
 
-import hashlib
-import importlib.util
 import json
 import logging
 import math
-import os
-from functools import lru_cache
-from pathlib import Path
 
 import torch
 
 from sglang.srt.environ import envs
+from sglang.srt.layers.glm_prefill_native import lightop_glm_op
 from sglang.srt.model_executor.forward_context import (
     get_forward_context,
     has_forward_context,
@@ -25,9 +21,6 @@ from sglang.srt.model_executor.runner_backend_utils.tc_piecewise_cuda_graph impo
 from sglang.srt.runtime_context import get_parallel
 
 logger = logging.getLogger(__name__)
-_EXTENSION_ENV = "SGLANG_GLM_PREFILL_ADD_RMS_ALIGN16_SO"
-_EXTENSION_SHA256 = "11e6a0dff8d96913fb6a22ff12adee7179c004a3dab97c2443fa2bbb0ecab295"
-_LIGHTOP_SHA256 = "f4d69b478289cf93a2be4c0f8f92c7374877609276bd6ba40476ab5a10abee6c"
 _reported = set()
 
 
@@ -86,34 +79,6 @@ def mark_decoder_norms(decoder):
         norm._glm_prefill_add_rms_schemes = schemes
 
 
-@lru_cache(maxsize=1)
-def _load_extension():
-    # No JIT, search-path import, library override or replacement of LightOp.
-    from lightop import op
-
-    if (
-        torch.__version__ != "2.11.0"
-        or torch.version.hip != "6.3.26113"
-        or not torch._C._GLIBCXX_USE_CXX11_ABI
-        or hashlib.sha256(Path(op.__file__).read_bytes()).hexdigest() != _LIGHTOP_SHA256
-    ):
-        raise RuntimeError("Add RMS requires the validated Torch/HIP/LightOp ABI")
-    configured_path = os.environ.get(_EXTENSION_ENV)
-    if not configured_path:
-        raise RuntimeError(f"Set {_EXTENSION_ENV} to the validated extension path")
-    path = Path(configured_path)
-    if hashlib.sha256(path.read_bytes()).hexdigest() != _EXTENSION_SHA256:
-        raise RuntimeError(f"Unvalidated Add RMS extension at {path}")
-    spec = importlib.util.spec_from_file_location("add_rms_align16_diag", path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError("Cannot load the validated Add RMS extension")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    if Path(module.__file__).resolve() != path.resolve():
-        raise RuntimeError("Add RMS extension resolved to a different binary")
-    return module
-
-
 def _record(norm, x, reason, scope):
     if not envs.SGLANG_GLM_PREFILL_ADD_RMS_ALIGN16_TRACE.get():
         return
@@ -155,7 +120,10 @@ def try_glm_prefill_add_rms_align16(norm, x, residual, post_residual_addition):
         _record(norm, x, reason, scope)
         return False
 
-    if not envs.SGLANG_GLM_PREFILL_ADD_RMS_ALIGN16.get():
+    if not (
+        envs.SGLANG_GLM_OPT_PREFILL.get()
+        or envs.SGLANG_GLM_PREFILL_ADD_RMS_ALIGN16.get()
+    ):
         return reject("flag_off")
     if (
         is_in_breakable_cuda_graph()
@@ -208,6 +176,8 @@ def try_glm_prefill_add_rms_align16(norm, x, residual, post_residual_addition):
         != "gfx938"
     ):
         return reject("architecture")
-    _load_extension().run(x, residual, weight, norm.variance_epsilon, 1)
+    lightop_glm_op("glm53_prefill_add_rms_align16")(
+        x, residual, weight, norm.variance_epsilon
+    )
     _record(norm, x, "dispatch", scope)
     return True
