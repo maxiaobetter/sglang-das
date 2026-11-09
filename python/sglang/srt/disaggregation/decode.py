@@ -2200,11 +2200,13 @@ class DecodeTransferQueue(DecodeHiCacheTransferMixin):
             decode_req.req.output_topk_p = output_topk_p
             decode_req.req.output_topk_index = output_topk_index
             decode_req.req.hidden_states_tensor = output_hidden_states
-            if (
-                output_dsa_topk_indices is not None
-                and torch.all(output_dsa_topk_indices < 0).item()
-            ):
-                output_dsa_topk_indices = None
+            if output_dsa_topk_indices is not None:
+                if _is_fake_transfer(decode_req.req):
+                    # Fake prefill has no peer to provide the index-share seed.
+                    # Position zero is remapped to the local KV slot by EAGLE.
+                    output_dsa_topk_indices.zero_()
+                elif torch.all(output_dsa_topk_indices < 0).item():
+                    output_dsa_topk_indices = None
             decode_req.req.output_dsa_topk_indices = output_dsa_topk_indices
 
         if decode_req.req.return_logprob and not replayed_boundary:
@@ -2700,11 +2702,20 @@ class SchedulerDisaggregationDecodeMixin:
 
         # construct fake completed prefill
         new_batch.prepare_for_prebuilt()
+        relay_write_after = None
         if self.enable_overlap:
-            # A finished request can still have one redundant forward in flight.
-            # Drain it before a prebuilt request seeds a potentially reused row.
-            self.schedule_stream.wait_stream(self.forward_stream)
-        new_batch.process_prebuilt(self.future_map)
+            if (
+                self.spec_algorithm.is_eagle()
+                and self.tree_cache.is_chunk_cache()
+                and not self.enable_unified_memory
+            ):
+                # Chunk-cache preparation reads the new request's allocated
+                # KV mapping and only writes batch-local tensors. Keep the
+                # shared relay write behind the previous forward's reads.
+                relay_write_after = self.forward_stream
+            else:
+                self.schedule_stream.wait_stream(self.forward_stream)
+        new_batch.process_prebuilt(self.future_map, relay_write_after=relay_write_after)
 
         return new_batch
 

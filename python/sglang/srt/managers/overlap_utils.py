@@ -324,18 +324,23 @@ class FutureMap:
             self.new_seq_lens_buf = torch.empty(
                 (self.req_pool_size,), dtype=torch.int64, device=self.device
             )
-        # Pinned host copy of new_seq_lens_buf + private stream for fwd-prepare
-        # D2H pulls (gated only on publish, off the schedule stream). CUDA-only:
-        # recovers occupancy lost to the WAR barrier (also CUDA-only); other
-        # platforms have no barrier and use the plain .cpu() bootstrap path.
-        if _is_cuda:
+        # HCU publishes its CPU mirror on the producing stream before draft
+        # extend. CUDA keeps the existing consumer-side private-stream copy.
+        self.copy_seq_lens_on_publish = (
+            _is_hcu
+            and needs_cpu_seq_lens
+            and spec_algo.is_some()
+            and envs.SGLANG_HCU_SPEC_ASYNC_SCHEDULING.get()
+        )
+        if _is_cuda or self.copy_seq_lens_on_publish:
             self.new_seq_lens_cpu_pinned = torch.empty(
                 (self.req_pool_size,), dtype=torch.int64, pin_memory=True
             )
-            self.fwd_prepare_d2h_stream = torch.get_device_module(self.device).Stream()
         else:
             self.new_seq_lens_cpu_pinned = None
-            self.fwd_prepare_d2h_stream = None
+        self.fwd_prepare_d2h_stream = (
+            torch.get_device_module(self.device).Stream() if _is_cuda else None
+        )
         self.need_topk = False
         self.need_hidden_states = False
         self.topk_p_buf = None
@@ -528,7 +533,10 @@ class FutureMap:
         )
         batch.out_cache_loc = out_cache_loc
 
-        if self.fwd_prepare_d2h_stream is None or self.publish_ready is None:
+        if self.copy_seq_lens_on_publish and self.publish_ready is not None:
+            # The publish event was synchronized above on HIP.
+            fresh_cpu = self.new_seq_lens_cpu_pinned[batch.mix_running_indices_cpu]
+        elif self.fwd_prepare_d2h_stream is None or self.publish_ready is None:
             fresh_cpu = fresh.cpu()  # bootstrap / non-CUDA
         else:
             self.fwd_prepare_d2h_stream.wait_event(self.publish_ready)
@@ -585,7 +593,9 @@ class FutureMap:
                 _assert_nonneg_and_invalidate(batch.seq_lens, self.new_seq_lens_buf, fi)
             return
 
-        if self.fwd_prepare_d2h_stream is None or self.publish_ready is None:
+        if self.publish_ready is None or (
+            self.fwd_prepare_d2h_stream is None and not self.copy_seq_lens_on_publish
+        ):
             batch.seq_lens_cpu = batch.seq_lens.cpu()  # bootstrap / non-CUDA
             batch.seq_lens_sum = int(batch.seq_lens_cpu.sum())
             if _DEBUG_ASSERT:
@@ -594,9 +604,10 @@ class FutureMap:
 
         # Mechanism: don't sync the schedule stream; gate a private stream on the
         # publish event and copy into the static pinned buffer.
-        self.fwd_prepare_d2h_stream.wait_event(self.publish_ready)
-        with torch.get_device_module(self.device).stream(self.fwd_prepare_d2h_stream):
-            self.new_seq_lens_cpu_pinned.copy_(self.new_seq_lens_buf, non_blocking=True)
+        if not self.copy_seq_lens_on_publish:
+            self.fwd_prepare_d2h_stream.wait_event(self.publish_ready)
+            with torch.get_device_module(self.device).stream(self.fwd_prepare_d2h_stream):
+                self.new_seq_lens_cpu_pinned.copy_(self.new_seq_lens_buf, non_blocking=True)
 
         cpu_copy_finished = False
 
@@ -604,7 +615,10 @@ class FutureMap:
             nonlocal cpu_copy_finished
             if cpu_copy_finished:
                 return
-            self.fwd_prepare_d2h_stream.synchronize()
+            if self.copy_seq_lens_on_publish:
+                self.publish_ready.synchronize()
+            else:
+                self.fwd_prepare_d2h_stream.synchronize()
             # Select rows only after the asynchronous copy has completed.
             batch.seq_lens_cpu = self.new_seq_lens_cpu_pinned[
                 batch.req_pool_indices_cpu
@@ -632,6 +646,10 @@ class FutureMap:
         indices = future_indices
         if indices.shape[0] == 0:
             return  # DP idle
+        if self.copy_seq_lens_on_publish and self.publish_ready is not None:
+            # PREBUILT may seed rows on the schedule stream. Keep that write
+            # behind the previous snapshot before reusing the pinned buffer.
+            self.publish_ready.wait()
         self.new_seq_lens_buf[indices] = new_seq_lens.to(self.new_seq_lens_buf.dtype)
         publish_confidence = self.needs_confidence_relay and confidence is not None
         if publish_confidence:
@@ -640,6 +658,10 @@ class FutureMap:
         if self.spec_algo.is_some():
             if self.publish_ready is None:
                 self.publish_ready = torch.get_device_module(self.device).Event()
+            if self.copy_seq_lens_on_publish:
+                self.new_seq_lens_cpu_pinned.copy_(
+                    self.new_seq_lens_buf, non_blocking=True
+                )
             self.publish_ready.record()
             self._publish_fresh = True
         if publish_confidence:

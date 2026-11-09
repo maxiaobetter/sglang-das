@@ -2,25 +2,42 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
 import torch
 
 from sglang.srt.layers.attention.dsa.utils import (
     should_remap_pd_dsa_seed_to_local_slots,
 )
-from sglang.srt.managers.overlap_utils import RelayPayload
 from sglang.srt.model_executor.forward_batch_info import CaptureHiddenMode
 from sglang.srt.runtime_context import get_spec
 from sglang.srt.speculative.eagle_info import EagleDraftInput
+from sglang.srt.utils.common import is_pin_memory_available
 
 if TYPE_CHECKING:
-    from sglang.srt.managers.overlap_utils import FutureMap
     from sglang.srt.managers.schedule_batch import ScheduleBatch
+
+
+def _bytes_view(t: torch.Tensor) -> np.ndarray:
+    """Raw-byte numpy view of a contiguous CPU tensor (works for bf16 too)."""
+    return t.reshape(-1).view(torch.uint8).numpy()
+
+
+def _stack_to_device_async(rows: list, dtype: torch.dtype, device) -> torch.Tensor:
+    """Stack equally-shaped CPU rows straight into one pinned buffer."""
+    rows = [torch.as_tensor(r, dtype=dtype).contiguous() for r in rows]
+    shape = (len(rows), *rows[0].shape)
+    use_pin = is_pin_memory_available(device)
+    staging = torch.empty(shape, dtype=dtype, pin_memory=use_pin)
+    if staging.numel():
+        dst = staging.view(len(rows), -1).view(torch.uint8).numpy()
+        for i, r in enumerate(rows):
+            np.copyto(dst[i], _bytes_view(r))
+    return staging.to(device, non_blocking=use_pin)
 
 
 def build_eagle_disagg_draft_input(
     batch: ScheduleBatch,
     last_tokens_tensor: torch.Tensor,
-    future_map: FutureMap,
 ) -> EagleDraftInput:
     # Adaptive spec moves the step count after publish, and this runs once per
     # prebuilt batch.
@@ -29,37 +46,30 @@ def build_eagle_disagg_draft_input(
     if spec.enable_multi_layer_eagle:
         num_states *= spec.speculative_num_steps
 
-    topk_p = torch.stack(
-        [
-            torch.as_tensor(
-                req.output_topk_p[:num_states],
-                device=batch.device,
-                dtype=torch.float32,
-            )
-            for req in batch.reqs
-        ],
-        dim=0,
+    topk_p = _stack_to_device_async(
+        [req.output_topk_p[:num_states].cpu() for req in batch.reqs],
+        torch.float32,
+        batch.device,
     )
-    topk_index = torch.stack(
-        [
-            torch.as_tensor(
-                req.output_topk_index[:num_states],
-                device=batch.device,
-                dtype=torch.int64,
-            )
-            for req in batch.reqs
-        ],
-        dim=0,
+    topk_index = _stack_to_device_async(
+        [req.output_topk_index[:num_states].cpu() for req in batch.reqs],
+        torch.int64,
+        batch.device,
     )
-
-    hidden_states = torch.stack(
-        [req.hidden_states_tensor for req in batch.reqs], dim=0
-    ).to(batch.device)
+    hidden_states = _stack_to_device_async(
+        [req.hidden_states_tensor.cpu() for req in batch.reqs],
+        batch.reqs[0].hidden_states_tensor.dtype,
+        batch.device,
+    )
 
     dsa_topk_indices = None
     dsa_indices_list = [req.output_dsa_topk_indices for req in batch.reqs]
     if dsa_indices_list and all(t is not None for t in dsa_indices_list):
-        dsa_topk_indices = torch.stack(dsa_indices_list, dim=0).to(batch.device)
+        dsa_topk_indices = _stack_to_device_async(
+            [row.cpu() for row in dsa_indices_list],
+            dsa_indices_list[0].dtype,
+            batch.device,
+        )
         if should_remap_pd_dsa_seed_to_local_slots():
             # PD sends request-relative positions; fused TopK consumes
             # decode-local physical slots. Remap once before the draft loop/graph.
@@ -95,15 +105,5 @@ def build_eagle_disagg_draft_input(
         dsa_topk_indices=dsa_topk_indices,
     )
     spec_info.capture_hidden_mode = CaptureHiddenMode.LAST
-
-    if batch.enable_overlap:
-        spec_info.future_dsa_topk_indices_available = dsa_topk_indices is not None
-        spec_info.future_indices = batch.req_pool_indices
-        # Seed the relay buf with the known seq_lens; publish's chained record
-        # keeps the in-flight forward's fence intact (see FutureMap.publish).
-        future_map.publish(spec_info.future_indices, batch.seq_lens)
-        future_map.stash(
-            spec_info.future_indices, RelayPayload.from_draft_input(spec_info)
-        )
 
     return spec_info

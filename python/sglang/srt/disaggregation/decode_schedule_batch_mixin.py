@@ -124,6 +124,8 @@ class ScheduleBatchDisaggregationDecodeMixin:
     def process_prebuilt(
         self: ScheduleBatch,
         future_map: FutureMap,
+        *,
+        relay_write_after: torch.Stream | None = None,
     ):
         """Assign the buffered last input id to schedule batch"""
         last_tokens: List[int] = []
@@ -160,6 +162,19 @@ class ScheduleBatchDisaggregationDecodeMixin:
             future_map,
         )
         if spec_info is not None:
+            if self.enable_overlap and self.spec_algorithm.is_eagle():
+                if relay_write_after is not None:
+                    torch.get_device_module(self.device).current_stream().wait_stream(
+                        relay_write_after
+                    )
+                spec_info.future_dsa_topk_indices_available = (
+                    spec_info.dsa_topk_indices is not None
+                )
+                spec_info.future_indices = self.req_pool_indices
+                future_map.publish(spec_info.future_indices, self.seq_lens)
+                future_map.stash(
+                    spec_info.future_indices, RelayPayload.from_draft_input(spec_info)
+                )
             self.spec_info = spec_info
         else:
             # Non-spec: stash last token into the relay so the first DECODE's
