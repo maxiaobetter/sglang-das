@@ -1,4 +1,4 @@
-"""Default-off inverse broadcast survivors in the retained ordinary GLM scope."""
+"""Default-off token inverse broadcast in the retained ordinary GLM scope."""
 
 import json
 import logging
@@ -20,10 +20,8 @@ from sglang.srt.model_executor.runner_backend_utils.tc_piecewise_cuda_graph impo
 )
 from sglang.srt.runtime_context import get_parallel
 
-_ACTIVATION_ROWS = (14336, 84224, 84992)
 _FLAGS = {
     "token": "SGLANG_GLM_PREFILL_TOKEN_QUANT_INV_BROADCAST",
-    "activation": "SGLANG_GLM_PREFILL_ACTIVATION_INV_BROADCAST",
 }
 _LOGGED = set()
 logger = logging.getLogger(__name__)
@@ -118,39 +116,3 @@ def try_token_quant_inverse(input, output, scale):
     )
     _record("token", input)
     return True
-
-
-def try_expert_activation_inverse(input):
-    """Only the no-limit, no-topkcount caller and three actually tested M values."""
-    if (
-        not envs.SGLANG_GLM_OPT_PREFILL.get()
-        and os.environ.get(_FLAGS["activation"]) != "1"
-    ) or torch.compiler.is_compiling():
-        return None
-    if (
-        input.ndim != 2
-        or input.shape[1] != 4096
-        or input.shape[0] not in _ACTIVATION_ROWS
-    ):
-        return None
-    if not _scope("activation") or not _input_ok(input):
-        return None
-    rows = input.shape[0]
-    # Match native Python API dtype; the extension ABI consumes its byte view.
-    output = torch.empty((rows, 2048), dtype=torch.float8_e4m3fn, device=input.device)
-    scale = torch.empty((rows, 1), dtype=torch.float32, device=input.device)
-    assert len({t.untyped_storage().data_ptr() for t in (input, output, scale)}) == 3
-    assert output.data_ptr() % 16 == 0 and scale.data_ptr() % 16 == 0
-    lightop_glm_op("fuse_silu_mul_fp8_quant", "broadcast_inverse")(
-        input,
-        output.view(torch.uint8),
-        scale,
-        0,
-        None,
-        1,
-        -1,
-        None,
-        broadcast_inverse=True,
-    )
-    _record("activation", input)
-    return output, scale

@@ -1406,18 +1406,10 @@ class DeepEPMoE(FusedMoE):
 
         swiglu_limit = self.moe_runner_config.swiglu_limit
         if swiglu_limit is None:
-            from sglang.kernels.ops.quantization.glm_prefill_inverse_survivors import (
-                try_expert_activation_inverse,
+            q_a2_all, q_a2_scale = fuse_silu_mul_fp8_quant(
+                gateup_output,
+                fp8type=0,
             )
-
-            inverse_result = try_expert_activation_inverse(gateup_output)
-            if inverse_result is None:
-                q_a2_all, q_a2_scale = fuse_silu_mul_fp8_quant(
-                    gateup_output,
-                    fp8type=0,
-                )
-            else:
-                q_a2_all, q_a2_scale = inverse_result
         else:
             q_a2_all, q_a2_scale = fuse_silu_mul_fp8_quant(
                 gateup_output,
