@@ -1423,6 +1423,8 @@ class MHATokenToKVPoolHostHCU(HostKVCache):
         pin_memory: bool = True,
         device: str = "cpu",
         allocator_type: str = "default",
+        *,
+        pool_label: str = "kv",
     ):
         if layout != "layout_hcu":
             raise ValueError(
@@ -1433,6 +1435,7 @@ class MHATokenToKVPoolHostHCU(HostKVCache):
             raise ValueError(
                 "layout_hcu HiCache does not support layer-sharded KV pools"
             )
+        self.target_layer_num = device_pool.layer_num
         super().__init__(
             device_pool,
             host_to_device_ratio,
@@ -1442,6 +1445,7 @@ class MHATokenToKVPoolHostHCU(HostKVCache):
             pin_memory,
             device,
             allocator_type,
+            pool_label=pool_label,
         )
         k_by_layer = self.k_buffer.transpose(0, 1)
         v_by_layer = self.v_buffer.transpose(0, 1)
