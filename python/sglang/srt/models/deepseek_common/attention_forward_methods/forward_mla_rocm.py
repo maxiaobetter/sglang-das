@@ -76,8 +76,16 @@ if _is_hcu and envs.SGLANG_GLM_HCU_GEMM.get():
     import hcu_ops as _hcu_bmm
 
 
-def _hcu_absorb_bmm(attn, x, weight, out=None):
+def _hcu_absorb_bmm(attn, x, weight, out=None, *, forward_batch=None):
     # Preserve the caller's token-major output layout, including graph buffers.
+    if _is_hcu and envs.SGLANG_GLM_OPT_DECODE.get() and attn._lightop_glm_fusions:
+        from sglang.kernels.ops.gemm.glm_absorb_bmm import try_glm_absorb_bmm
+        from sglang.srt.layers.glm_decode_quant import glm_decode_phase_enabled
+
+        if glm_decode_phase_enabled(forward_batch, is_nextn=attn.is_nextn):
+            result = try_glm_absorb_bmm(x, weight, out)
+            if result is not None:
+                return result
     result = None
     if _hcu_bmm is not None and getattr(attn, "_hcu_glm_gemm", False):
         result = _hcu_bmm.try_bmm_bf16(x, weight, out)
@@ -189,6 +197,7 @@ def rocm_absorb_q_bmm(
     q_nope: torch.Tensor,
     *,
     is_capture_mode: bool,
+    forward_batch: Optional[ForwardBatch] = None,
 ) -> torch.Tensor:
     """Absorb ``q_nope @ w_kc`` on HIP/AITER (pre-transpose layout)."""
     # TODO(haishaw): add bmm_fp8 to ROCm
@@ -231,6 +240,7 @@ def rocm_absorb_q_bmm(
                 attn,
                 q_nope.to(torch.bfloat16).transpose(0, 1),
                 _scaled_bmm_weight(attn.w_kc, attn.w_scale),
+                forward_batch=forward_batch,
             )
     return q_nope_out
 
@@ -238,6 +248,8 @@ def rocm_absorb_q_bmm(
 def rocm_absorb_v_bmm(
     attn: DeepseekV2AttentionMLA,
     attn_output: torch.Tensor,
+    *,
+    forward_batch: Optional[ForwardBatch] = None,
 ) -> torch.Tensor:
     """Absorb ``attn_output @ w_vc`` (+ optional fused flatten quant) on HIP."""
     # TODO(haishaw): add bmm_fp8 to ROCm
@@ -306,12 +318,14 @@ def rocm_absorb_v_bmm(
                     attn_output.transpose(0, 1),
                     _scaled_bmm_weight(attn.w_vc, attn.w_scale),
                     out=output.transpose(0, 1),
+                    forward_batch=forward_batch,
                 )
                 return output.flatten(1, 2)
             attn_bmm_output = _hcu_absorb_bmm(
                 attn,
                 attn_output.to(torch.bfloat16).transpose(0, 1),
                 _scaled_bmm_weight(attn.w_vc, attn.w_scale),
+                forward_batch=forward_batch,
             )
 
     if _bmm_buf is not None:
@@ -846,7 +860,10 @@ class DeepseekMLARocmForwardMixin:
                 q_nope_out = q_nope_out[:, :expected_m, :]
             else:
                 q_nope_out = rocm_absorb_q_bmm(
-                    self, q_nope, is_capture_mode=get_is_capture_mode()
+                    self,
+                    q_nope,
+                    is_capture_mode=get_is_capture_mode(),
+                    forward_batch=forward_batch,
                 )
 
             q_nope_out = q_nope_out.transpose(0, 1)
@@ -1233,7 +1250,9 @@ class DeepseekMLARocmForwardMixin:
                 attn_bmm_output[:, :expected_m, :].transpose(0, 1).flatten(1, 2)
             )
         else:
-            attn_bmm_output = rocm_absorb_v_bmm(self, attn_output)
+            attn_bmm_output = rocm_absorb_v_bmm(
+                self, attn_output, forward_batch=forward_batch
+            )
 
         if _SGLANG_EXPERIMENTAL_LORA_OPTI:
             from sglang.srt.lora.trtllm_lora_temp.deepseek_mla_correction import (

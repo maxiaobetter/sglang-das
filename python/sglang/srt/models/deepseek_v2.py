@@ -383,6 +383,14 @@ class DeepseekV2MLP(nn.Module):
                 x = (x, None, y)
 
             gate_up, _ = self.gate_up_proj(x)
+        if envs.SGLANG_GLM_OPT_DECODE.get() and getattr(
+            self, "_glm_decode_shared_quant", False
+        ):
+            from sglang.srt.layers.glm_decode_quant import try_shared_silu_quant
+
+            quantized = try_shared_silu_quant(self, gate_up, forward_batch)
+            if quantized is not None:
+                return self.down_proj(quantized)[0]
         # Fast path: fused silu+clamp+fp8_quant+deepgemm when conditions met.
         # Only valid when down_proj does NOT need an all-reduce and its weights
         # are fp8 (uint8 storage with weight_scale_inv).
@@ -838,6 +846,11 @@ class DeepseekV2MoE(nn.Module):
                 prefix=add_prefix("shared_experts", prefix),
                 **(dict(tp_rank=0, tp_size=1) if _shared_expert_use_tp1 else {}),
             )
+            self.shared_experts._glm_decode_shared_quant = _is_hcu and bool(
+                set(getattr(config, "architectures", None) or ())
+                & {"GlmMoeDsaForCausalLM", "GlmMoeDsaForCausalLMNextN"}
+            )
+            self.shared_experts._glm_decode_is_nextn = is_nextn
             self.shared_experts._glm_prefill_shared_overlap = (
                 _is_hcu
                 and not is_nextn
@@ -1031,6 +1044,7 @@ class DeepseekV2MoE(nn.Module):
                     gemm_output_zero_allocator,
                     input_ids,
                     input_ids_global=input_ids_global,
+                    forward_batch=forward_batch,
                 )
             else:
                 return self.forward_normal(
@@ -1039,6 +1053,7 @@ class DeepseekV2MoE(nn.Module):
                     input_ids,
                     input_ids_global=input_ids_global,
                     skip_shared_experts=skip_shared_experts,
+                    forward_batch=forward_batch,
                 )
         else:
             return self.forward_deepep(
@@ -1051,6 +1066,7 @@ class DeepseekV2MoE(nn.Module):
         gemm_output_zero_allocator: BumpAllocator = None,
         input_ids: Optional[torch.Tensor] = None,
         input_ids_global: Optional[torch.Tensor] = None,
+        forward_batch: Optional[ForwardBatch] = None,
     ) -> torch.Tensor:
         # Note(kpham-sgl): issue order satisfies 3 constraints:
         # - no stream explosion: main (routed) issued before alt block -> capture reuses 1 alt stream;
@@ -1128,6 +1144,7 @@ class DeepseekV2MoE(nn.Module):
                 hidden_states,
                 gemm_output_zero_allocator,
                 pre_quant_input=pre_quant_input,
+                forward_batch=forward_batch,
             )
 
         current_stream.wait_stream(self.alt_stream)
@@ -1166,6 +1183,7 @@ class DeepseekV2MoE(nn.Module):
         input_ids: Optional[torch.Tensor] = None,
         input_ids_global: Optional[torch.Tensor] = None,
         skip_shared_experts: bool = False,
+        forward_batch: Optional[ForwardBatch] = None,
     ) -> torch.Tensor:
         if hasattr(self, "shared_experts") and use_intel_amx_backend(
             self.shared_experts.gate_up_proj
@@ -1198,6 +1216,7 @@ class DeepseekV2MoE(nn.Module):
                     hidden_states,
                     gemm_output_zero_allocator,
                     pre_quant_input=pre_quant_input,
+                    forward_batch=forward_batch,
                 )
             # router_logits: (num_tokens, n_experts)
             router_logits = self.gate(hidden_states, gemm_output_zero_allocator)
@@ -1230,7 +1249,9 @@ class DeepseekV2MoE(nn.Module):
                 self.alt_stream.wait_stream(torch.cuda.current_stream())
                 with torch.cuda.stream(self.alt_stream):
                     shared_output = self._forward_shared_experts(
-                        hidden_states, gemm_output_zero_allocator
+                        hidden_states,
+                        gemm_output_zero_allocator,
+                        forward_batch=forward_batch,
                     )
 
                 pre_combine_hook_handle.remove()
@@ -1281,6 +1302,7 @@ class DeepseekV2MoE(nn.Module):
                 hidden_states,
                 gemm_output_zero_allocator,
                 pre_quant_input=pre_quant_input,
+                forward_batch=forward_batch,
             )
 
         final_hidden_states = maybe_fuse_routed_scale_and_shared_add(
@@ -1392,7 +1414,9 @@ class DeepseekV2MoE(nn.Module):
                 if shared_stream is not None:
                     shared_stream.wait_stream(torch.cuda.current_stream())
                     with torch.cuda.stream(shared_stream):
-                        shared_output = self._forward_shared_experts(hidden_states)
+                        shared_output = self._forward_shared_experts(
+                            hidden_states, forward_batch=forward_batch
+                        )
                         if prefill_stream is not None:
                             hidden_states.record_stream(shared_stream)
                         shared_output.record_stream(shared_stream)
@@ -1405,7 +1429,9 @@ class DeepseekV2MoE(nn.Module):
                         # allocator recycles shared_output across the break.
                         torch.cuda.current_stream().wait_event(shared_event)
                 else:
-                    shared_output = self._forward_shared_experts(hidden_states)
+                    shared_output = self._forward_shared_experts(
+                        hidden_states, forward_batch=forward_batch
+                    )
             topk_kwargs = (
                 {"input_ids": input_ids_global}
                 if getattr(self, "is_hash", False)
@@ -1434,7 +1460,9 @@ class DeepseekV2MoE(nn.Module):
 
             def _deepep_dispatch_hook(dispatcher: BaseDispatcher):
                 nonlocal shared_output
-                shared_output = self._forward_shared_experts(hidden_states)
+                shared_output = self._forward_shared_experts(
+                    hidden_states, forward_batch=forward_batch
+                )
                 for handle in deepep_dispatch_hook_handle:
                     handle.remove()
 
@@ -1510,7 +1538,9 @@ class DeepseekV2MoE(nn.Module):
                 with deep_gemm_wrapper.configure_deep_gemm_num_sms(
                     dispatcher.meta_overlap_args["compute_num_sms"]
                 ):
-                    shared_output = self._forward_shared_experts(hidden_states)
+                    shared_output = self._forward_shared_experts(
+                        hidden_states, forward_batch=forward_batch
+                    )
 
                 pre_combine_hook_handle.remove()
 
@@ -1615,6 +1645,7 @@ class DeepseekV2MoE(nn.Module):
         hidden_states,
         gemm_output_zero_allocator: BumpAllocator = None,
         pre_quant_input: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+        forward_batch: Optional[ForwardBatch] = None,
     ):
         if (hidden_states.shape[0] > 0) and (self.num_fused_shared_experts == 0):
             if pre_quant_input is not None:
@@ -1622,11 +1653,15 @@ class DeepseekV2MoE(nn.Module):
                 # multiple of 4; the padded rows flow through the MLP (all ops
                 # are row-local) and are sliced off here.
                 out = self.shared_experts(
-                    hidden_states, gateup_pre_quant=pre_quant_input
+                    hidden_states,
+                    gateup_pre_quant=pre_quant_input,
+                    forward_batch=forward_batch,
                 )
                 return out[: hidden_states.shape[0]]
             return self.shared_experts(
-                hidden_states, gemm_output_zero_allocator=gemm_output_zero_allocator
+                hidden_states,
+                gemm_output_zero_allocator=gemm_output_zero_allocator,
+                forward_batch=forward_batch,
             )
         else:
             return None
@@ -1748,7 +1783,9 @@ class DeepseekV2MoE(nn.Module):
         if (self.num_fused_shared_experts == 0) and is_non_idle_and_non_empty(
             state.forward_batch.forward_mode, hidden_states_mlp_input
         ):
-            state.shared_output = self.shared_experts(hidden_states_mlp_input)
+            state.shared_output = self.shared_experts(
+                hidden_states_mlp_input, forward_batch=state.forward_batch
+            )
         else:
             state.shared_output = None
 

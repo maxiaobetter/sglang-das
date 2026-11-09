@@ -237,7 +237,7 @@ class CompressedTensorsW8A8Fp8(CompressedTensorsLinearScheme):
         silu_quant_args: Optional[list[torch.Tensor]] = None,
     ) -> torch.Tensor:
         if isinstance(x, tuple):
-            # Pre-quantized activation from a fused RMSNorm+FP8 quant kernel:
+            # Pre-quantized activation from fused RMSNorm or shared SwiGLU:
             # x = (fp8_input, input_scale[, orig_dtype]).
             # apply_fp8_linear detects the fp8 dtype and skips re-quantizing;
             # orig_dtype (when present) sets the GEMM output dtype.

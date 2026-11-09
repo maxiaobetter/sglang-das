@@ -394,15 +394,20 @@ def forward_mega_moe(
         overlap_stream.wait_stream(current_stream)
         if eager_w4a8_overlap:
             for tensor in (
-                hidden_states, input_ids_global,
+                hidden_states,
+                input_ids_global,
                 getattr(forward_batch, "num_token_non_padded", None),
             ):
                 if isinstance(tensor, torch.Tensor) and tensor.is_cuda:
                     tensor.record_stream(overlap_stream)
-        shared_output = moe._forward_shared_experts(hidden_states)
+        shared_output = moe._forward_shared_experts(
+            hidden_states, forward_batch=forward_batch
+        )
         mega_stream_ctx = torch.cuda.stream(overlap_stream)
     else:
-        shared_output = moe._forward_shared_experts(hidden_states)
+        shared_output = moe._forward_shared_experts(
+            hidden_states, forward_batch=forward_batch
+        )
         mega_stream_ctx = nullcontext()
 
     with mega_stream_ctx:
@@ -509,7 +514,11 @@ def _run_mega_routed(
         intermediate_hidden=intermediate_size,
         runtime=runtime,
         cuda_graph_max_tokens_per_rank=cuda_graph_max_tokens_per_rank,
-        quant_mode=("w4a8" if getattr(moe.experts, "_mega_moe_hcu_w4a8_weights", False) else "fp8"),
+        quant_mode=(
+            "w4a8"
+            if getattr(moe.experts, "_mega_moe_hcu_w4a8_weights", False)
+            else "fp8"
+        ),
     )
 
     if _IS_HCU:
@@ -791,9 +800,9 @@ def _run_standalone_hcu_w4a8_mega_moe(
     return y
 
 
-
 def build_hcu_w4a8_mega_moe_experts_weights(experts) -> None:
     from deepgemm import pack_w4a8_moe_hipc_weight
+
     from sglang.srt.eplb.expert_location import get_global_expert_location_metadata
     from sglang.srt.server_args import get_global_server_args
 
@@ -801,31 +810,49 @@ def build_hcu_w4a8_mega_moe_experts_weights(experts) -> None:
         return
     args = get_global_server_args()
     if not _IS_HCU or get_hcu_mega_moe_runtime() != "megamoe":
-        raise ValueError("W4A8 MegaMoE requires HCU and SGLANG_HCU_MEGA_MOE_RUNTIME=megamoe")
+        raise ValueError(
+            "W4A8 MegaMoE requires HCU and SGLANG_HCU_MEGA_MOE_RUNTIME=megamoe"
+        )
     if args.enable_eplb:
-        raise ValueError("W4A8 MegaMoE supports offline EPLB via --init-expert-location; online EPLB is unsupported")
+        raise ValueError(
+            "W4A8 MegaMoE supports offline EPLB via --init-expert-location; online EPLB is unsupported"
+        )
     if not args.disable_cuda_graph:
         raise ValueError("W4A8 MegaMoE prefill currently requires --disable-cuda-graph")
     # The loader has already placed logical experts into the static physical
     # slots. Repack each slot independently without changing expert order.
     for name in ("w13_weight", "w2_weight"):
         weight = getattr(experts, name)
-        setattr(experts, name, torch.nn.Parameter(
-            pack_w4a8_moe_hipc_weight(weight.data), requires_grad=False,
-        ))
+        setattr(
+            experts,
+            name,
+            torch.nn.Parameter(
+                pack_w4a8_moe_hipc_weight(weight.data),
+                requires_grad=False,
+            ),
+        )
     for name in ("w13_weight_scale", "w2_weight_scale"):
         scale = getattr(experts, name)
-        setattr(experts, name, torch.nn.Parameter(scale.data * 16.0, requires_grad=False))
+        setattr(
+            experts, name, torch.nn.Parameter(scale.data * 16.0, requires_grad=False)
+        )
     experts.mega_l1_weights = (experts.w13_weight, experts.w13_weight_scale)
     experts.mega_l2_weights = (experts.w2_weight, experts.w2_weight_scale)
     metadata = get_global_expert_location_metadata()
     if metadata is not None:
         logical_experts = metadata.num_logical_experts
         if logical_experts % 8:
-            raise ValueError("W4A8 MegaMoE canonical reduction requires logical experts divisible by EP8")
+            raise ValueError(
+                "W4A8 MegaMoE canonical reduction requires logical experts divisible by EP8"
+            )
         groups = (
-            metadata.physical_to_logical_map[experts.layer_id] // (logical_experts // 8)
-        ).to(torch.int32).contiguous()
+            (
+                metadata.physical_to_logical_map[experts.layer_id]
+                // (logical_experts // 8)
+            )
+            .to(torch.int32)
+            .contiguous()
+        )
         physical_groups = torch.arange(
             groups.numel(), device=groups.device, dtype=torch.int32
         ) // (groups.numel() // 8)

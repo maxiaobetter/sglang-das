@@ -1,4 +1,4 @@
-"""GLM o_proj quantization in the retained decode/verify/draft scope."""
+"""GLM quantization and phase guards for decode, verify, and draft."""
 
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -9,6 +9,84 @@ from sglang.srt.environ import envs
 from sglang.srt.layers.glm_prefill_native import lightop_glm_op
 
 _phase = ContextVar("glm_decode_o_proj_phase", default=None)
+
+
+def glm_decode_phase_enabled(batch, *, is_nextn=False):
+    if (
+        not envs.SGLANG_GLM_OPT_DECODE.get()
+        or batch is None
+        or torch.compiler.is_compiling()
+    ):
+        return False
+    from sglang.srt.batch_invariant_ops import is_batch_invariant_mode_enabled
+    from sglang.srt.layers.attention.dsa.forward_batch_utils import (
+        effective_forward_mode,
+    )
+    from sglang.srt.runtime_context import get_exec
+
+    if (
+        is_batch_invariant_mode_enabled()
+        or get_exec().deterministic.enable_deterministic_inference
+    ):
+        return False
+    mode = effective_forward_mode(batch)
+    return (
+        mode.is_decode()
+        or mode.is_target_verify()
+        or mode.is_draft_extend_v2()
+        or (is_nextn and mode.is_extend())
+    )
+
+
+def try_shared_silu_quant(mlp, gate_up, batch):
+    if (
+        not getattr(mlp, "_glm_decode_shared_quant", False)
+        or mlp.swiglu_limit is not None
+        or not glm_decode_phase_enabled(
+            batch, is_nextn=getattr(mlp, "_glm_decode_is_nextn", False)
+        )
+        or gate_up.ndim != 2
+        or gate_up.shape[0] not in (4, 6, 24, 30, 32)
+        or gate_up.shape[1] != 4096
+        or gate_up.dtype != torch.bfloat16
+        or not gate_up.is_cuda
+        or not gate_up.is_contiguous()
+        or gate_up.data_ptr() % 16
+        or torch.version.hip is None
+    ):
+        return None
+    from sglang.srt.layers.quantization.compressed_tensors.schemes.compressed_tensors_w8a8_fp8 import (
+        supports_lightop_input_quant,
+    )
+
+    if not supports_lightop_input_quant(mlp.down_proj):
+        return None
+    props = torch.cuda.get_device_properties(gate_up.device)
+    if (
+        props.gcnArchName.split(":", 1)[0] != "gfx938"
+        or props.multi_processor_count != 64
+    ):
+        return None
+    q = torch.empty(
+        (gate_up.shape[0], 2048), device=gate_up.device, dtype=torch.float8_e4m3fn
+    )
+    scale = torch.empty(
+        (gate_up.shape[0], 1), device=gate_up.device, dtype=torch.float32
+    )
+    # Match fuse_silu_and_mul -> BF16 -> per_token_quant_fp8, including
+    # zero/tiny rows. The ordinary fused API has a different scale floor.
+    lightop_glm_op("fuse_silu_mul_fp8_quant", "per_token_scale")(
+        gate_up,
+        q.view(torch.uint8),
+        scale,
+        0,
+        None,
+        1,
+        -1,
+        None,
+        per_token_scale=True,
+    )
+    return q, scale, gate_up.dtype
 
 
 @contextmanager
