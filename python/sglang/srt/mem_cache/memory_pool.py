@@ -1003,7 +1003,7 @@ class MambaPool:
             stream = torch.cuda.current_stream()
             for slots in resets:
                 slots.record_stream(stream)
-            self.replayssm_pending[torch.cat(resets)] = 0
+            self.replayssm_pending.index_fill_(0, torch.cat(resets).long(), 0)
 
     def flush_replayssm_pending(self, slots: torch.Tensor):
         from sglang.kernels.ops.attention.fla.hcu.kda_replayssm_spec_decode import (
@@ -1021,7 +1021,7 @@ class MambaPool:
             ssm_state_indices=slots,
             accept_lens=self.replayssm_pending[safe_slots],
         )
-        self.replayssm_pending[safe_slots] = 0
+        self.replayssm_pending.index_fill_(0, safe_slots.long(), 0)
 
     def clear_slots(self, indices: torch.Tensor):
         """Zero out mamba state at the given pool indices. Must run on forward stream."""
@@ -1068,7 +1068,7 @@ class MambaPool:
         if pending is not None:
             self.reset_replayssm_pending()
             self.flush_replayssm_pending(src_indices)
-            pending[dst_indices] = 0
+            pending.index_fill_(0, dst_indices.long(), 0)
         if self.replayssm_write_pos is not None and self.debug_memory_pool:
             # Debug-only (syncs): catch any copy of an active, un-flushed slot.
             src_wp = self.replayssm_write_pos[src_indices]
@@ -1126,7 +1126,7 @@ class MambaPool:
         current_platform.synchronize()
         pending = getattr(self, "replayssm_pending", None)
         if pending is not None:
-            pending[indices] = 0
+            pending.index_fill_(0, indices.long(), 0)
         for i, conv in enumerate(self.mamba_cache.conv):
             conv[:, indices] = conv_cpu[i].to(conv.device, non_blocking=True)
         self.mamba_cache.temporal[:, indices] = temporal_cpu.to(
