@@ -806,8 +806,7 @@ class DeepEPMoE(FusedMoE):
                 logger.warning(
                     "SGLANG_DEEPEP_DISPATCH_SCATTER_FUSED is not applied (requires the int8 "
                     "contiguous GEMM branch: --deepep-mode normal and/or "
-                    "SGLANG_INT8_DEEPGEMM_ASM=1; other branches consume per-row m_indices, "
-                    "which the fused scatter cannot fill); the standalone ep_scatter runs instead"
+                    "SGLANG_INT8_DEEPGEMM_ASM=1); the standalone ep_scatter runs instead"
                 )
 
         if scatter_fused and not self.use_int8_w8a8_deepgemm:
@@ -2482,22 +2481,23 @@ class DeepEPMoE(FusedMoE):
                 device="cpu",
             ).cuda(non_blocking=True)
 
-        # Build before ep_scatter overwrites the counts with prefix sums; the fused
-        # scatter cannot fill per-row m_indices, so the GEMMs take this table.
-        gemm_indices, gemm_config = None, None
-        if _scatter is not None:
-            counts = num_recv_tokens_per_expert_gpu
-            offsets = torch.cumsum(counts, 0, dtype=torch.int32) - counts
-            gemm_indices = torch.cat((counts, offsets))
-            gemm_config = {"MODE": 2001}
-
         counts_are_aligned = all(
             count % 256 == 0 for count in num_recv_tokens_per_expert
         )
         if _scatter is not None:
             output_index = _scatter[2]
-            # gemm_indices is set above, so no GEMM below reads the per-row m_indices.
-            m_indices = None
+            # DeepEP wrote the activations and gather indices. Build only the
+            # per-row expert IDs, including -1 padding, for contiguous GEMM.
+            m_indices = _build_m_indices_with_optional_lightop(
+                topk_ids,
+                hidden_states.device,
+                len(num_recv_tokens_per_expert),
+                total_elements=all_tokens if counts_are_aligned else None,
+                block_size=256,
+                counts_are_aligned=counts_are_aligned,
+            )
+            if m_indices.numel() != all_tokens:
+                raise RuntimeError("Fused scatter and GEMM row counts do not match")
         else:
             m_indices, output_index = _ep_scatter_with_optional_lightop(
                 hidden_states,
@@ -2524,17 +2524,12 @@ class DeepEPMoE(FusedMoE):
         if not counts_are_aligned:
             gateup_output.zero_()
 
-        gemm_kwargs = {} if gemm_config is None else {"config": gemm_config}
-        # The fused scatter fills no m_indices, so the GEMMs take the group table instead;
-        # the two gfx936 branches below cannot and are rejected at init in that case.
-        gemm_rows = m_indices if gemm_indices is None else gemm_indices
         if self.deepep_mode.is_normal() or self.use_int8_w8a8_deepgemm_asm:
             m_grouped_i8_gemm_nt_contiguous(
                 input_tensor,
                 w13_weight_int8,
                 gateup_output,
-                gemm_rows,
-                **gemm_kwargs,
+                m_indices,
                 shuffle_unique=0,
             )
         elif self.use_gfx936_w8a8_int8_deepgemm:
@@ -2551,8 +2546,7 @@ class DeepEPMoE(FusedMoE):
                 input_tensor,
                 w13_weight_int8,
                 gateup_output,
-                gemm_rows,
-                **gemm_kwargs,
+                m_indices,
             )
         del input_tensor
 
@@ -2578,8 +2572,7 @@ class DeepEPMoE(FusedMoE):
                 (q_a2_all, q_a2_scale),
                 w2_weight_int8,
                 down_output,
-                gemm_rows,
-                **gemm_kwargs,
+                m_indices,
                 shuffle_unique=0,
             )
         elif self.use_gfx936_w8a8_int8_deepgemm:
@@ -2596,8 +2589,7 @@ class DeepEPMoE(FusedMoE):
                 (q_a2_all, q_a2_scale),
                 w2_weight_int8,
                 down_output,
-                gemm_rows,
-                **gemm_kwargs,
+                m_indices,
             )
 
         if self.combine_gather_fused:
