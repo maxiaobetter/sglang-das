@@ -921,6 +921,13 @@ class Envs:
     SGLANG_ENABLE_DP_ATTENTION_LOCAL_CONTROL_BROADCAST = EnvBool(False)
     SGLANG_KV_LAYOUT_HCU_FA = EnvBool(True)
     SGLANG_USE_LIGHTOP = EnvBool(False)
+    # Experimental GLM DSA channel-FP8 fusions; master switch defaults off.
+    SGLANG_GLM_LIGHTOP_FUSIONS = EnvBool(False)
+    # Opt-in gfx938 GEMM/BMM hooks; requires the separately built hcu_ops package.
+    SGLANG_GLM_HCU_GEMM = EnvBool(False)
+    SGLANG_LIGHTOP_MLA_KV_FUSED = EnvBool(True)
+    SGLANG_LIGHTOP_NORM_QUANT = EnvBool(True)
+    SGLANG_LIGHTOP_FUSION_PHASES = EnvStr("verify")
     SGLANG_USE_LIGHTOP_MOE_SUM_MUL_ADD = EnvBool(False)
     SGLANG_USE_OPT_CAT = EnvBool(False)
     SGLANG_USE_FUSED_MLA_CAT = EnvBool(False)
@@ -953,7 +960,18 @@ class Envs:
     SGLANG_HACK_SKIP_FP4_FP8_GEMM = EnvBool(False)
     SGLANG_LIGHTOP_TOPK = EnvBool(False)
     SGLANG_OPT_SWA_EVICT_DROP_PAGE_MARGIN = EnvBool(False)
+    # Framework optimizations; external library switches remain independent.
+    SGLANG_GLM_OPT_PREFILL = EnvBool(False)
+    SGLANG_GLM_OPT_DECODE = EnvBool(False)
     SGLANG_GLM_PREFILL_KV_ROPE_STORE = EnvBool(False)
+    SGLANG_GLM_PREFILL_PACKED_KV_DIRECT_STORE = EnvBool(False)
+    SGLANG_GLM_PREFILL_GATE_K1_VECTOR = EnvBool(False)
+    SGLANG_GLM_PREFILL_PHYSICAL_KV_COMPACT = EnvBool(False)
+    SGLANG_GLM_PREFILL_EP_GATHER_K8 = EnvBool(False)
+    SGLANG_GLM_PREFILL_K1_INDIRECT_A = EnvBool(False)
+    SGLANG_GLM_PREFILL_K1_INDIRECT_A_TRACE = EnvBool(False)
+    SGLANG_GLM_PREFILL_ADD_RMS_ALIGN16 = EnvBool(False)
+    SGLANG_GLM_PREFILL_ADD_RMS_ALIGN16_TRACE = EnvBool(False)
     SGLANG_GLM_PREFILL_SHARED_OVERLAP = EnvBool(False)
     SGLANG_HCU_MEGA_MOE_RUNTIME = EnvStr("deep_gemm")
 
@@ -1596,6 +1614,8 @@ class Envs:
     )
     # Opt-in HCU AOT kernel for concatenating absorbed MLA Q components.
     SGLANG_ENABLE_HCU_CONCAT_MLA_ABSORB_Q = EnvBool(False)
+    # gfx938 draft-only, bit-preserving concat for validated per-DP BS1-5 layouts.
+    SGLANG_HCU_DRAFT_CONCAT = EnvBool(False)
     SGLANG_ENABLE_PCG_DSV2_DUAL_STREAM = EnvBool(False)
     SGLANG_DSA_TOPK_BROADCAST = EnvBool(False)
     SGLANG_DISABLE_DSA_INDEXER_FUSION = EnvBool(False)

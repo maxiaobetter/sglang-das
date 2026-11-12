@@ -14,7 +14,10 @@ logger = logging.getLogger(__name__)
 def try_shared_stream(moe, batch, hidden_states):
     shared = getattr(moe, "shared_experts", None)
     if not (
-        envs.SGLANG_GLM_PREFILL_SHARED_OVERLAP.get()
+        (
+            envs.SGLANG_GLM_OPT_PREFILL.get()
+            or envs.SGLANG_GLM_PREFILL_SHARED_OVERLAP.get()
+        )
         and getattr(shared, "_glm_prefill_shared_overlap", False)
         and not moe.is_nextn
         and moe.num_fused_shared_experts == 0

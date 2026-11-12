@@ -2153,12 +2153,20 @@ else:
                 )
                 if not input.is_contiguous():
                     input = input.contiguous()
-                output, scale = lightop_per_token_quant_fp8(
-                    input,
-                    dtype=output.dtype,
-                    out_q=output,
-                    out_scale=scale,
+                from sglang.kernels.ops.quantization.glm_prefill_inverse_survivors import (
+                    try_token_quant_inverse,
                 )
+                from sglang.srt.layers.glm_decode_quant import try_o_proj_quant
+
+                if not try_o_proj_quant(
+                    input, output, scale
+                ) and not try_token_quant_inverse(input, output, scale):
+                    output, scale = lightop_per_token_quant_fp8(
+                        input,
+                        dtype=output.dtype,
+                        out_q=output,
+                        out_scale=scale,
+                    )
             else:
                 scale = torch.zeros(1, device=input.device, dtype=torch.float32)
                 sgl_per_tensor_quant_fp8(

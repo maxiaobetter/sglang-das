@@ -26,7 +26,10 @@ class PrefillQWithStoredKV(NamedTuple):
 
 def use_fused_kv_producer(attn, batch, latent):
     if not (
-        envs.SGLANG_GLM_PREFILL_KV_ROPE_STORE.get()
+        (
+            envs.SGLANG_GLM_OPT_PREFILL.get()
+            or envs.SGLANG_GLM_PREFILL_KV_ROPE_STORE.get()
+        )
         and eligible(attn, batch)
         and dsa_use_prefill_cp(batch)
         and is_cp_v2_active(batch)
@@ -134,11 +137,20 @@ def fuse_kv_rope_store(attn, batch, positions, query_nope, query_rope, latent):
     # bytes, including scales and BF16 RoPE, rather than re-quantizing remote K.
     # Interleave's existing gather handles logical lengths and physical padding.
     with torch.profiler.record_function("glm_prefill_packed_kv_cp_gather_store"):
-        full_kv = get_cp_strategy().gather_kv_cache(packed_kv, batch)
         cache = get_token_to_kv_pool().get_key_buffer(attn.attn_mqa.layer_id)
-        cache.view(torch.uint8).view(-1, 656).index_copy_(
-            0, batch.out_cache_loc, full_kv
-        )
+        cache_bytes = cache.view(torch.uint8).view(-1, 656)
+        if (
+            envs.SGLANG_GLM_OPT_PREFILL.get()
+            or envs.SGLANG_GLM_PREFILL_PACKED_KV_DIRECT_STORE.get()
+        ):
+            # Eligibility already excludes compact/layer-split pools and
+            # layer-transfer counters; these locations are physical cache IDs.
+            get_cp_strategy().gather_packed_kv_cache_and_store(
+                packed_kv, batch, cache_bytes
+            )
+        else:
+            full_kv = get_cp_strategy().gather_kv_cache(packed_kv, batch)
+            cache_bytes.index_copy_(0, batch.out_cache_loc, full_kv)
     report(attn, "KV RMSNorm + Q/K RoPE + FP8 store; packed CP exchange")
     # Only the prefix path is eligible: its attention already reads quantized
     # cache rows. A cold prefill must keep the original unquantized BF16 K path.

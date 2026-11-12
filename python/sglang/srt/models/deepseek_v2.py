@@ -327,6 +327,16 @@ class DeepseekV2MLP(nn.Module):
         gemm_output_zero_allocator: BumpAllocator = None,
         gateup_pre_quant: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
     ):
+        if (
+            getattr(self, "_lightop_norm_input", False)
+            and envs.SGLANG_LIGHTOP_NORM_QUANT.get()
+            and isinstance(x, tuple)
+            and len(x) == 3
+            and isinstance(x[2], torch.Tensor)
+        ):
+            quant, scale, x = x
+            if gateup_pre_quant is None:
+                gateup_pre_quant = (quant, scale, x.dtype)
         if (self.tp_size == 1) and x.shape[0] == 0:
             return x
 
@@ -373,6 +383,14 @@ class DeepseekV2MLP(nn.Module):
                 x = (x, None, y)
 
             gate_up, _ = self.gate_up_proj(x)
+        if envs.SGLANG_GLM_OPT_DECODE.get() and getattr(
+            self, "_glm_decode_shared_quant", False
+        ):
+            from sglang.srt.layers.glm_decode_quant import try_shared_silu_quant
+
+            quantized = try_shared_silu_quant(self, gate_up, forward_batch)
+            if quantized is not None:
+                return self.down_proj(quantized)[0]
         # Fast path: fused silu+clamp+fp8_quant+deepgemm when conditions met.
         # Only valid when down_proj does NOT need an all-reduce and its weights
         # are fp8 (uint8 storage with weight_scale_inv).
@@ -728,6 +746,18 @@ class DeepseekV2MoE(nn.Module):
             prefix=add_prefix("experts", prefix),
         )
 
+        # Bind the opt-in K1 path to main GLM routed experts, never NextN.
+        self.experts._glm_prefill_k1_main_owner = (
+            _is_hcu
+            and not is_nextn
+            and not is_deepseek_v4
+            and not self.is_hash
+            and "GlmMoeDsaForCausalLM" in (getattr(config, "architectures", None) or ())
+            and config.n_routed_experts == 256
+            and config.num_experts_per_tok == 8
+            and self.num_fused_shared_experts == 0
+        )
+
         if self.is_hash and not (is_nextn and is_deepseek_v4):
             self.topk = HashTopK(
                 topk=config.num_experts_per_tok + self.num_fused_shared_experts,
@@ -816,6 +846,11 @@ class DeepseekV2MoE(nn.Module):
                 prefix=add_prefix("shared_experts", prefix),
                 **(dict(tp_rank=0, tp_size=1) if _shared_expert_use_tp1 else {}),
             )
+            self.shared_experts._glm_decode_shared_quant = _is_hcu and bool(
+                set(getattr(config, "architectures", None) or ())
+                & {"GlmMoeDsaForCausalLM", "GlmMoeDsaForCausalLMNextN"}
+            )
+            self.shared_experts._glm_decode_is_nextn = is_nextn
             self.shared_experts._glm_prefill_shared_overlap = (
                 _is_hcu
                 and not is_nextn
@@ -1009,6 +1044,7 @@ class DeepseekV2MoE(nn.Module):
                     gemm_output_zero_allocator,
                     input_ids,
                     input_ids_global=input_ids_global,
+                    forward_batch=forward_batch,
                 )
             else:
                 return self.forward_normal(
@@ -1017,6 +1053,7 @@ class DeepseekV2MoE(nn.Module):
                     input_ids,
                     input_ids_global=input_ids_global,
                     skip_shared_experts=skip_shared_experts,
+                    forward_batch=forward_batch,
                 )
         else:
             return self.forward_deepep(
@@ -1029,6 +1066,7 @@ class DeepseekV2MoE(nn.Module):
         gemm_output_zero_allocator: BumpAllocator = None,
         input_ids: Optional[torch.Tensor] = None,
         input_ids_global: Optional[torch.Tensor] = None,
+        forward_batch: Optional[ForwardBatch] = None,
     ) -> torch.Tensor:
         # Note(kpham-sgl): issue order satisfies 3 constraints:
         # - no stream explosion: main (routed) issued before alt block -> capture reuses 1 alt stream;
@@ -1106,6 +1144,7 @@ class DeepseekV2MoE(nn.Module):
                 hidden_states,
                 gemm_output_zero_allocator,
                 pre_quant_input=pre_quant_input,
+                forward_batch=forward_batch,
             )
 
         current_stream.wait_stream(self.alt_stream)
@@ -1144,6 +1183,7 @@ class DeepseekV2MoE(nn.Module):
         input_ids: Optional[torch.Tensor] = None,
         input_ids_global: Optional[torch.Tensor] = None,
         skip_shared_experts: bool = False,
+        forward_batch: Optional[ForwardBatch] = None,
     ) -> torch.Tensor:
         if hasattr(self, "shared_experts") and use_intel_amx_backend(
             self.shared_experts.gate_up_proj
@@ -1176,6 +1216,7 @@ class DeepseekV2MoE(nn.Module):
                     hidden_states,
                     gemm_output_zero_allocator,
                     pre_quant_input=pre_quant_input,
+                    forward_batch=forward_batch,
                 )
             # router_logits: (num_tokens, n_experts)
             router_logits = self.gate(hidden_states, gemm_output_zero_allocator)
@@ -1208,7 +1249,9 @@ class DeepseekV2MoE(nn.Module):
                 self.alt_stream.wait_stream(torch.cuda.current_stream())
                 with torch.cuda.stream(self.alt_stream):
                     shared_output = self._forward_shared_experts(
-                        hidden_states, gemm_output_zero_allocator
+                        hidden_states,
+                        gemm_output_zero_allocator,
+                        forward_batch=forward_batch,
                     )
 
                 pre_combine_hook_handle.remove()
@@ -1259,6 +1302,7 @@ class DeepseekV2MoE(nn.Module):
                 hidden_states,
                 gemm_output_zero_allocator,
                 pre_quant_input=pre_quant_input,
+                forward_batch=forward_batch,
             )
 
         final_hidden_states = maybe_fuse_routed_scale_and_shared_add(
@@ -1344,7 +1388,10 @@ class DeepseekV2MoE(nn.Module):
         shared_output = None
         shared_stream = self.alt_stream
         prefill_stream = None
-        if envs.SGLANG_GLM_PREFILL_SHARED_OVERLAP.get():
+        if (
+            envs.SGLANG_GLM_OPT_PREFILL.get()
+            or envs.SGLANG_GLM_PREFILL_SHARED_OVERLAP.get()
+        ):
             from sglang.srt.models.deepseek_common.glm_prefill_mlp import (
                 try_shared_stream,
             )
@@ -1367,7 +1414,9 @@ class DeepseekV2MoE(nn.Module):
                 if shared_stream is not None:
                     shared_stream.wait_stream(torch.cuda.current_stream())
                     with torch.cuda.stream(shared_stream):
-                        shared_output = self._forward_shared_experts(hidden_states)
+                        shared_output = self._forward_shared_experts(
+                            hidden_states, forward_batch=forward_batch
+                        )
                         if prefill_stream is not None:
                             hidden_states.record_stream(shared_stream)
                         shared_output.record_stream(shared_stream)
@@ -1380,7 +1429,9 @@ class DeepseekV2MoE(nn.Module):
                         # allocator recycles shared_output across the break.
                         torch.cuda.current_stream().wait_event(shared_event)
                 else:
-                    shared_output = self._forward_shared_experts(hidden_states)
+                    shared_output = self._forward_shared_experts(
+                        hidden_states, forward_batch=forward_batch
+                    )
             topk_kwargs = (
                 {"input_ids": input_ids_global}
                 if getattr(self, "is_hash", False)
@@ -1409,7 +1460,9 @@ class DeepseekV2MoE(nn.Module):
 
             def _deepep_dispatch_hook(dispatcher: BaseDispatcher):
                 nonlocal shared_output
-                shared_output = self._forward_shared_experts(hidden_states)
+                shared_output = self._forward_shared_experts(
+                    hidden_states, forward_batch=forward_batch
+                )
                 for handle in deepep_dispatch_hook_handle:
                     handle.remove()
 
@@ -1485,7 +1538,9 @@ class DeepseekV2MoE(nn.Module):
                 with deep_gemm_wrapper.configure_deep_gemm_num_sms(
                     dispatcher.meta_overlap_args["compute_num_sms"]
                 ):
-                    shared_output = self._forward_shared_experts(hidden_states)
+                    shared_output = self._forward_shared_experts(
+                        hidden_states, forward_batch=forward_batch
+                    )
 
                 pre_combine_hook_handle.remove()
 
@@ -1590,6 +1645,7 @@ class DeepseekV2MoE(nn.Module):
         hidden_states,
         gemm_output_zero_allocator: BumpAllocator = None,
         pre_quant_input: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+        forward_batch: Optional[ForwardBatch] = None,
     ):
         if (hidden_states.shape[0] > 0) and (self.num_fused_shared_experts == 0):
             if pre_quant_input is not None:
@@ -1597,11 +1653,15 @@ class DeepseekV2MoE(nn.Module):
                 # multiple of 4; the padded rows flow through the MLP (all ops
                 # are row-local) and are sliced off here.
                 out = self.shared_experts(
-                    hidden_states, gateup_pre_quant=pre_quant_input
+                    hidden_states,
+                    gateup_pre_quant=pre_quant_input,
+                    forward_batch=forward_batch,
                 )
                 return out[: hidden_states.shape[0]]
             return self.shared_experts(
-                hidden_states, gemm_output_zero_allocator=gemm_output_zero_allocator
+                hidden_states,
+                gemm_output_zero_allocator=gemm_output_zero_allocator,
+                forward_batch=forward_batch,
             )
         else:
             return None
@@ -1723,7 +1783,9 @@ class DeepseekV2MoE(nn.Module):
         if (self.num_fused_shared_experts == 0) and is_non_idle_and_non_empty(
             state.forward_batch.forward_mode, hidden_states_mlp_input
         ):
-            state.shared_output = self.shared_experts(hidden_states_mlp_input)
+            state.shared_output = self.shared_experts(
+                hidden_states_mlp_input, forward_batch=state.forward_batch
+            )
         else:
             state.shared_output = None
 
@@ -1868,6 +1930,31 @@ class DeepseekV2AttentionMLA(
             _is_hcu
             and not is_nextn
             and "GlmMoeDsaForCausalLM" in (getattr(config, "architectures", None) or ())
+        )
+        self._lightop_glm_fusions = (
+            _is_hcu
+            and (
+                envs.SGLANG_GLM_OPT_DECODE.get()
+                or envs.SGLANG_GLM_LIGHTOP_FUSIONS.get()
+            )
+            and bool(
+                set(getattr(config, "architectures", None) or ())
+                & {
+                    "GlmMoeDsaForCausalLM",
+                    "GlmMoeDsaForCausalLMNextN",
+                }
+            )
+        )
+        self._hcu_glm_gemm = (
+            _is_hcu
+            and envs.SGLANG_GLM_HCU_GEMM.get()
+            and bool(
+                set(getattr(config, "architectures", None) or ())
+                & {
+                    "GlmMoeDsaForCausalLM",
+                    "GlmMoeDsaForCausalLMNextN",
+                }
+            )
         )
         attn_tp_rank = get_parallel().attn_tp_rank
         attn_tp_size = get_parallel().attn_tp_size
@@ -2190,6 +2277,16 @@ class DeepseekV2AttentionMLA(
         llama_4_scaling: Optional[torch.Tensor] = None,
         prev_topk_indices: Optional[torch.Tensor] = None,
     ):
+        if (
+            self._lightop_glm_fusions
+            and envs.SGLANG_LIGHTOP_NORM_QUANT.get()
+            and isinstance(hidden_states, tuple)
+            and len(hidden_states) == 3
+            and isinstance(hidden_states[2], torch.Tensor)
+        ):
+            # AttentionInputs retains (FP8, scale, BF16) for QKV projection;
+            # the DSA indexer consumes the BF16 activation directly.
+            hidden_states = hidden_states[2]
         if self.attn_mha.kv_b_proj is None:
             self.attn_mha.kv_b_proj = self.kv_b_proj
 
@@ -2330,6 +2427,15 @@ class DeepseekV2AttentionMLA(
         self, hidden_states: torch.Tensor, forward_batch: ForwardBatch
     ):
         assert self.q_lora_rank is not None
+        if (
+            self._lightop_glm_fusions
+            and envs.SGLANG_LIGHTOP_NORM_QUANT.get()
+            and isinstance(hidden_states, tuple)
+            and len(hidden_states) == 3
+            and isinstance(hidden_states[2], torch.Tensor)
+        ):
+            quant, scale, bf16 = hidden_states
+            return self.fused_qkv_a_proj_with_mqa((quant, scale, bf16.dtype))[0]
         if self._use_min_latency_fused_a_gemm is None:
             self._use_min_latency_fused_a_gemm = (
                 self.has_fused_proj
@@ -2485,10 +2591,18 @@ class DeepseekV2DecoderLayer(nn.Module):
                 swiglu_limit=getattr(config, "swiglu_limit", None),
             )
 
+        if isinstance(self.mlp, DeepseekV2MLP):
+            self.mlp._lightop_norm_input = self.self_attn._lightop_glm_fusions
+
         self.input_layernorm = RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.post_attention_layernorm = RMSNorm(
             config.hidden_size, eps=config.rms_norm_eps
         )
+
+        if _is_hcu and self.self_attn._hcu_glm_prefill:
+            from sglang.srt.layers.glm_prefill_add_rms import mark_decoder_norms
+
+            mark_decoder_norms(self)
 
         self._gfx95_quant_format = self._detect_gfx95_quant_format()
 
@@ -2550,6 +2664,47 @@ class DeepseekV2DecoderLayer(nn.Module):
             self._gfx95_quant_format = fmt
         return fmt
 
+    def _prepare_hcu_linear_layouts(self):
+        # Once on GLM layers, after weights load and before graph capture.
+        # Other architectures and quantized linear weights retain their layout.
+        if getattr(self, "_hcu_layouts_checked", False):
+            return
+        self._hcu_layouts_checked = True
+        if torch.cuda.is_current_stream_capturing():
+            return
+        for module in self.modules():
+            method = getattr(module, "quant_method", None)
+            w = getattr(module, "weight", None)
+            if (
+                type(method).__name__ == "UnquantizedLinearMethod"
+                and isinstance(w, torch.Tensor)
+                and type(w.data) is torch.Tensor
+                and w.is_cuda
+                and w.dtype == torch.bfloat16
+                and w.dim() == 2
+                and min(w.shape) >= 1024
+                and w.is_contiguous()
+            ):
+                w.data = w.data.t().contiguous().t()
+
+    def _use_lightop_norm_quant(self, forward_batch, linear):
+        if (
+            not self.self_attn._lightop_glm_fusions
+            or not envs.SGLANG_LIGHTOP_NORM_QUANT.get()
+            or not self.self_attn.use_dsa
+            or not self.self_attn._lightop_fusion_phase_enabled(forward_batch)
+            or self.self_attn.dispatch_attn_forward_method(forward_batch)
+            != AttnForwardMethod.MLA_ROCM
+            or dsa_use_prefill_cp(forward_batch)
+            or mla_use_prefill_cp(forward_batch)
+        ):
+            return False
+        from sglang.srt.layers.quantization.compressed_tensors.schemes.compressed_tensors_w8a8_fp8 import (
+            supports_lightop_input_quant,
+        )
+
+        return supports_lightop_input_quant(linear)
+
     def _is_layer_sparse(self, layer_id: int, is_nextn: bool) -> bool:
         return is_nextn or (
             self.config.n_routed_experts is not None
@@ -2570,6 +2725,8 @@ class DeepseekV2DecoderLayer(nn.Module):
         captured_last_layer_outputs: Optional[AuxHiddenStateAccumulator] = None,
         next_full_attention_layer_id: Optional[int] = None,
     ) -> torch.Tensor:
+        if self.self_attn._hcu_glm_gemm:
+            self._prepare_hcu_linear_layouts()
         hidden_states_orig = hidden_states
         hidden_states, residual = (
             self.layer_communicator.prepare_attn_and_capture_last_layer_outputs(
@@ -2577,7 +2734,14 @@ class DeepseekV2DecoderLayer(nn.Module):
                 residual,
                 forward_batch,
                 captured_last_layer_outputs=captured_last_layer_outputs,
-                quant_format=self._resolve_gfx95_quant_format(),
+                quant_format=(
+                    "lightop_fp8_per_token"
+                    if self._use_lightop_norm_quant(
+                        forward_batch,
+                        getattr(self.self_attn, "fused_qkv_a_proj_with_mqa", None),
+                    )
+                    else self._resolve_gfx95_quant_format()
+                ),
             )
         )
 
@@ -2602,7 +2766,12 @@ class DeepseekV2DecoderLayer(nn.Module):
         )
 
         hidden_states, residual = self.layer_communicator.prepare_mlp(
-            hidden_states, residual, forward_batch
+            hidden_states,
+            residual,
+            forward_batch,
+            lightop_quant=self._use_lightop_norm_quant(
+                forward_batch, getattr(self.mlp, "gate_up_proj", None)
+            ),
         )
 
         fuse_mlp_allreduce = (

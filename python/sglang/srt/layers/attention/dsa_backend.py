@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -12,7 +13,6 @@ from typing import (
     TypeAlias,
 )
 
-import os
 import torch
 
 from sglang.srt.configs.model_config import get_dsa_index_topk, is_deepseek_dsa
@@ -179,7 +179,9 @@ def _validate_dsa_dcp_launch(
     if enable_hierarchical_cache:
         raise ValueError("DSA DCP does not support HiCache in the first phase.")
     if enable_symm_mem:
-        raise ValueError("DSA DCP does not support symmetric memory in the first phase.")
+        raise ValueError(
+            "DSA DCP does not support symmetric memory in the first phase."
+        )
     if speculative_algorithm is not None:
         if not is_hcu_platform:
             raise ValueError("DSA DCP speculative decoding is only supported on HCU.")
@@ -470,6 +472,144 @@ class DeepseekSparseAttnBackend(
         )
         return loc if translate is None else translate(loc)
 
+    def _clear_prefill_kv_compact_plan(self) -> None:
+        self._prefill_kv_compact_metadata = None
+        self._prefill_kv_compact_plan = None
+        self._glm_prefill_ep_gather_k8_eligible = False
+
+    def _ordinary_glm_cp_prefill_scope(self, forward_batch) -> bool:
+        """Per-forward scope token; individual operators still check their ABI."""
+        if not (
+            self._prefill_kv_compact_model
+            and effective_forward_mode(forward_batch) == ForwardMode.EXTEND
+            and not torch.compiler.is_compiling()
+            and not torch.cuda.is_current_stream_capturing()
+        ):
+            return False
+        from sglang.srt.batch_invariant_ops import is_batch_invariant_mode_enabled
+        from sglang.srt.layers.cp.interleave import InterleaveCPStrategy
+        from sglang.srt.mem_cache.memory_pool import DSATokenToKVPool
+        from sglang.srt.model_executor.runner_backend_utils.breakable_cuda_graph.context import (
+            is_in_breakable_cuda_graph,
+        )
+        from sglang.srt.model_executor.runner_backend_utils.tc_piecewise_cuda_graph import (
+            is_in_tc_piecewise_cuda_graph,
+        )
+
+        pool = self.token_to_kv_pool
+        return (
+            not is_in_breakable_cuda_graph()
+            and not is_in_tc_piecewise_cuda_graph()
+            and not is_batch_invariant_mode_enabled()
+            and not get_exec().deterministic.enable_deterministic_inference
+            and not envs.SGLANG_EXPERIMENTAL_LORA_OPTI.get()
+            and not getattr(forward_batch, "can_run_tbo", False)
+            and getattr(forward_batch, "tbo_parent_token_range", None) is None
+            and getattr(forward_batch, "tbo_children", None) is None
+            and not self.dcp_enabled
+            and dsa_use_prefill_cp(forward_batch)
+            and is_cp_v2_active(forward_batch)
+            and isinstance(get_cp_strategy(), InterleaveCPStrategy)
+            and get_parallel().attn_cp_size > 1
+            and forward_batch.attn_cp_metadata is not None
+            and type(pool) is DSATokenToKVPool
+            and pool.layer_transfer_counter is None
+            and pool.dsa_kv_cache_store_fp8
+            and pool.kv_cache_dim == 656
+            and self.hisparse_coordinator is None
+            and not self.use_mha
+            and self.dsa_prefill_impl == "flashmla_sparse"
+            and self.get_topk_transform_method(ForwardMode.EXTEND)
+            == TopkTransformMethod.RAGGED
+            and forward_batch.extend_prefix_lens_cpu is not None
+            and any(forward_batch.extend_prefix_lens_cpu)
+        )
+
+    def _maybe_compact_prefill_kv(
+        self, raw, flattenmap, indices, q, layer, forward_batch, attn_sink
+    ):
+        """Opt-in ordinary IFB prefix path; all other callers keep full dequant."""
+        if not (
+            (
+                envs.SGLANG_GLM_OPT_PREFILL.get()
+                or envs.SGLANG_GLM_PREFILL_PHYSICAL_KV_COMPACT.get()
+            )
+            and self._glm_prefill_ep_gather_k8_eligible
+        ):
+            return None
+        from sglang.kernels.ops.attention.dsa.dequant_k_cache import (
+            _DEQUANT_PAGED_BLOCK_T,
+        )
+
+        metadata = self.forward_metadata
+        lengths = metadata.dsa_cache_seqlens_int32
+        if not (
+            not torch.compiler.is_compiling()
+            and not torch.cuda.is_current_stream_capturing()
+            and _DEQUANT_PAGED_BLOCK_T == 16
+            and raw.is_cuda
+            and raw.dtype == torch.float8_e4m3fn
+            and raw.shape[-1] == 656
+            and raw.is_contiguous()
+            and raw.data_ptr() % 16 == 0
+            and flattenmap is metadata.page_table_1_flattened
+            and flattenmap.is_contiguous()
+            and flattenmap.dtype in (torch.int32, torch.int64)
+            and 0 < flattenmap.numel() <= torch.iinfo(torch.int32).max
+            and indices is not None
+            and indices.ndim == 2
+            and indices.dtype == torch.int32
+            and indices.is_contiguous()
+            and indices.shape == (q.shape[0], 2048)
+            and q.dtype == torch.bfloat16
+            and layer.v_head_dim == 512
+            and self.num_q_heads == 64
+            and attn_sink is None
+            and lengths is not None
+            and lengths.shape == (q.shape[0],)
+            and lengths.dtype == torch.int32
+            and lengths.is_contiguous()
+            and raw.device
+            == flattenmap.device
+            == indices.device
+            == q.device
+            == lengths.device
+            and os.environ.get("SGLANG_HCU_FORCE_SORTED_SPARSE_INDICES", "0") != "1"
+        ):
+            return None
+        from flash_mla import flash_mla_interface
+
+        if not callable(
+            getattr(
+                getattr(flash_mla_interface, "flash_mla_cuda", None),
+                "sparse_prefill_fwd",
+                None,
+            )
+        ):
+            return None
+        from sglang.kernels.ops.attention.dsa.prefill_kv_compact import (
+            build_physical_kv_plan,
+            remap_physical_kv_indices,
+        )
+
+        plan = self._prefill_kv_compact_plan
+        if (
+            self._prefill_kv_compact_metadata is not metadata
+            or plan is None
+            or plan.logical_rows is not flattenmap
+        ):
+            # This dynamic unique cost belongs to the forward, including when
+            # it discovers no duplicates. Cache that result too; no .item().
+            plan = build_physical_kv_plan(flattenmap)
+            self._prefill_kv_compact_metadata = metadata
+            self._prefill_kv_compact_plan = plan
+        if not plan.has_duplicates:
+            return None
+        # Never cache layer values or rewrite the producer's shared TopK.
+        compact_kv = dequantize_k_cache_paged(raw, plan.physical_rows)
+        compact_indices = remap_physical_kv_indices(indices, plan)
+        return compact_kv, compact_indices
+
     def __init__(
         self,
         model_runner: ModelRunner,
@@ -481,7 +621,38 @@ class DeepseekSparseAttnBackend(
     ):
         super().__init__()
         self.forward_metadata: DSAMetadata
+        self._prefill_kv_compact_metadata = None
+        self._prefill_kv_compact_plan = None
+        self._glm_prefill_ep_gather_k8_eligible = False
+        self._prefill_kv_compact_model = (
+            _is_hcu
+            and not model_runner.is_draft_worker
+            and not getattr(model_runner.server_args, "enable_lora", False)
+            and (
+                "GlmMoeDsaForCausalLM"
+                in (
+                    getattr(model_runner.model_config.hf_config, "architectures", None)
+                    or ()
+                )
+            )
+        )
+        self._glm53_model = bool(
+            set(
+                getattr(model_runner.model_config.hf_config, "architectures", None)
+                or ()
+            )
+            & {"GlmMoeDsaForCausalLM", "GlmMoeDsaForCausalLMNextN"}
+        )
         self.device = model_runner.device
+        self._use_hcu_draft_concat = (
+            _is_hcu
+            and (envs.SGLANG_GLM_OPT_DECODE.get() or envs.SGLANG_HCU_DRAFT_CONCAT.get())
+            and self._glm53_model
+            and model_runner.is_draft_worker
+            and torch.cuda.get_device_properties(self.device).gcnArchName.split(":")[0]
+            == "gfx938"
+        )
+        self._hcu_draft_concat_shapes = set()
         assert isinstance(model_runner.page_size, int)
         self.real_page_size = model_runner.page_size
         self.num_splits = (
@@ -1037,6 +1208,7 @@ class DeepseekSparseAttnBackend(
         forward_batch: ForwardBatch,
         in_capture: bool = False,
     ):
+        self._clear_prefill_kv_compact_plan()
         if _is_hcu:
             # HCU records the static-shape metadata kernels through
             # init_forward_metadata_in_graph. At replay the captured graph reads
@@ -1082,6 +1254,7 @@ class DeepseekSparseAttnBackend(
         )
 
     def init_forward_metadata_in_graph(self, forward_batch: ForwardBatch) -> None:
+        self._clear_prefill_kv_compact_plan()
         if not _is_hcu:
             return
         # Restore the pre-forward-port behavior for HCU: metadata tensor
@@ -1101,6 +1274,7 @@ class DeepseekSparseAttnBackend(
 
     def init_forward_metadata(self, forward_batch: ForwardBatch):
         """Init the metadata for a forward pass."""
+        self._clear_prefill_kv_compact_plan()
         batch_size = forward_batch.batch_size
         device = forward_batch.seq_lens.device
         forward_mode = effective_forward_mode(forward_batch)
@@ -1397,6 +1571,22 @@ class DeepseekSparseAttnBackend(
             topk_v2_plan=self._build_topk_v2_plan(seqlens_expanded),
         )
         self.forward_metadata = metadata
+        # Shared ordinary-prefill scope; each opt-in operator checks its own ABI.
+        self._glm_prefill_ep_gather_k8_eligible = (
+            (
+                envs.SGLANG_GLM_OPT_PREFILL.get()
+                or envs.SGLANG_GLM_PREFILL_PHYSICAL_KV_COMPACT.get()
+            )
+            or (
+                envs.SGLANG_GLM_OPT_PREFILL.get()
+                or envs.SGLANG_GLM_PREFILL_EP_GATHER_K8.get()
+            )
+            or (
+                envs.SGLANG_GLM_OPT_PREFILL.get()
+                or envs.SGLANG_GLM_PREFILL_ADD_RMS_ALIGN16.get()
+            )
+            or envs.SGLANG_GLM_PREFILL_K1_INDIRECT_A.get()
+        ) and self._ordinary_glm_cp_prefill_scope(forward_batch)
 
     def _cal_indexer_k_start_end(
         self,
@@ -1585,6 +1775,7 @@ class DeepseekSparseAttnBackend(
         actual_forward_mode: Optional[ForwardMode] = None,
     ):
         """Create and store DSAMetadata for a new batch size during CUDA graph capture."""
+        self._clear_prefill_kv_compact_plan()
         self.set_dsa_prefill_impl(forward_batch=None)
 
         if forward_mode.is_decode_or_idle():
@@ -1753,6 +1944,7 @@ class DeepseekSparseAttnBackend(
         also call this directly via _apply_cuda_graph_metadata when they
         need to pass out_cache_loc / actual_forward_mode explicitly.
         """
+        self._clear_prefill_kv_compact_plan()
         if bs not in self.decode_cuda_graph_metadata:
             self._build_forward_metadata_cuda_graph(
                 bs,
@@ -2063,6 +2255,7 @@ class DeepseekSparseAttnBackend(
             precomputed: Precomputed metadata to copy from
             forward_mode: Forward mode
         """
+        self._clear_prefill_kv_compact_plan()
         self.set_dsa_prefill_impl(forward_batch=None)
 
         metadata = self.decode_cuda_graph_metadata[bs]
@@ -2233,6 +2426,31 @@ class DeepseekSparseAttnBackend(
 
         self.forward_metadata = metadata
 
+    def _concat_mla_q(self, q_nope, q_rope, layer, forward_batch):
+        if self._use_hcu_draft_concat and layer.layer_id == 0:
+            mode = effective_forward_mode(forward_batch)
+            if mode in (ForwardMode.DECODE, ForwardMode.DRAFT_EXTEND_V2):
+                from sglang.kernels.ops.attention.concat_mla_hcu import (
+                    try_concat_mla_draft_hcu,
+                )
+
+                output = try_concat_mla_draft_hcu(
+                    q_nope,
+                    q_rope,
+                    batch_size=forward_batch.batch_size,
+                    is_draft_extend=mode == ForwardMode.DRAFT_EXTEND_V2,
+                )
+                if output is not None:
+                    signature = (mode, tuple(q_nope.shape), q_nope.stride())
+                    if signature not in self._hcu_draft_concat_shapes:
+                        logger.info(
+                            "HCU draft concat selected: mode=%s shape=%s stride=%s",
+                            *signature,
+                        )
+                        self._hcu_draft_concat_shapes.add(signature)
+                    return output
+        return concat_mla_absorb_q_general(q_nope, q_rope)
+
     def forward_extend(
         self,
         q: torch.Tensor,
@@ -2249,6 +2467,7 @@ class DeepseekSparseAttnBackend(
         is_neox: Optional[bool] = False,
         llama_4_scaling: Optional[torch.Tensor] = None,
         attn_sink: Optional[torch.Tensor] = None,
+        lightop_fused_q: bool = False,
     ) -> torch.Tensor:
 
         causal = not layer.is_cross_attention
@@ -2317,8 +2536,18 @@ class DeepseekSparseAttnBackend(
                 metadata=metadata,
             )
 
-        # Do absorbed multi-latent attention (MLA path)
-        assert q_rope is not None
+        # FlashMLA KV can consume Q already joined by the LightOp fusion.
+        # Other extend implementations retain their split-Q contract.
+        assert q_rope is not None or (
+            lightop_fused_q
+            and (
+                envs.SGLANG_GLM_OPT_DECODE.get()
+                or envs.SGLANG_GLM_LIGHTOP_FUSIONS.get()
+            )
+            and dsa_impl == "flashmla_kv"
+            and (forward_mode.is_target_verify() or forward_mode.is_draft_extend_v2())
+        )
+        q_all = None
         kv_cache = self.token_to_kv_pool.get_key_buffer(layer.layer_id)
 
         if q_rope is not None:
@@ -2433,6 +2662,7 @@ class DeepseekSparseAttnBackend(
                 v_head_dim=layer.v_head_dim,
             )
         elif dsa_impl in ("flashmla_sparse", "flashmla_sparse_q8"):
+            preserve_indices_order = False
             if topk_transform_method == TopkTransformMethod.RAGGED:
                 _has_prefix = any(forward_batch.extend_prefix_lens_cpu)
                 page_table_1 = topk_indices
@@ -2501,9 +2731,22 @@ class DeepseekSparseAttnBackend(
                     page_table_1_flattened = self._translate_main_kv_loc_to_compact(
                         page_table_1_flattened
                     )
-                    kv_cache = dequantize_k_cache_paged(
-                        kv_cache, page_table_1_flattened
+                    compact = self._maybe_compact_prefill_kv(
+                        kv_cache,
+                        page_table_1_flattened,
+                        page_table_1,
+                        q_nope,
+                        layer,
+                        forward_batch,
+                        attn_sink,
                     )
+                    if compact is None:
+                        kv_cache = dequantize_k_cache_paged(
+                            kv_cache, page_table_1_flattened
+                        )
+                    else:
+                        kv_cache, page_table_1 = compact
+                        preserve_indices_order = True
                 else:
                     kv_cache = _cat([k, k_rope], dim=-1)
 
@@ -2527,6 +2770,7 @@ class DeepseekSparseAttnBackend(
                 topk_length=metadata.dsa_cache_seqlens_int32,
                 indices_are_sorted=skip_reused_topk_sort,
                 attn_sink=attn_sink,
+                preserve_indices_order=preserve_indices_order,
             )
         elif dsa_impl == "flashinfer_sparse_mla":
             if q_rope is not None:
@@ -2542,8 +2786,8 @@ class DeepseekSparseAttnBackend(
                 skip_softmax_threshold_scale_factor=envs.SGLANG_SKIP_SOFTMAX_PREFILL_THRESHOLD_SCALE_FACTOR.get(),
             )
         elif dsa_impl == "flashmla_kv":
-            if q_rope is not None:
-                q_all = concat_mla_absorb_q_general(q_nope, q_rope)
+            if not lightop_fused_q or q_all is None:
+                q_all = self._concat_mla_q(q_nope, q_rope, layer, forward_batch)
             return self._forward_flashmla_kv(
                 q_all=q_all,
                 kv_cache=kv_cache,
@@ -2601,6 +2845,7 @@ class DeepseekSparseAttnBackend(
         is_neox: Optional[bool] = False,
         llama_4_scaling: Optional[torch.Tensor] = None,
         attn_sink: Optional[torch.Tensor] = None,
+        lightop_fused_q: bool = False,
     ) -> torch.Tensor:
 
         causal = not layer.is_cross_attention
@@ -2705,8 +2950,8 @@ class DeepseekSparseAttnBackend(
                 skip_softmax_threshold_scale_factor=envs.SGLANG_SKIP_SOFTMAX_DECODE_THRESHOLD_SCALE_FACTOR.get(),
             )
         elif self.dsa_decode_impl == "flashmla_kv":
-            if q_rope is not None:
-                q_all = concat_mla_absorb_q_general(q_nope, q_rope)
+            if not lightop_fused_q or q_all is None:
+                q_all = self._concat_mla_q(q_nope, q_rope, layer, forward_batch)
             return self._forward_flashmla_kv(
                 q_all=q_all,
                 kv_cache=kv_cache,
@@ -2812,6 +3057,7 @@ class DeepseekSparseAttnBackend(
         indices_are_sorted: bool = False,
         attn_sink: Optional[torch.Tensor] = None,
         return_lse: bool = False,
+        preserve_indices_order: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         flash_mla_sparse_fwd = get_flashmla_op("flash_mla_sparse_fwd", is_hcu=_is_hcu)
 
@@ -2851,17 +3097,27 @@ class DeepseekSparseAttnBackend(
         # indices shape must be (s_q, h_kv=1, topk), keep h_kv=1 unchanged
         indices_input = page_table_1.unsqueeze(1)
 
-        if _is_hcu and os.environ.get(
-            "SGLANG_HCU_FORCE_SORTED_SPARSE_INDICES", "0"
-        ) == "1":
+        if preserve_indices_order and not (
+            _is_hcu
+            and topk_length is not None
+            and topk_length.shape == (num_tokens,)
+            and os.environ.get("SGLANG_HCU_FORCE_SORTED_SPARSE_INDICES", "0") != "1"
+        ):
+            raise RuntimeError(
+                "Compact KV requires the validated raw FlashMLA order/TL contract"
+            )
+
+        if (
+            not preserve_indices_order
+            and _is_hcu
+            and os.environ.get("SGLANG_HCU_FORCE_SORTED_SPARSE_INDICES", "0") == "1"
+        ):
             from flash_mla.flash_mla_interface import _safe_sort_sparse_indices_inplace
 
             can_reuse_canonical_order = (
                 indices_are_sorted
                 and indices_input.stride(-1) == 1
-                and os.environ.get(
-                    "SGLANG_HCU_REUSE_CANONICAL_SPARSE_SORT", "0"
-                ) == "1"
+                and os.environ.get("SGLANG_HCU_REUSE_CANONICAL_SPARSE_SORT", "0") == "1"
             )
             if not can_reuse_canonical_order:
                 indices_input = _safe_sort_sparse_indices_inplace(
@@ -2882,7 +3138,7 @@ class DeepseekSparseAttnBackend(
             topk_length = None
 
         raw_sparse_prefill_fwd = None
-        if _is_hcu and indices_are_sorted:
+        if _is_hcu and (indices_are_sorted or preserve_indices_order):
             from flash_mla import flash_mla_interface
 
             raw_sparse_prefill_fwd = getattr(
@@ -2891,6 +3147,10 @@ class DeepseekSparseAttnBackend(
                 None,
             )
 
+        if preserve_indices_order and not callable(raw_sparse_prefill_fwd):
+            raise RuntimeError(
+                "Compact KV cannot fall back to a sorting FlashMLA wrapper"
+            )
         if raw_sparse_prefill_fwd is not None:
             o, _, lse = raw_sparse_prefill_fwd(
                 q_input,
@@ -3289,7 +3549,11 @@ class DeepseekSparseAttnBackend(
             capacity,
         )
         self._lightop_decode_gather_workspace = torch.empty(
-            (capacity, self._lightop_decode_gather_width, self._lightop_decode_head_dim),
+            (
+                capacity,
+                self._lightop_decode_gather_width,
+                self._lightop_decode_head_dim,
+            ),
             dtype=torch.bfloat16,
             device=self.device,
         )
@@ -3353,9 +3617,10 @@ class DeepseekSparseAttnBackend(
             kv_cache = quantize_k_cache(kv_cache)
 
         indices = page_table_1.unsqueeze(1)
-        if _is_hcu and os.environ.get(
-            "SGLANG_HCU_FORCE_SORTED_DECODE_INDICES", "0"
-        ) == "1":
+        if (
+            _is_hcu
+            and os.environ.get("SGLANG_HCU_FORCE_SORTED_DECODE_INDICES", "0") == "1"
+        ):
             from flash_mla.flash_mla_interface import _safe_sort_sparse_indices
 
             # Indices address tokens, not pages. Avoid mutating shared metadata.
@@ -3368,7 +3633,8 @@ class DeepseekSparseAttnBackend(
 
         forward_mode = (
             effective_forward_mode(forward_batch)
-            if forward_batch is not None else ForwardMode.DECODE
+            if forward_batch is not None
+            else ForwardMode.DECODE
         )
         is_decode_family = (
             forward_mode.is_decode_or_idle()

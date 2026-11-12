@@ -49,6 +49,12 @@ from sglang.srt.layers.moe import (  # should_use_flashinfer_trtllm_moe, # æ‰¾ä¸
     get_moe_a2a_backend,
     get_moe_runner_backend,
 )
+from sglang.srt.layers.moe.ep_moe.glm_prefill_ep_gather import (
+    try_glm_prefill_ep_gather_k8,
+)
+from sglang.srt.layers.moe.ep_moe.glm_prefill_k1_indirect import (
+    try_glm_prefill_k1_indirect_a,
+)
 from sglang.srt.layers.moe.fused_moe_triton.layer import (
     FusedMoE,
     moe_forward_piecewise_cuda_graph_impl,
@@ -277,10 +283,16 @@ def _ep_gather_with_optional_lightop(
     topk_weights: torch.Tensor,
     input_index: torch.Tensor,
     output_tensor: torch.Tensor,
+    *,
+    glm_fp8_prefill_candidate: bool = False,
 ) -> None:
     if _can_use_lightop_ep_gather(
         input_tensor, topk_ids, topk_weights, input_index, output_tensor
     ):
+        if glm_fp8_prefill_candidate and try_glm_prefill_ep_gather_k8(
+            input_tensor, topk_ids, topk_weights, input_index, output_tensor
+        ):
+            return
         lightop_op.ep_gather(
             input_tensor, topk_ids, topk_weights, input_index, None, output_tensor
         )
@@ -1324,20 +1336,6 @@ class DeepEPMoE(FusedMoE):
 
         hidden_states_shape = hidden_states.shape
         hidden_states_device = hidden_states.device
-        input_tensor = [
-            torch.empty(
-                (all_tokens, K),
-                device=hidden_states.device,
-                dtype=hidden_states.dtype,
-            ),
-            (
-                torch.empty(
-                    (all_tokens, hidden_states_scale.shape[-1]),
-                    device=hidden_states.device,
-                    dtype=torch.float32,
-                )
-            ),
-        ]
         if get_offloader().forbid_copy_engine_usage:
             num_recv_tokens_per_expert_gpu = copy_list_to_gpu_no_ce(
                 num_recv_tokens_per_expert
@@ -1352,31 +1350,59 @@ class DeepEPMoE(FusedMoE):
         counts_are_aligned = all(
             count % 256 == 0 for count in num_recv_tokens_per_expert
         )
-        m_indices, output_index = _ep_scatter_with_optional_lightop(
+        indirect = try_glm_prefill_k1_indirect_a(
+            self,
             hidden_states,
             hidden_states_scale,
             topk_ids,
+            topk_weights,
+            num_recv_tokens_per_expert,
             num_recv_tokens_per_expert_gpu,
-            input_tensor[0],
-            input_tensor[1],
-            all_tokens,
-            counts_are_aligned=counts_are_aligned,
-        )
-
-        gateup_output_factory = torch.empty if counts_are_aligned else torch.zeros
-        gateup_output = gateup_output_factory(
-            (all_tokens, N),
-            device=hidden_states_device,
-            dtype=torch.bfloat16,
-        )
-
-        m_grouped_fp8_gemm_nt_contiguous(
-            input_tensor,
             w13_weight_fp8,
-            gateup_output,
-            m_indices,
+            N,
         )
-        del input_tensor
+        if indirect is not None:
+            gateup_output, m_indices, output_index = indirect
+        else:
+            input_tensor = [
+                torch.empty(
+                    (all_tokens, K),
+                    device=hidden_states.device,
+                    dtype=hidden_states.dtype,
+                ),
+                (
+                    torch.empty(
+                        (all_tokens, hidden_states_scale.shape[-1]),
+                        device=hidden_states.device,
+                        dtype=torch.float32,
+                    )
+                ),
+            ]
+            m_indices, output_index = _ep_scatter_with_optional_lightop(
+                hidden_states,
+                hidden_states_scale,
+                topk_ids,
+                num_recv_tokens_per_expert_gpu,
+                input_tensor[0],
+                input_tensor[1],
+                all_tokens,
+                counts_are_aligned=counts_are_aligned,
+            )
+
+            gateup_output_factory = torch.empty if counts_are_aligned else torch.zeros
+            gateup_output = gateup_output_factory(
+                (all_tokens, N),
+                device=hidden_states_device,
+                dtype=torch.bfloat16,
+            )
+
+            m_grouped_fp8_gemm_nt_contiguous(
+                input_tensor,
+                w13_weight_fp8,
+                gateup_output,
+                m_indices,
+            )
+            del input_tensor
 
         swiglu_limit = self.moe_runner_config.swiglu_limit
         if swiglu_limit is None:
@@ -1412,7 +1438,12 @@ class DeepEPMoE(FusedMoE):
         )
 
         _ep_gather_with_optional_lightop(
-            down_output, topk_ids, topk_weights, output_index, gather_out
+            down_output,
+            topk_ids,
+            topk_weights,
+            output_index,
+            gather_out,
+            glm_fp8_prefill_candidate=True,
         )
         del down_output
 

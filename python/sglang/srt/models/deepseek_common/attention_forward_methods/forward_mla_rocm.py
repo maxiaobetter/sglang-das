@@ -71,6 +71,61 @@ from sglang.srt.utils import BumpAllocator
 logger = logging.getLogger(__name__)
 _SGLANG_EXPERIMENTAL_LORA_OPTI = envs.SGLANG_EXPERIMENTAL_LORA_OPTI.get()
 
+_hcu_bmm = None
+if _is_hcu and envs.SGLANG_GLM_HCU_GEMM.get():
+    import hcu_ops as _hcu_bmm
+
+
+def _hcu_absorb_bmm(attn, x, weight, out=None, *, forward_batch=None):
+    # Preserve the caller's token-major output layout, including graph buffers.
+    if _is_hcu and envs.SGLANG_GLM_OPT_DECODE.get() and attn._lightop_glm_fusions:
+        from sglang.kernels.ops.gemm.glm_absorb_bmm import try_glm_absorb_bmm
+        from sglang.srt.layers.glm_decode_quant import glm_decode_phase_enabled
+
+        if glm_decode_phase_enabled(forward_batch, is_nextn=attn.is_nextn):
+            result = try_glm_absorb_bmm(x, weight, out)
+            if result is not None:
+                return result
+    result = None
+    if _hcu_bmm is not None and getattr(attn, "_hcu_glm_gemm", False):
+        result = _hcu_bmm.try_bmm_bf16(x, weight, out)
+    if result is not None:
+        return result
+    if out is None:
+        return torch.bmm(x, weight)
+    return torch.bmm(x, weight, out=out)
+
+
+_LIGHTOP_FUSION_PHASES = frozenset(
+    p.strip() for p in envs.SGLANG_LIGHTOP_FUSION_PHASES.get().split(",")
+)
+if (
+    _is_hcu
+    and (envs.SGLANG_GLM_OPT_DECODE.get() or envs.SGLANG_GLM_LIGHTOP_FUSIONS.get())
+    and (envs.SGLANG_LIGHTOP_NORM_QUANT.get() or envs.SGLANG_LIGHTOP_MLA_KV_FUSED.get())
+    and not _LIGHTOP_FUSION_PHASES <= {"verify", "draft_decode", "draft_extend"}
+):
+    raise ValueError("Unknown SGLANG_LIGHTOP_FUSION_PHASES value")
+
+_lightop_mla_qcat = None
+_lightop_mla_q_head_strides = (192,)
+if (
+    _is_hcu
+    and (envs.SGLANG_GLM_OPT_DECODE.get() or envs.SGLANG_GLM_LIGHTOP_FUSIONS.get())
+    and envs.SGLANG_LIGHTOP_MLA_KV_FUSED.get()
+):
+    try:
+        from lightop import rmsnorm as _lightop_rmsnorm
+
+        # Check the installed extension as well as its Python wrapper.
+        getattr(_lightop_rmsnorm.op, "fused_rms_norm_rope_contiguous_q_cat")
+        _lightop_mla_qcat = _lightop_rmsnorm.fused_rms_norm_rope_contiguous_q_cat
+        _lightop_mla_q_head_strides = getattr(
+            _lightop_rmsnorm.op, "MLA_ROPE_SUPPORTED_Q_HEAD_STRIDES", (192,)
+        )
+    except (ImportError, AttributeError, OSError) as exc:
+        logger.warning("LightOp MLA fusion unavailable; using original path: %s", exc)
+
 if TYPE_CHECKING:
     from sglang.srt.models.deepseek_v2 import DeepseekV2AttentionMLA
 
@@ -142,6 +197,7 @@ def rocm_absorb_q_bmm(
     q_nope: torch.Tensor,
     *,
     is_capture_mode: bool,
+    forward_batch: Optional[ForwardBatch] = None,
 ) -> torch.Tensor:
     """Absorb ``q_nope @ w_kc`` on HIP/AITER (pre-transpose layout)."""
     # TODO(haishaw): add bmm_fp8 to ROCm
@@ -180,9 +236,11 @@ def rocm_absorb_q_bmm(
                 )
             )
         else:
-            q_nope_out = torch.bmm(
+            q_nope_out = _hcu_absorb_bmm(
+                attn,
                 q_nope.to(torch.bfloat16).transpose(0, 1),
                 _scaled_bmm_weight(attn.w_kc, attn.w_scale),
+                forward_batch=forward_batch,
             )
     return q_nope_out
 
@@ -190,6 +248,8 @@ def rocm_absorb_q_bmm(
 def rocm_absorb_v_bmm(
     attn: DeepseekV2AttentionMLA,
     attn_output: torch.Tensor,
+    *,
+    forward_batch: Optional[ForwardBatch] = None,
 ) -> torch.Tensor:
     """Absorb ``attn_output @ w_vc`` (+ optional fused flatten quant) on HIP."""
     # TODO(haishaw): add bmm_fp8 to ROCm
@@ -253,15 +313,19 @@ def rocm_absorb_v_bmm(
                     dtype=torch.bfloat16,
                     device=attn_output.device,
                 )
-                torch.bmm(
+                _hcu_absorb_bmm(
+                    attn,
                     attn_output.transpose(0, 1),
                     _scaled_bmm_weight(attn.w_vc, attn.w_scale),
                     out=output.transpose(0, 1),
+                    forward_batch=forward_batch,
                 )
                 return output.flatten(1, 2)
-            attn_bmm_output = torch.bmm(
+            attn_bmm_output = _hcu_absorb_bmm(
+                attn,
                 attn_output.to(torch.bfloat16).transpose(0, 1),
                 _scaled_bmm_weight(attn.w_vc, attn.w_scale),
+                forward_batch=forward_batch,
             )
 
     if _bmm_buf is not None:
@@ -353,6 +417,214 @@ def _fused_rope_cat_and_cache(
 
 class DeepseekMLARocmForwardMixin:
 
+    def _report_lightop_mla_path(self, state, **details):
+        # Emit once per state on the first layer, including during graph capture.
+        # A selected path still needs a GPU trace to confirm runtime execution.
+        if self.layer_id != 0:
+            return
+        reported = getattr(self, "_lightop_mla_reported_paths", None)
+        if reported is None:
+            reported = self._lightop_mla_reported_paths = set()
+        if state not in reported:
+            reported.add(state)
+            logger.info("LightOp MLA fusion %s: %s", state, details)
+
+    def _lightop_fusion_phase_enabled(self, batch):
+        if not (
+            envs.SGLANG_LIGHTOP_NORM_QUANT.get()
+            or envs.SGLANG_LIGHTOP_MLA_KV_FUSED.get()
+        ):
+            return False
+        if not self._lightop_glm_fusions:
+            return False
+        if batch is None or torch.compiler.is_compiling():
+            return False
+        from sglang.srt.batch_invariant_ops import is_batch_invariant_mode_enabled
+        from sglang.srt.layers.attention.dsa.forward_batch_utils import (
+            effective_forward_mode,
+        )
+        from sglang.srt.runtime_context import get_exec
+
+        if (
+            is_batch_invariant_mode_enabled()
+            or get_exec().deterministic.enable_deterministic_inference
+        ):
+            return False
+        mode = effective_forward_mode(batch)
+        if self.is_nextn:
+            if mode.is_decode():
+                return "draft_decode" in _LIGHTOP_FUSION_PHASES
+            if mode.is_extend() or mode.is_draft_extend_v2():
+                return "draft_extend" in _LIGHTOP_FUSION_PHASES
+            return False
+        return mode.is_target_verify() and "verify" in _LIGHTOP_FUSION_PHASES
+
+    def _prepare_lightop_mla(self, batch, latent, positions):
+        """Return a plan before skipping KV RMSNorm; no tensors are mutated here."""
+        if _lightop_mla_qcat is None or not self._lightop_fusion_phase_enabled(batch):
+            return None
+        from sglang.srt.layers.attention.dsa.forward_batch_utils import (
+            effective_forward_mode,
+        )
+        from sglang.srt.layers.attention.dsa.utils import dsa_use_prefill_cp
+        from sglang.srt.layers.rotary_embedding.base import RotaryEmbedding
+        from sglang.srt.layers.rotary_embedding.rope_variant import (
+            DeepseekScalingRotaryEmbedding,
+        )
+        from sglang.srt.layers.utils.cp_utils import mla_use_prefill_cp
+        from sglang.srt.mem_cache.memory_pool import DSATokenToKVPool, MLATokenToKVPool
+        from sglang.srt.model_executor.forward_context import (
+            get_attn_backend,
+            get_token_to_kv_pool,
+        )
+        from sglang.srt.runtime_context import get_parallel
+
+        mode = effective_forward_mode(batch)
+        backend = get_attn_backend()
+        pool = get_token_to_kv_pool()
+        rope = self.rotary_emb
+        norm = self.kv_a_layernorm
+        if (
+            not (
+                mode.is_decode() or mode.is_target_verify() or mode.is_draft_extend_v2()
+            )
+            or not self.use_dsa
+            or get_parallel().dcp_enabled
+            or dsa_use_prefill_cp(batch)
+            or mla_use_prefill_cp(batch)
+            or self.attn_mqa.is_cross_attention
+            or getattr(backend, "dsa_decode_impl", None) != "flashmla_kv"
+            or getattr(backend, "use_mha", True)
+            or getattr(backend, "hisparse_coordinator", None) is not None
+            # DSA uses this subclass with the same MLA KV buffer layout.
+            # Keep an exact whitelist: HiSparse/layer-split pools need their
+            # own cache-write handling and must not bypass it.
+            or type(pool) not in (MLATokenToKVPool, DSATokenToKVPool)
+            or not pool.dsa_kv_cache_store_fp8
+            or pool.layer_transfer_counter is not None
+            or (self.kv_lora_rank, self.qk_nope_head_dim, self.qk_rope_head_dim)
+            not in ((512, 128, 64), (512, 192, 64))
+            or self.qk_nope_head_dim + self.qk_rope_head_dim
+            not in _lightop_mla_q_head_strides
+            or type(rope) not in (RotaryEmbedding, DeepseekScalingRotaryEmbedding)
+            or rope.rotary_dim != 64
+            or norm.cast_x_before_out_mul
+            or norm.variance_size_override is not None
+            or self._fuse_rope_for_trtllm_mla(batch)
+            or self._skip_rope_for_dsa_tilelang_fused()
+            or self._skip_rope_for_aiter_fused_mla()
+        ):
+            self._report_lightop_mla_path(
+                "fallback_config",
+                pool=type(pool).__name__,
+                backend=type(backend).__name__,
+                decode_impl=getattr(backend, "dsa_decode_impl", None),
+                rope=type(rope).__name__,
+                q_head_width=self.qk_nope_head_dim + self.qk_rope_head_dim,
+                supported_q_head_strides=_lightop_mla_q_head_strides,
+            )
+            return None
+        cache = pool.kv_buffer[self.layer_id - pool.start_layer]
+        cos_sin = rope.cos_sin_cache
+        slots = batch.out_cache_loc
+        if (
+            latent.ndim != 2
+            or latent.shape[0] == 0
+            or latent.shape[1] != 576
+            or latent.stride(1) != 1
+            or latent.stride(0) < 576
+            or latent.stride(0) % 8
+            or cache.dtype != torch.uint8
+            or not cache.is_contiguous()
+            or cache.ndim != 3
+            or cache.shape[1:] != (1, 656)
+            or cos_sin.ndim != 2
+            or cos_sin.shape[1] != 64
+            or not cos_sin.is_contiguous()
+            or norm.weight.shape != (512,)
+            or not norm.weight.is_contiguous()
+            or any(
+                t.dtype != torch.bfloat16
+                or t.device != latent.device
+                or t.data_ptr() % 16
+                for t in (latent, norm.weight, cos_sin)
+            )
+            or not latent.is_cuda
+            or cache.device != latent.device
+            or any(
+                t.dtype != torch.int64
+                or t.device != latent.device
+                or t.shape != (latent.shape[0],)
+                or not t.is_contiguous()
+                for t in (positions, slots)
+            )
+        ):
+            self._report_lightop_mla_path(
+                "fallback_layout",
+                latent=(tuple(latent.shape), latent.stride(), str(latent.dtype)),
+                cache=(tuple(cache.shape), str(cache.dtype)),
+                cos_sin=(tuple(cos_sin.shape), str(cos_sin.dtype)),
+                positions=(tuple(positions.shape), str(positions.dtype)),
+                slots=(tuple(slots.shape), str(slots.dtype)),
+            )
+            return None
+        return _lightop_mla_qcat, cache, cos_sin
+
+    def _run_lightop_mla(self, plan, batch, positions, q_pe, k_pe, k_raw, q_nope):
+        """Validate the late Q layout before performing any in-place writes."""
+        tokens = k_raw.shape[0]
+        heads = self.num_local_heads
+        q_head_stride = self.qk_nope_head_dim + self.qk_rope_head_dim
+        if (
+            q_pe.shape != (tokens, heads, 64)
+            or q_head_stride not in _lightop_mla_q_head_strides
+            or q_pe.stride() != (heads * q_head_stride, q_head_stride, 1)
+            or q_nope.shape != (tokens, heads, 512)
+            or q_nope.stride(2) != 1
+            or k_pe.shape != (tokens, 1, 64)
+            or k_pe.stride(0) != k_raw.stride(0)
+            or k_pe.stride(2) != 1
+            or any(
+                t.dtype != torch.bfloat16
+                or t.device != k_raw.device
+                or t.data_ptr() % 16
+                for t in (q_pe, q_nope, k_pe)
+            )
+        ):
+            self._report_lightop_mla_path(
+                "fallback_q_layout",
+                q_pe=(tuple(q_pe.shape), q_pe.stride()),
+                q_nope=(tuple(q_nope.shape), q_nope.stride()),
+                k_pe=(tuple(k_pe.shape), k_pe.stride()),
+            )
+            return None
+        self._report_lightop_mla_path("selected", tokens=tokens, heads=heads)
+        fn, cache, cos_sin = plan
+        k_normed = torch.empty((tokens, 512), device=k_raw.device, dtype=k_raw.dtype)
+        q_cat = torch.empty((tokens, heads, 576), device=q_pe.device, dtype=q_pe.dtype)
+        # Runtime failures are not swallowed: the op mutates RoPE and KV buffers,
+        # so retrying the unfused path after a failed launch could rotate twice.
+        fn(
+            positions,
+            q_pe,
+            k_pe.squeeze(1),
+            k_raw,
+            k_normed,
+            self.kv_a_layernorm.weight,
+            cos_sin,
+            batch.out_cache_loc,
+            cache,
+            q_nope,
+            q_cat,
+            "fp8_e4m3",
+            1.0,
+            is_neox_style=self.rotary_emb.is_neox_style,
+            epsilon=self.kv_a_layernorm.variance_epsilon,
+            flashmla_fp8_layout=True,
+            kv_quant_epsilon=1e-6,
+        )
+        return q_cat, k_normed.unsqueeze(1)
+
     def forward_absorb_rocm_prepare(
         self: DeepseekV2AttentionMLA,
         positions: torch.Tensor,
@@ -371,6 +643,8 @@ class DeepseekMLARocmForwardMixin:
             and self.w_kc_qrep is not None
             and self.q_b_proj_qrep_weight is not None
         )
+        lightop_plan = None
+        lightop_q_cat = None
         q_lora = None
         topk_indices = None
         kv_fusion = False
@@ -392,8 +666,22 @@ class DeepseekMLARocmForwardMixin:
             kv_fusion = llama_4_scaling is None and use_fused_kv_producer(
                 self, forward_batch, latent_cache
             )
+            if (
+                _lightop_mla_qcat is not None
+                and not _use_aiter
+                and not q_replicate_active
+                and not is_kv_b_lora_active(self)
+                and not _SGLANG_EXPERIMENTAL_LORA_OPTI
+            ):
+                lightop_plan = self._prepare_lightop_mla(
+                    forward_batch, latent_cache, positions
+                )
+
+            # Defer only KV RMSNorm; the indexer still consumes normalized Q.
+            if lightop_plan is not None:
+                q = self.q_a_layernorm(q)
             # overlap qk norm
-            if self.alt_stream is not None and get_is_capture_mode():
+            elif self.alt_stream is not None and get_is_capture_mode():
                 current_stream = torch.cuda.current_stream()
                 self.alt_stream.wait_stream(current_stream)
                 q = self.q_a_layernorm(q)
@@ -572,7 +860,10 @@ class DeepseekMLARocmForwardMixin:
                 q_nope_out = q_nope_out[:, :expected_m, :]
             else:
                 q_nope_out = rocm_absorb_q_bmm(
-                    self, q_nope, is_capture_mode=get_is_capture_mode()
+                    self,
+                    q_nope,
+                    is_capture_mode=get_is_capture_mode(),
+                    forward_batch=forward_batch,
                 )
 
             q_nope_out = q_nope_out.transpose(0, 1)
@@ -595,9 +886,28 @@ class DeepseekMLARocmForwardMixin:
             )
             q_pe, k_nope, k_pe = None, None, None
 
+        if lightop_plan is not None:
+            fused = self._run_lightop_mla(
+                lightop_plan,
+                forward_batch,
+                positions,
+                q_pe,
+                k_pe,
+                latent_cache[..., : self.kv_lora_rank],
+                q_nope_out,
+            )
+            if fused is None:
+                # A late Q-layout mismatch must restore the skipped RMSNorm.
+                k_nope = self.kv_a_layernorm(
+                    latent_cache[..., : self.kv_lora_rank]
+                ).unsqueeze(1)
+            else:
+                lightop_q_cat, k_nope = fused
+
         fuse_rope_for_trtllm_mla = self._fuse_rope_for_trtllm_mla(forward_batch)
         if (
             not kv_fusion
+            and lightop_q_cat is None
             and self.rotary_emb is not None
             and (not fuse_rope_for_trtllm_mla)
             and (not self._skip_rope_for_dsa_tilelang_fused())
@@ -680,8 +990,9 @@ class DeepseekMLARocmForwardMixin:
             *(
                 (self.prepare_attention_output_gate(hidden_states),)
                 if hasattr(self, "prepare_attention_output_gate")
-                else ()
+                else ((None,) if lightop_q_cat is not None else ())
             ),
+            *((lightop_q_cat,) if lightop_q_cat is not None else ()),
         )
 
     def forward_absorb_rocm_core(
@@ -696,6 +1007,7 @@ class DeepseekMLARocmForwardMixin:
         topk_indices,
         llama_4_scaling,
         attention_output_gate=None,
+        lightop_q_cat=None,
     ):
         from sglang.srt.models.deepseek_common.glm_prefill_kv_fusion import (
             PrefillQWithStoredKV,
@@ -716,7 +1028,22 @@ class DeepseekMLARocmForwardMixin:
             else {}
         )
 
-        if self.current_attention_backend in FORWARD_ABSORB_CORE_ATTENTION_BACKENDS:
+        if lightop_q_cat is not None:
+            if llama_4_scaling is not None:
+                lightop_q_cat[..., : self.kv_lora_rank] *= llama_4_scaling
+            attn_output = self.attn_mqa(
+                lightop_q_cat,
+                None,
+                None,
+                forward_batch,
+                q_rope=None,
+                k_rope=k_pe,
+                save_kv_cache=False,
+                lightop_fused_q=True,
+                **sink_args,
+                **(dict(topk_indices=topk_indices) if topk_indices is not None else {}),
+            )
+        elif self.current_attention_backend in FORWARD_ABSORB_CORE_ATTENTION_BACKENDS:
             if self._skip_rope_for_dsa_tilelang_fused() and self.rotary_emb is not None:
                 q_cat, _, k_pe_fused, _ = _fused_rope_cat_and_cache(
                     self,
@@ -923,7 +1250,9 @@ class DeepseekMLARocmForwardMixin:
                 attn_bmm_output[:, :expected_m, :].transpose(0, 1).flatten(1, 2)
             )
         else:
-            attn_bmm_output = rocm_absorb_v_bmm(self, attn_output)
+            attn_bmm_output = rocm_absorb_v_bmm(
+                self, attn_output, forward_batch=forward_batch
+            )
 
         if _SGLANG_EXPERIMENTAL_LORA_OPTI:
             from sglang.srt.lora.trtllm_lora_temp.deepseek_mla_correction import (
@@ -941,7 +1270,10 @@ class DeepseekMLARocmForwardMixin:
             attn_bmm_output = self.apply_attention_output_gate(
                 attn_bmm_output, attention_output_gate
             )
-        output, _ = self.o_proj(attn_bmm_output)
+        from sglang.srt.layers.glm_decode_quant import o_proj_quant_scope
+
+        with o_proj_quant_scope(self, forward_batch):
+            output, _ = self.o_proj(attn_bmm_output)
 
         if self.next_skip_topk is None:
             return output

@@ -590,6 +590,17 @@ class LayerCommunicator:
             )
         if hidden_states.shape[0] == 0:
             residual = hidden_states
+        elif (
+            quant_format == "lightop_fp8_per_token"
+            and self._communicate_simple_fn is CommunicateSimpleFn._trivial
+            and not get_attn_tp_context().input_scattered
+            and not getattr(hidden_states, "_sglang_needs_allreduce_fusion", False)
+        ):
+            hidden_states, residual = (
+                self.input_layernorm.forward_with_lightop_per_token_quant(
+                    hidden_states, residual, post_residual_addition
+                )
+            )
         else:
             if (
                 residual is not None
@@ -814,7 +825,17 @@ class LayerCommunicator:
         residual: torch.Tensor,
         forward_batch: ForwardBatch,
         cache=None,
+        lightop_quant: bool = False,
     ):
+        if (
+            lightop_quant
+            and self._communicate_with_all_reduce_and_layer_norm_fn
+            is CommunicateWithAllReduceAndLayerNormFn._simple
+            and not get_attn_tp_context().input_scattered
+        ):
+            return self.post_attention_layernorm.forward_with_lightop_per_token_quant(
+                hidden_states, residual
+            )
         if cache is not None:
             self._context.cache = cache
 

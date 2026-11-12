@@ -250,6 +250,29 @@ if _is_cuda:
 if _is_hcu:
     import deepgemm
 
+    _hcu_skinny = None
+    if envs.SGLANG_GLM_HCU_GEMM.get():
+        import hcu_ops as _hcu_skinny
+
+    def _hcu_fp8_gemm(qinput, x_scale, weight, weight_scale, output):
+        # The package selects only tuned M/N/K and per-token/per-channel FP8
+        # layouts. Unsupported operands retain the original DeepGEMM path.
+        from sglang.srt.model_executor.forward_context import (
+            get_forward_context,
+            has_forward_context,
+        )
+
+        backend = get_forward_context().attn_backend if has_forward_context() else None
+        if (
+            _hcu_skinny is None
+            or not getattr(backend, "_glm53_model", False)
+            or not _hcu_skinny.try_skinny_fp8(
+                qinput, x_scale, weight, weight_scale, output
+            )
+        ):
+            deepgemm.fp8_gemm((qinput, x_scale), (weight, weight_scale), output)
+
+
 use_triton_w8a8_fp8_kernel = get_bool_env_var("USE_TRITON_W8A8_FP8_KERNEL")
 
 # Input scaling factors are no longer optional in _scaled_mm starting
@@ -1896,7 +1919,7 @@ def apply_fp8_linear(
         # skip quantization entirely and run the DeepGEMM FP8 GEMM directly.
         output_shape = [*input[0].shape[:-1], weight.shape[1]]
         output = torch.empty(output_shape, device=input[0].device, dtype=torch.bfloat16)
-        deepgemm.fp8_gemm((input[0], input[1]), (weight, weight_scale), output)
+        _hcu_fp8_gemm(input[0], input[1], weight, weight_scale, output)
         if bias is not None:
             output += bias
 
@@ -1937,9 +1960,24 @@ def apply_fp8_linear(
     )
 
     if input_prequantized:
-        assert input_scale is not None and input_scale.numel() == 1
+        assert input_scale is not None
+        per_token_hcu_scale = (
+            _is_hcu
+            and (
+                envs.SGLANG_GLM_OPT_DECODE.get()
+                or envs.SGLANG_GLM_LIGHTOP_FUSIONS.get()
+            )
+            and use_per_token_if_dynamic
+            and input_scale.shape == (input_2d.shape[0], 1)
+            and input_scale.dtype == torch.float32
+            and input_scale.device == input.device
+            and input_scale.is_contiguous()
+        )
+        assert input_scale.numel() == 1 or per_token_hcu_scale
         qinput = input_2d
-        if channelwise_cutlass and not native_scalar_a_scale:
+        if per_token_hcu_scale:
+            x_scale = input_scale
+        elif channelwise_cutlass and not native_scalar_a_scale:
             # Unsupported CUTLASS epilogues require one A scale per row.
             x_scale = input_scale.repeat(input_2d.shape[0]).view(-1, 1)
         else:
@@ -2013,7 +2051,7 @@ def apply_fp8_linear(
 
     if _is_hcu:
         output = torch.empty(output_shape, device=input.device, dtype=output_dtype)
-        deepgemm.fp8_gemm((qinput, x_scale), (weight, weight_scale), output)
+        _hcu_fp8_gemm(qinput, x_scale, weight, weight_scale, output)
         if bias is not None:
             output += bias
 
