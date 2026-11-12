@@ -1964,6 +1964,7 @@ class GlmRDMAFollowerRequest(GlmWaitingRDMARequest):
     def alloc_broadcast_parts(self, part_nbytes) -> List[torch.Tensor]:
         """Allocate one landing buffer per part, in part order."""
         tensors = []
+        unpooled = 0
         for idx, nbytes in enumerate(part_nbytes):
             allocation = (
                 self.embedding_pool.try_alloc(nbytes)
@@ -1973,12 +1974,23 @@ class GlmRDMAFollowerRequest(GlmWaitingRDMARequest):
             if allocation is not None:
                 buffer, _, slot = allocation
             else:
+                # Blocking on the pool would desync the TP collectives, so fall
+                # back to a plain allocation and surface the extra VRAM.
+                if self.embedding_pool is not None and nbytes:
+                    unpooled += 1
                 buffer = torch.empty(
                     nbytes, dtype=torch.uint8, device=f"cuda:{self.gpu_id}"
                 )
                 slot = None
             self._part_buffers[idx] = (buffer, slot, nbytes)
             tensors.append(buffer[:nbytes])
+        if unpooled:
+            logger.warning(
+                "EPD broadcast staging fell back to %d unpooled part(s) for "
+                "rid=%s: the embedding pool is full on this TP rank",
+                unpooled,
+                self.rid,
+            )
         return tensors
 
     def assemble_from_broadcast(self, recv_embedding_data) -> bool:
@@ -2742,6 +2754,17 @@ class MMReceiverBase(ABC):
             or self.tp_size <= 1
         ):
             return
+        if scheduler._forward_ingress_enabled:
+            # Ingress keeps submitting TP collectives from its forward thread
+            # while this thread receives, so a stream wait cannot order the
+            # broadcast behind them; the receiver would also share the model's
+            # original Gloo groups with that thread.
+            logger.warning(
+                "SGLANG_OPT_EPD_RDMA_LEADER_BROADCAST cannot be ordered against "
+                "a background forward (waiting-queue ingress); keeping per-rank "
+                "RDMA receive."
+            )
+            return
         if self.tp_group.world_size != torch.distributed.get_world_size():
             # new_group must be entered by every rank of the default group.
             logger.warning(
@@ -2798,6 +2821,50 @@ class MMReceiverBase(ABC):
             ),
             src=0,
         )
+        # Stage every buffer before any rank enters the broadcast: a rank that
+        # then runs out of memory fails its own requests instead of dropping
+        # out mid-collective and hanging the rest of the TP group.
+        staged = []
+        alloc_flags = []
+        for (i, waiting_req), (recv_embedding_data, part_nbytes) in zip(ready, metas):
+            try:
+                tensors = (
+                    waiting_req.broadcast_parts or []
+                    if is_leader
+                    else waiting_req.alloc_broadcast_parts(part_nbytes)
+                )
+                flag = 1
+            except Exception:
+                logger.exception(
+                    "EPD broadcast staging failed on tp rank %d, rid=%s",
+                    self.tp_group.rank_in_group,
+                    waiting_req.rid,
+                )
+                tensors, flag = [], 0
+            staged.append((i, waiting_req, recv_embedding_data, tensors))
+            alloc_flags.append(flag)
+        alloc_flags = torch.tensor(alloc_flags, dtype=torch.int32)
+        torch.distributed.all_reduce(
+            alloc_flags,
+            op=torch.distributed.ReduceOp.MIN,
+            group=self.tp_group.cpu_group,
+        )
+
+        live = []
+        for req, flag in zip(staged, alloc_flags.tolist()):
+            if flag:
+                live.append(req)
+                continue
+            # The outer FAIL path releases whatever this rank did allocate.
+            i, waiting_req = req[0], req[1]
+            local_status[i] = WaitingMMRequestStatus.FAIL
+            if waiting_req.error_msg is None:
+                waiting_req.error_msg = (
+                    "Failed to allocate the multimodal embedding broadcast buffer"
+                )
+        if not live:
+            return
+
         schedule_stream = torch.cuda.current_stream()
         self.bcast_stream.wait_stream(schedule_stream)
         # Two communicators with kernels resident at once can deadlock, and
@@ -2809,12 +2876,7 @@ class MMReceiverBase(ABC):
         src = self.tp_group.ranks[0]
         checked = []
         with torch.cuda.stream(self.bcast_stream):
-            for (_, waiting_req), (_, part_nbytes) in zip(ready, metas):
-                tensors = (
-                    waiting_req.broadcast_parts or []
-                    if is_leader
-                    else waiting_req.alloc_broadcast_parts(part_nbytes)
-                )
+            for _, _, _, tensors in live:
                 checked.append(tensors)
                 for tensor in tensors:
                     if tensor.numel():
@@ -2828,7 +2890,7 @@ class MMReceiverBase(ABC):
             self._verify_leader_broadcast(checked, is_leader)
 
         assembled = []
-        for (_, waiting_req), (recv_embedding_data, _) in zip(ready, metas):
+        for _, waiting_req, recv_embedding_data, _ in live:
             if is_leader:
                 waiting_req.broadcast_parts = None
                 assembled.append(1)
@@ -2842,7 +2904,7 @@ class MMReceiverBase(ABC):
             op=torch.distributed.ReduceOp.MIN,
             group=self.tp_group.cpu_group,
         )
-        for (i, waiting_req), ok in zip(ready, assembled.tolist()):
+        for (i, waiting_req, _, _), ok in zip(live, assembled.tolist()):
             if ok:
                 continue
             local_status[i] = WaitingMMRequestStatus.FAIL
