@@ -2520,6 +2520,19 @@ class DeepseekSparseAttnBackend(
                     k_rope,
                 )
 
+        from sglang.srt.speculative.draft_prefill_plan import get_draft_prefill_plan
+
+        prefill_plan = get_draft_prefill_plan(forward_batch)
+        if prefill_plan is not None:
+            # Write all Main-KV first, including on a rank with no queries.
+            # Retain the original forward mode, K values and prefix decision.
+            q = prefill_plan.select_local(q)
+            if q_rope is not None:
+                q_rope = prefill_plan.select_local(q_rope)
+            metadata = prefill_plan.select_attention_metadata(metadata)
+            if prefill_plan.num_local_queries == 0:
+                return q.new_empty((0, layer.tp_q_head_num * layer.v_head_dim))
+
         # Use MHA kernel if in MHA_ONE_SHOT mode
         if self.use_mha:
             assert k is not None and v is not None

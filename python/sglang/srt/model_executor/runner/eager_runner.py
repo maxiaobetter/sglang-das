@@ -30,6 +30,7 @@ from sglang.srt.layers.cp.utils import (
     is_cp_v2_active,
     prepare_cp_forward,
 )
+from sglang.srt.layers.logits_processor import LogitsMetadata, LogitsProcessorOutput
 from sglang.srt.layers.pooler import EmbeddingPoolerOutput
 from sglang.srt.model_executor.cuda_graph_buffer_registry import (
     build_eager_registry,
@@ -56,6 +57,7 @@ from sglang.srt.runtime_context import (
     max_prefill_buffer_tokens,
     max_speculative_num_draft_tokens,
 )
+from sglang.srt.speculative.draft_prefill_plan import get_draft_prefill_plan
 from sglang.srt.utils import is_hip
 from sglang.srt.utils.common import (
     ceil_align,
@@ -69,7 +71,6 @@ logger = logging.getLogger(__name__)
 _is_hip = is_hip()
 
 if TYPE_CHECKING:
-    from sglang.srt.layers.logits_processor import LogitsProcessorOutput
     from sglang.srt.model_executor.model_runner import ModelRunner
 
 
@@ -360,6 +361,11 @@ class EagerRunner(BaseRunner):
         rank-local slice, then gather hidden states before the logits step.
         """
         model = self.model_runner.model
+        prefill_plan = get_draft_prefill_plan(forward_batch)
+        if prefill_plan is not None:
+            prefill_plan.validate_attention_dispatch(
+                self.model_runner.attn_backend, forward_batch.forward_mode
+            )
 
         input_embeds = kwargs.get("input_embeds")
         if input_embeds is None:
@@ -386,6 +392,34 @@ class EagerRunner(BaseRunner):
                 (hidden_states, aux_hidden_states)
                 if capture_aux_hidden_states
                 else hidden_states
+            )
+
+        if prefill_plan is not None:
+            hidden_states = prefill_plan.gather(hidden_states)
+            if prefill_plan.num_queries == 0:
+                return LogitsProcessorOutput(
+                    next_token_logits=hidden_states.new_empty(
+                        (0, model.config.vocab_size), dtype=torch.float32
+                    ),
+                    hidden_states=hidden_states,
+                )
+            # Only the logits metadata uses one row per completed request.
+            # The attention ForwardBatch, positions and cache metadata remain
+            # full-size throughout the body; no synthetic prefix is introduced.
+            logits_metadata = replace(
+                LogitsMetadata.from_forward_batch(forward_batch),
+                extend_seq_lens=torch.ones(
+                    prefill_plan.num_queries,
+                    dtype=torch.int32,
+                    device=hidden_states.device,
+                ),
+                extend_seq_lens_cpu=[1] * prefill_plan.num_queries,
+            )
+            return model.logits_processor(
+                forward_batch.input_ids,
+                hidden_states,
+                model.lm_head,
+                logits_metadata,
             )
 
         stream = torch.cuda.current_stream()

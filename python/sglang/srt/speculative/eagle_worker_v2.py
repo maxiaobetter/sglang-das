@@ -76,6 +76,7 @@ from sglang.srt.speculative.adaptive_runtime_state import (
     SpecRuntimeState,
 )
 from sglang.srt.speculative.base_spec_worker import BaseSpecWorker, EagleDraftWorkerBase
+from sglang.srt.speculative.draft_prefill_plan import maybe_plan_draft_prefill
 from sglang.srt.speculative.draft_utils import DraftBackendFactory
 from sglang.srt.speculative.eagle_draft_cuda_graph_runner import (
     EAGLEDraftCudaGraphRunner,
@@ -961,9 +962,22 @@ class EagleDraftWorker(EagleDraftWorkerBase):
             next_token_ids: Next token ids generated from the target forward.
         """
         # Construct input_ids
+        prefill_plan = maybe_plan_draft_prefill(
+            batch,
+            self.draft_runner,
+            topk=self.topk,
+            hidden_before_norm=self.need_hidden_states_before_norm,
+        )
         if not batch.forward_mode.is_idle():
             # Chunked-prefill-aware tail tokens (see PR #26329).
             tail_tokens = _eagle_prefill_tail_tokens(batch, next_token_ids)
+            if prefill_plan is not None:
+                # Snapshot every unfinished request's true successor, rather
+                # than reading Req objects after overlapped target execution.
+                tail_tokens = next_token_ids.to(batch.input_ids.dtype).clone()
+                for i, token in enumerate(prefill_plan.next_prompt_tokens):
+                    if not prefill_plan.complete[i]:
+                        tail_tokens[i : i + 1].fill_(token)
             new_input_ids = torch.empty_like(batch.input_ids)
             pt = 0
             for i, extend_len in enumerate(batch.extend_lens):
@@ -979,6 +993,7 @@ class EagleDraftWorker(EagleDraftWorkerBase):
         # hidden_states + shape info.
         batch.spec_info = EagleDraftExtendInput(
             hidden_states=target_hidden_states,
+            prefill_plan=prefill_plan,
             # draft mode is same with decode mode, only 1 token per req
             num_tokens_per_req=1,
             num_tokens_for_logprob_per_req=1,
@@ -1014,8 +1029,12 @@ class EagleDraftWorker(EagleDraftWorkerBase):
                 self._get_dsa_extend_topk_buf(bs)
             )
             forward_batch.spec_info.dsa_seed_topk_select = (
-                torch.cumsum(forward_batch.extend_seq_lens, dim=0) - 1
-            ).long()
+                (torch.cumsum(forward_batch.extend_seq_lens, dim=0) - 1).long()
+                if prefill_plan is None
+                else None
+            )
+            if prefill_plan is not None:
+                forward_batch.spec_info.dsa_seed_topk_capture.fill_(-1)
 
         canary_ctx = (
             context_tuple(
@@ -1060,6 +1079,25 @@ class EagleDraftWorker(EagleDraftWorkerBase):
 
         # Assemble the next-iter draft spec_info from the extend output.
         use_rejection_sampling = get_spec().speculative_use_rejection_sampling
+        if prefill_plan is not None and prefill_plan.num_queries == 0:
+            # No LM-head or sampling kernel is needed, but all cache producers
+            # above have completed on the same stream as the baseline forward.
+            return EagleDraftInput(
+                topk_p=next_token_ids.new_zeros(
+                    (len(batch.reqs), self.topk), dtype=torch.float32
+                ),
+                topk_index=next_token_ids.new_zeros(
+                    (len(batch.reqs), self.topk), dtype=torch.int64
+                ),
+                hidden_states=prefill_plan.scatter_requests(
+                    logits_output.hidden_states
+                ),
+                bonus_tokens=next_token_ids,
+                num_tokens_per_req=1,
+                num_tokens_for_logprob_per_req=1,
+                dsa_topk_indices=prefill_dsa_topk,
+                prefill_output_valid=list(prefill_plan.complete),
+            )
         probs = renorm_draft_probs(
             logits_output.next_token_logits,
             batch.sampling_info,
@@ -1069,15 +1107,23 @@ class EagleDraftWorker(EagleDraftWorkerBase):
             topk_p, topk_index = fast_sample(probs, num_samples=1)
         else:
             topk_p, topk_index = fast_topk(probs, self.topk, dim=-1)
+        hidden_states = logits_output.hidden_states
+        if prefill_plan is not None:
+            topk_p = prefill_plan.scatter_requests(topk_p)
+            topk_index = prefill_plan.scatter_requests(topk_index)
+            hidden_states = prefill_plan.scatter_requests(hidden_states)
         return EagleDraftInput(
             topk_p=topk_p,
             topk_index=topk_index,
             draft_probs=probs if use_rejection_sampling else None,
-            hidden_states=logits_output.hidden_states,
+            hidden_states=hidden_states,
             bonus_tokens=next_token_ids,
             num_tokens_per_req=1,
             num_tokens_for_logprob_per_req=1,
             dsa_topk_indices=prefill_dsa_topk,
+            prefill_output_valid=(
+                list(prefill_plan.complete) if prefill_plan is not None else None
+            ),
         )
 
     def _get_dsa_extend_topk_buf(self, num_tokens: int) -> torch.Tensor:

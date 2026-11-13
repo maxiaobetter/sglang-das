@@ -52,6 +52,7 @@ from sglang.srt.runtime_context import (
     get_parallel,
     get_schedule,
 )
+from sglang.srt.speculative.draft_prefill_plan import get_draft_prefill_plan
 from sglang.srt.state_capturer.indexer_topk import (
     maybe_capture_indexer_topk,
 )
@@ -2599,6 +2600,25 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
                 weights = self._apply_q_scale_and_softmax_scale(weights, q_scale)
             else:
                 weights = self._get_logits_head_gate(x_for_gate, q_scale)
+
+        prefill_plan = get_draft_prefill_plan(forward_batch)
+        if prefill_plan is not None:
+            # Q/K fusion, quantization and every Index-K store above keep their
+            # original inputs. Only MQA/TopK consume the selected query rows.
+            from dataclasses import replace
+
+            q_fp8 = prefill_plan.select_local(q_fp8)
+            weights = prefill_plan.select_local(weights)
+            metadata = replace(
+                metadata,
+                attn_metadata=prefill_plan.select_attention_metadata(
+                    metadata.attn_metadata
+                ),
+            )
+            if prefill_plan.num_local_queries == 0:
+                return torch.empty(
+                    (0, self.index_topk), dtype=torch.int32, device=x_meta.device
+                )
 
         if _is_cuda or _is_hip:
             # In piecewise/breakable CUDA graph, any access to seq_lens_cpu

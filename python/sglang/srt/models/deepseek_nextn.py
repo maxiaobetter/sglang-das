@@ -66,6 +66,7 @@ from sglang.srt.models.deepseek_common.utils import enable_nextn_moe_bf16_cast_t
 from sglang.srt.models.deepseek_v2 import DeepseekV2DecoderLayer, DeepseekV3ForCausalLM
 from sglang.srt.models.utils import WeightsMapper
 from sglang.srt.runtime_context import get_model, get_parallel, get_spec
+from sglang.srt.speculative.draft_prefill_plan import get_draft_prefill_plan
 from sglang.srt.utils import BumpAllocator, add_prefix, is_cuda, is_npu
 
 
@@ -259,6 +260,7 @@ class DeepseekModelNextN(nn.Module):
 
             # CP-v2 shards/gathers hidden states at the eager-runner boundary.
             cp_v2_active = is_cp_v2_active(forward_batch)
+            prefill_plan = get_draft_prefill_plan(forward_batch)
             use_cp_v1 = (
                 dsa_use_prefill_cp(forward_batch, self.dsa_enable_prefill_cp)
                 or mla_use_prefill_cp(forward_batch, self.mla_enable_prefill_cp)
@@ -282,7 +284,9 @@ class DeepseekModelNextN(nn.Module):
                     zero_allocator,
                     prev_topk_indices=index_topk_share.topk_indices,
                 )
-            if not forward_batch.forward_mode.is_idle():
+            if not forward_batch.forward_mode.is_idle() and (
+                prefill_plan is None or hidden_states.shape[0] > 0
+            ):
                 if residual is not None:
                     hidden_states, _ = self.shared_head.norm(hidden_states, residual)
                 else:
@@ -306,10 +310,17 @@ class DeepseekModelNextN(nn.Module):
                         )
                 elif (
                     cp_v2_active
+                    and prefill_plan is None
                     and index_topk_share.should_publish
                     and topk_indices is not None
                 ):
                     topk_indices = cp_gather_after_forward(topk_indices, forward_batch)
+            if prefill_plan is not None and index_topk_share.should_publish:
+                # Preserve the worker's B-row seed buffer and ragged KV bases;
+                # gather only R rows, never N full-query TopK rows.
+                topk_indices = prefill_plan.scatter_requests(
+                    prefill_plan.gather(topk_indices), fill_value=-1
+                )
             index_topk_share.update(topk_indices)
             index_topk_share.publish()
         finally:

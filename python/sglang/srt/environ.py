@@ -1260,6 +1260,9 @@ class Envs:
     # Saves the per-step draft forward, but the draft KV goes stale: an upshift
     # back to steps>0 starts from a cold draft state (low accept until it recovers).
     SGLANG_SPEC_SKIP_ZERO_STEP_DRAFT_EXTEND = EnvBool(False)
+    # Experimental PD/CP8/EP8 GLM FP8 draft prefill query compaction.
+    # Cache producers retain the full batch; not enabled by GLM master flags.
+    SGLANG_GLM_DRAFT_PREFILL_TAIL_ROWS = EnvBool(False)
     # Kill-switch for the draft-extend cuda graph. Draft extend then always runs
     # eager. Escape hatch for setups where the capture's memory pool costs more
     # than the graph saves (e.g. DeepEP MoE workspace captured at full dispatch

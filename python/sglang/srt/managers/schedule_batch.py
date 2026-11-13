@@ -2055,6 +2055,10 @@ class ScheduleBatch(ScheduleBatchDisaggregationDecodeMixin):
     chunked_req: Optional[Req] = None
     chunked_req_next_prompt_token: Optional[int] = None
     contains_last_prefill_chunk: bool = True
+    # Immutable prompt-boundary snapshot taken before overlapped target forward.
+    # None after filtering/merging until the next prepare_for_extend.
+    draft_prefill_complete: Optional[tuple[bool, ...]] = None
+    draft_prefill_next_prompt_tokens: Optional[tuple[Optional[int], ...]] = None
 
     # For DP attention
     inner_idle_batch: Optional[ScheduleBatch] = None
@@ -2405,6 +2409,21 @@ class ScheduleBatch(ScheduleBatchDisaggregationDecodeMixin):
         orig_seq_lens = [max(r.extend_range.end, len(r.origin_input_ids)) for r in reqs]
         prefix_lens = [len(r.prefix_indices) for r in reqs]
         extend_lens = [r.extend_range.length for r in reqs]
+        self.draft_prefill_complete = None
+        self.draft_prefill_next_prompt_tokens = None
+        if envs.SGLANG_GLM_DRAFT_PREFILL_TAIL_ROWS.get():
+            self.draft_prefill_complete = tuple(
+                end >= len(r.origin_input_ids) for r, end in zip(reqs, seq_lens)
+            )
+            self.draft_prefill_next_prompt_tokens = tuple(
+                (
+                    int(r.origin_input_ids[end])
+                    if end < len(r.origin_input_ids)
+                    and 0 <= r.origin_input_ids[end] < self.model_config.vocab_size
+                    else None
+                )
+                for r, end in zip(reqs, seq_lens)
+            )
         extend_logprob_start_lens = [
             compute_extend_logprob_start_len(
                 logprob_start_len=r.logprob_start_len,
@@ -3171,6 +3190,9 @@ class ScheduleBatch(ScheduleBatchDisaggregationDecodeMixin):
         chunked_req_to_exclude: Optional[Union[Req, List[Req]]] = None,
         keep_indices: Optional[List[int]] = None,
     ):
+        # A prepared query plan is tied to the original request order.
+        self.draft_prefill_complete = None
+        self.draft_prefill_next_prompt_tokens = None
         if keep_indices is None:
             if isinstance(chunked_req_to_exclude, Req):
                 chunked_req_to_exclude = [chunked_req_to_exclude]
@@ -3253,6 +3275,8 @@ class ScheduleBatch(ScheduleBatchDisaggregationDecodeMixin):
             )
 
     def merge_batch(self, other: ScheduleBatch):
+        self.draft_prefill_complete = None
+        self.draft_prefill_next_prompt_tokens = None
         # Penalizer orchestrator must be merged before Batch.reqs is merged. This is because
         # orchestrator.merge() depends on Batch.reqs during preparation of each penalizers, so it
         # needs to be called with pre-merged Batch.reqs.

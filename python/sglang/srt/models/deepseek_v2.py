@@ -2761,6 +2761,31 @@ class DeepseekV2DecoderLayer(nn.Module):
             topk_indices = None
         get_attn_tp_context().clear_attn_inputs()
 
+        from sglang.srt.speculative.draft_prefill_plan import get_draft_prefill_plan
+
+        prefill_plan = get_draft_prefill_plan(forward_batch)
+        if prefill_plan is not None:
+            # Attention returned compact rows after completing the full cache
+            # producers. Residual and the MoE output buffer must match them.
+            residual = prefill_plan.select_local(residual)
+            hidden_states_orig = prefill_plan.select_local(hidden_states_orig)
+            if prefill_plan.num_queries == 0:
+                # All EP peers agree on global R. A local zero alone must not
+                # bypass MoE: that rank can receive remote expert work.
+                return hidden_states, residual, topk_indices
+            if forward_batch.num_token_non_padded is not None:
+                from dataclasses import replace
+
+                # Router padding masks describe the compact source rows. Keep
+                # the producer's ForwardBatch intact for subsequent consumers.
+                forward_batch = replace(
+                    forward_batch,
+                    num_token_non_padded=torch.full_like(
+                        forward_batch.num_token_non_padded,
+                        prefill_plan.num_local_queries,
+                    ),
+                )
+
         maybe_prefetch_next_full_attention_kv(
             forward_batch, next_full_attention_layer_id
         )

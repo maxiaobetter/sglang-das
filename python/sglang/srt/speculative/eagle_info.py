@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 import torch
 
@@ -10,6 +10,9 @@ from sglang.srt.runtime_context import get_spec
 from sglang.srt.speculative.spec_info import SpecInput, SpecInputType
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from sglang.srt.speculative.draft_prefill_plan import DraftPrefillPlan
 
 
 @dataclass
@@ -160,6 +163,10 @@ class EagleDraftInput(SpecInput):
     # per-step forwards (each runs on a copied ForwardBatch, dropping writebacks).
     dsa_topk_indices: Optional[torch.Tensor] = None
 
+    # Compact PD prefill keeps B rows, with placeholders for unfinished chunks.
+    # CPU validity lets the PD sender reject an accidental placeholder handoff.
+    prefill_output_valid: Optional[List[bool]] = None
+
     # Per-req bonus token (the "+1" target prediction at end of each accept
     # chain); the worker copies it here post-extend for next iter's draft.
     bonus_tokens: torch.Tensor = None
@@ -210,6 +217,11 @@ class EagleDraftInput(SpecInput):
         new_indices: torch.Tensor,
         new_indices_cpu: Optional[List[int]] = None,
     ):
+        if self.prefill_output_valid is not None:
+            indices = (
+                new_indices_cpu if new_indices_cpu is not None else new_indices.tolist()
+            )
+            self.prefill_output_valid = [self.prefill_output_valid[i] for i in indices]
         if self.future_indices is not None:
             self.future_indices = self.future_indices[new_indices]
             return
@@ -225,6 +237,29 @@ class EagleDraftInput(SpecInput):
             self.dsa_topk_indices = self.dsa_topk_indices[new_indices]
 
     def merge_batch(self, spec_info: "EagleDraftInput"):
+        if (
+            self.prefill_output_valid is not None
+            or spec_info.prefill_output_valid is not None
+        ):
+            self_bs = (
+                len(self.future_indices)
+                if self.future_indices is not None
+                else len(self.topk_index)
+            )
+            other_bs = (
+                len(spec_info.future_indices)
+                if spec_info.future_indices is not None
+                else len(spec_info.topk_index)
+            )
+            self.prefill_output_valid = (
+                self.prefill_output_valid
+                if self.prefill_output_valid is not None
+                else [True] * self_bs
+            ) + (
+                spec_info.prefill_output_valid
+                if spec_info.prefill_output_valid is not None
+                else [True] * other_bs
+            )
         if self.future_indices is not None:
             assert spec_info.future_indices is not None
             self.future_indices = torch.cat(
@@ -312,6 +347,7 @@ class EagleDraftExtendInput(SpecInput):
 
     dsa_seed_topk_capture: Optional[torch.Tensor] = None
     dsa_seed_topk_select: Optional[torch.Tensor] = None
+    prefill_plan: Optional["DraftPrefillPlan"] = None
 
     # Flat per-req index of each request's last accepted window row
     # (i * window + front + num_correct_drafts[i]). When set, the logits

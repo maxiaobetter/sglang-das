@@ -1176,6 +1176,15 @@ class DeepseekMLARocmForwardMixin:
                 **(dict(topk_indices=topk_indices) if topk_indices is not None else {}),
             )
 
+        # Empty query ranks have already produced/stored all Main-KV and
+        # Index-K. They must still reach the decoder's EP dispatch/combine.
+        from sglang.srt.speculative.draft_prefill_plan import get_draft_prefill_plan
+
+        prefill_plan = get_draft_prefill_plan(forward_batch)
+        if prefill_plan is not None and prefill_plan.num_local_queries == 0:
+            output = attn_output.new_empty((0, self.hidden_size))
+            return (output, topk_indices) if self.next_skip_topk else output
+
         # correct attn_output with respect to lse from other ranks
         if is_dcp_mla_decode_phase(forward_batch, use_dsa=self.use_dsa):
             # Fused HCU Q/cache and concatenated DSA paths return (output, LSE).
