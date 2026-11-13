@@ -26,30 +26,17 @@ from sglang.srt.runtime_context import get_parallel
 logger = logging.getLogger(__name__)
 _EXTENSION_ENV = "SGLANG_GLM_PREFILL_K1_INDIRECT_A_SO"
 _EXTENSION_SHA256 = "e59ac60daff9ff6788bf05c91e48dbf4cf3e966d41f2079d6e652be4b30cac9d"
-_DEEPGEMM_SHA256 = "79325b382a56de60f69cfaf8f75fe2b725d2092c002d1cf67bd1248f1537af7a"
-_LIGHTOP_SHA256 = "f4d69b478289cf93a2be4c0f8f92c7374877609276bd6ba40476ab5a10abee6c"
-_DEEPEP_SHA256 = "7ee4f4edec4e6fa275b6d64d842e3925c4ac2ca4b72419046a03d0d103a16d8d"
 _reported = set()
 
 
 @lru_cache(maxsize=1)
 def _load_extension():
-    from deep_ep import deep_ep_cpp
-    from deepgemm import op as deepgemm_op
-    from lightop import op as lightop_op
-
     if (
         torch.__version__ != "2.11.0"
         or torch.version.hip != "6.3.26113"
         or not torch._C._GLIBCXX_USE_CXX11_ABI
-        or hashlib.sha256(Path(deep_ep_cpp.__file__).read_bytes()).hexdigest()
-        != _DEEPEP_SHA256
-        or hashlib.sha256(Path(deepgemm_op.__file__).read_bytes()).hexdigest()
-        != _DEEPGEMM_SHA256
-        or hashlib.sha256(Path(lightop_op.__file__).read_bytes()).hexdigest()
-        != _LIGHTOP_SHA256
     ):
-        raise RuntimeError("Indirect K1 requires the validated Torch/HIP/operator ABI")
+        raise RuntimeError("Indirect K1 requires the validated Torch/HIP/CXX11 ABI")
     configured_path = os.environ.get(_EXTENSION_ENV)
     if not configured_path:
         spec = importlib.util.find_spec("r09plus_wasp_indirect")
