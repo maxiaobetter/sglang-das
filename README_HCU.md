@@ -11,6 +11,48 @@ SGLang是一个用于大型语言模型和多模态模型的高性能服务框�
 广泛的模型支持：支持各种语言模型（Llama、Qwen、DeepSeek、Kimi、GLM、GPT、Gemma、Mistral等）、嵌入模型（e5-Mistral、gte、mcdse）、奖励模型（Skywork）和扩散模型（WAN、Qwen-Image），易于扩展以添加新模型。与大多数Hugging Face模型和OpenAI API兼容。
 强化学习和训练后主干：SGLang是一个经过验证的全球推广后端，具有原生强化学习集成，并被AReaL、Miles、slime、Tunix、verl等知名训练后框架采用。
 
+## GLM-5.3 HiSparse（待设备验证）
+
+本实现统一基于 `maxiaobetter/sglang-das` 的 `glm5.3-w4a8` 分支，W4A8 和 FP8 模型共用 HiSparse 及单层 NextN/MTP 的缓存管理代码。权重量化由模型配置及现有算子分发决定，HiSparse 不按权重量化类型拆分实现。后端按 **KV cache dtype** 选择：`fp8_e4m3` 使用 `flashmla_kv`，`bfloat16` 使用 `flashmla_sparse`。FP8 KV 沿用 LightOp 的打包格式，每 token 为 512B latent、16B scale 和 128B BF16 RoPE，共 656B；host/device 之间按字节复制，不重新量化。
+
+在已有的 PD **decode** 启动命令中增加：
+
+```bash
+--enable-hisparse \
+--disable-radix-cache \
+--kv-cache-dtype fp8_e4m3 \
+--page-size 64 \
+--dsa-prefill-backend flashmla_kv \
+--dsa-decode-backend flashmla_kv \
+--hisparse-config '{"top_k":2048,"device_buffer_size":4096,"host_to_device_ratio":2,"swap_in_block_size":256}'
+```
+
+省略两个 DSA backend 参数时，HCU 会按 KV dtype 选择上述后端。使用 BF16 KV 时将 dtype 改为 `bfloat16`，两个 backend 改为 `flashmla_sparse`。`top_k` 必须与模型的 DSA top-k 一致；`device_buffer_size` 和 `host_to_device_ratio` 应按上下文、并发以及 host/device 内存容量设置。HCU 的换入及预取复制 kernel 将 block size 上限限制为 256。
+
+P 实例继续使用原有 CP/EP 配置，无需启用 HiSparse。P/D 两侧必须使用相同的 KV dtype、page size 和打包格式；FP8 P 侧可继续使用现有的 `flashmla_auto` prefill 路径。D 实例可沿用 DP/EP 配置，`dcp_size` 必须为 1。
+
+普通 decode 和 GLM 单层 NextN/MTP 均已接入代码。MTP 在上述 D 实例参数之外保留原有的并发限制，并增加以下参数（例如每轮 verify 6 个 token）：
+
+```bash
+--speculative-algorithm NEXTN \
+--speculative-eagle-topk 1 \
+--speculative-num-steps 5 \
+--speculative-num-draft-tokens 6 \
+--disaggregation-transfer-backend mooncake
+```
+
+MTP 要求明确设置全局 `--max-running-requests`，以便预算每个 DP worker 的缓存管理元数据及 PD 预分配请求槽位；例如 DP32、每 DP 最多 4 请求时使用 128。当前仅覆盖单 draft 层、线性链（topk=1）、固定 verify 宽度 2–16、PP=1、DCP=1；不覆盖树状、多层或自适应步数。`width * index_topk` 上限为 32768，hot buffer 须按 64 对齐且不超过 32768。P 侧同样启用原有 MTP，保留 CP/EP 配置。
+
+当前一个 D worker 同时执行一轮 verify；两批重叠（TBO）和 PDMux 需要独立事务工作区，本版会明确拒绝这两个组合。
+
+目标模型每层将整轮所有 verify 行的 Top-K 联合换入，保留各行原始顺序及因果有效范围，并在 verify 后只备份接受的 token；拒绝的 KV 不写入 host。每请求另预留 `ceil(width * index_topk / 64) * 64` 个物理 token 的工作区，与 hot buffer、write page 一并计入 admission 容量。以 width=6、top-k=2048、hot=4096 为例，每请求共需 16448 个目标物理 token 槽位。
+
+Draft 层保留完整逻辑地址空间的 dense KV，容量按 `host_to_device_ratio` 扩展，page size 保持 64；其 KV 显存及 verify 元数据已计入池预算。PD 传输分别携带目标 host 页 ID 和 draft device 逻辑页 ID，目标 KV 进入 DRAM，draft KV 进入 VRAM。不同权重量化版本沿用同一路径，不改变 W4A8/FP8 的数学计算。
+
+实现参考此前 HiSparse 分支的 `7ead84f7f646`（PD/graph/HIP）、`bc2b06fafa40`（同轮缓存复用）及 `bda41d6895e7`（多行换入、accepted-only 备份）。MTP 共享索引预取参照官方 `2f7dd856a0346fdb9a474e4362fcc0f3cdb67e1a`：共享组首层执行 union lookup、更新 hot/scratch 布局并记录换入计划，后续共享层在预取流上按相同槽位偏移搬运各自层的 KV，等待对应事件后复用首层页表，不重复规划。各层 KV 内容及存储仍独立；本轮 verify KV 在各层固定 write page 生成，不从 host 预取。计划容量为 `width * index_topk`，已计入显存预算。`SGLANG_DISABLE_HISPARSE_PREFETCH=1` 可在启动时回退逐层同步换入，不支持运行中切换。由于当前 AOT transfer 不屏蔽负索引，接受 token 的备份使用带长度掩码的专用 JIT kernel，不传入 `-1` 哨兵。
+
+此补丁尚未完成 HCU 容器中的算子对拍、PD 传输和准确率验收；CUDA graph 也需要验证更换输入后的重放。应先核对实际安装的 LightOp、FlashMLA、sgl-kernel 路径、版本、哈希及 ABI，再抓取各并行组实际工作 rank 的完整 profile。静态检查通过不代表上述运行验证通过。
+
 ## 使用源码编译方式安装
 提供2种环境准备方式:
 

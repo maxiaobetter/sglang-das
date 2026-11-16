@@ -13,6 +13,10 @@ HISPARSE_CUDA_DSA_BACKENDS_BY_DTYPE = {
     "fp8_e4m3": {"flashmla_kv", "flashinfer_sparse_mla"},
 }
 HISPARSE_ROCM_DSA_BACKENDS = {"tilelang", "aiter"}
+HISPARSE_HCU_DSA_BACKENDS_BY_DTYPE = {
+    "bfloat16": {"flashmla_sparse"},
+    "fp8_e4m3": {"flashmla_kv"},
+}
 HISPARSE_KV_CACHE_DTYPES = ("bfloat16", "fp8_e4m3")
 
 
@@ -22,13 +26,25 @@ def _is_hip() -> bool:
     return is_hip()
 
 
+def _is_hcu() -> bool:
+    from sglang.srt.server_args import is_hcu
+
+    return is_hcu()
+
+
 def _hisparse_default_backend(kv_cache_dtype: str) -> str:
+    if _is_hcu():
+        return "flashmla_kv" if kv_cache_dtype == "fp8_e4m3" else "flashmla_sparse"
     if _is_hip():
         return "tilelang"
     return "flashmla_kv" if kv_cache_dtype == "fp8_e4m3" else "flashmla_sparse"
 
 
 def _hisparse_allowed_backends(kv_cache_dtype: str) -> set[str]:
+    if _is_hcu():
+        # HCU FlashMLA consumes packed FP8 KV (656 bytes/token for GLM-5.3).
+        # The generic ROCm tilelang/aiter path uses a different KV layout.
+        return HISPARSE_HCU_DSA_BACKENDS_BY_DTYPE.get(kv_cache_dtype, set())
     if _is_hip():
         return HISPARSE_ROCM_DSA_BACKENDS
     return HISPARSE_CUDA_DSA_BACKENDS_BY_DTYPE.get(
@@ -120,6 +136,18 @@ def validate_hisparse(server_args: ServerArgs) -> None:
             )
         return
 
+    if _is_hcu():
+        if server_args.disaggregation_mode != "decode":
+            raise ValueError(
+                "HCU DSA HiSparse requires --disaggregation-mode decode. "
+                "Enable HiSparse only on the decode instance; the prefill "
+                "instance transfers the full KV cache into its host pool."
+            )
+        if server_args.page_size != 64:
+            raise ValueError("HCU DSA HiSparse requires --page-size 64.")
+        if server_args.speculative_algorithm is not None:
+            _validate_hcu_dsa_mtp(server_args, hf_config)
+
     from sglang.srt.arg_groups.overrides import resolved_view
 
     if resolved_view(server_args).kv_cache_dtype not in (
@@ -134,3 +162,66 @@ def validate_hisparse(server_args: ServerArgs) -> None:
         ("dsa_decode_backend", "decode"),
     ]:
         validate_hisparse_dsa_backend(server_args, attr, label)
+
+
+def _validate_hcu_dsa_mtp(server_args: ServerArgs, hf_config) -> None:
+    from sglang.srt.mem_cache.sparsity import parse_hisparse_config
+
+    model_config = server_args.get_model_config()
+    if (
+        "GlmMoeDsaForCausalLM" not in (hf_config.architectures or [])
+        or server_args.speculative_algorithm not in ("EAGLE", "NEXTN")
+        or server_args.enable_multi_layer_eagle
+        or model_config.num_nextn_predict_layers != 1
+        or server_args.speculative_eagle_topk != 1
+        or server_args.speculative_adaptive
+    ):
+        raise ValueError(
+            "HCU DSA HiSparse MTP requires GLM NextN/EAGLE with one draft layer, "
+            "--speculative-eagle-topk 1 and fixed speculative steps."
+        )
+    if server_args.pp_size != 1 or server_args.dcp_size != 1:
+        raise ValueError("HCU DSA HiSparse MTP requires PP=1 and DCP=1.")
+    if server_args.enable_two_batch_overlap or server_args.enable_pdmux:
+        raise ValueError(
+            "HCU DSA HiSparse MTP currently uses one verify transaction at a time; "
+            "two-batch overlap and PDMux require separate transaction workspaces."
+        )
+    if server_args.disaggregation_transfer_backend != "mooncake":
+        raise ValueError("HCU DSA HiSparse MTP requires Mooncake PD transfer.")
+    width = server_args.speculative_num_draft_tokens
+    cfg = parse_hisparse_config(server_args)
+    top_k = getattr(model_config.hf_text_config, "index_topk", cfg.top_k)
+    if not isinstance(cfg.device_buffer_size, int) or isinstance(
+        cfg.device_buffer_size, bool
+    ):
+        raise ValueError("HiSparse MTP device_buffer_size must be an integer.")
+    if (
+        width is None
+        or not 2 <= width <= 16
+        or server_args.speculative_num_steps is None
+        or width != server_args.speculative_num_steps + 1
+        or width * top_k > 32768
+        or top_k < 1024
+        or top_k % 64
+        or cfg.top_k != top_k
+    ):
+        raise ValueError(
+            "HCU DSA HiSparse MTP requires verify width 2-16, width * index_topk "
+            "<= 32768 and a matching HiSparse top_k >= 1024 divisible by 64."
+        )
+    if not top_k <= cfg.device_buffer_size <= 32768 or cfg.device_buffer_size % 64:
+        raise ValueError(
+            "HCU DSA HiSparse MTP requires a page-aligned device_buffer_size "
+            "between index_topk and 32768."
+        )
+    if server_args.max_running_requests is None:
+        raise ValueError(
+            "Set --max-running-requests for HCU DSA HiSparse MTP so per-request "
+            "verify metadata is included in the memory budget."
+        )
+    attn_dp_size = server_args.dp_size if server_args.enable_dp_attention else 1
+    per_worker = server_args.max_running_requests // max(1, attn_dp_size)
+    slots = per_worker + (server_args.disaggregation_decode_extra_slots or 0) + 1
+    if per_worker < 1 or slots > cfg.device_buffer_size:
+        raise ValueError("HCU DSA HiSparse MTP request slots exceed CLOCK capacity.")

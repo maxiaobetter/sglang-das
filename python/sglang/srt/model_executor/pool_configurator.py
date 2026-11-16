@@ -188,6 +188,9 @@ class DefaultPoolConfigurator(MemoryPoolConfigurator):
         self._fixed_overhead_bytes = self._compute_graph_padding_overhead(
             kvc, num_layers
         )
+        self._fixed_overhead_bytes += self._compute_hisparse_spec_overhead(
+            kvc, num_layers
+        )
         has_kv_on_another_pp_stage = (
             self._cell_size == 0
             and mambaish is not None
@@ -230,6 +233,10 @@ class DefaultPoolConfigurator(MemoryPoolConfigurator):
                     draft_kv_size = int(
                         target_kv_size * draft_num_layers / target_kv_num_layers
                     )
+                    if get_memory().enable_hisparse:
+                        # Unlike the sparse target, draft KV spans all logical
+                        # token IDs, just like the dense DSA indexer cache.
+                        draft_kv_size *= _get_dsa_indexer_cache_token_multiplier(kvc)
                     draft_indexer_size = self._compute_dsa_indexer_cell_size(
                         kvc=kvc,
                         num_layers=draft_num_layers,
@@ -290,6 +297,52 @@ class DefaultPoolConfigurator(MemoryPoolConfigurator):
                     * get_parallel().attn_dcp_size,
                     draft_cell_size_per_token=draft_cell_size,
                 )
+
+    def _compute_hisparse_spec_overhead(
+        self, kvc: KVCacheConfigurator, num_layers: int
+    ) -> int:
+        """Mirror the persistent buffers in DSAHiSparseSpeculativeState.
+
+        The explicit running-request limit is validated at startup. Use its
+        upper bound plus PD transfer slots; pool sizing can only reduce it.
+        Scratch KV itself is allocated from the already-budgeted target pool.
+        """
+        if not (
+            _is_hcu
+            and get_memory().enable_hisparse
+            and kvc.spec_algorithm.is_eagle()
+            and not kvc.is_draft_worker
+            and is_deepseek_dsa(kvc.model_config.hf_config)
+        ):
+            return 0
+        from sglang.srt.mem_cache.sparsity import parse_hisparse_config
+
+        cfg = parse_hisparse_config(kvc.server_args)
+        top_k = getattr(kvc.model_config.hf_text_config, "index_topk", cfg.top_k)
+        occurrences = get_spec().speculative_num_draft_tokens * top_k
+        max_running_requests = get_schedule().max_running_requests
+        if max_running_requests is None:
+            max_running_requests = kvc.server_args.max_running_requests
+        extra_slots = get_disagg().disaggregation_decode_extra_slots or 0
+        slots = max_running_requests // kvc.ps.attn_dp_size + extra_slots + 1
+        hot = cfg.device_buffer_size
+        hash_size = 1 << (hot - 1).bit_length()
+        page = get_schedule().page_size
+        scratch = math.ceil(occurrences / page) * page
+        per_layer = (
+            slots * 2 * hash_size * 8
+            + (slots + 1) * hot * 4
+            + slots * scratch * 4
+            + (slots + 1) * max(4 * slots, 5 * occurrences) * 4
+        )
+        overhead = num_layers * per_layer + slots * occurrences * 4
+        # Conservative budget for the shared-index miss plan (int64 sources,
+        # int32 destinations/counts), even when prefetch is disabled.
+        overhead += slots * occurrences * 12 + slots * 4
+        logger.info(
+            "DSA HiSparse MTP metadata overhead: slots=%d, bytes=%d", slots, overhead
+        )
+        return overhead
 
     def _compute_graph_padding_overhead(
         self, kvc: KVCacheConfigurator, num_layers: int
@@ -618,9 +671,7 @@ class DefaultPoolConfigurator(MemoryPoolConfigurator):
         )
         # INT8 dequant workspace and page-claim arrays are sized from the same
         # replicated global index buffer as persistent index-K storage.
-        workspace_bytes = (
-            index_k_workspace_bytes_per_token(cache_mode) * indexer_ratio
-        )
+        workspace_bytes = index_k_workspace_bytes_per_token(cache_mode) * indexer_ratio
         return math.ceil(persistent_bytes + workspace_bytes)
 
     def calculate_pool_sizes(
@@ -990,11 +1041,15 @@ class DSV4PoolConfigurator(MemoryPoolConfigurator):
 
             self.cp_cache_layer_split_layout = (
                 build_cp_cache_layer_split_deepseek_v4_worst_case_pool_layout(
-                    kvc.ps.attn_cp_size, kvc.layer_info.start_layer,
-                    kvc.layer_info.end_layer, cfg.compress_ratios,
+                    kvc.ps.attn_cp_size,
+                    kvc.layer_info.start_layer,
+                    kvc.layer_info.end_layer,
+                    cfg.compress_ratios,
                 )
             )
-            logger.info("CP Cache LayerSplit layout=%s", self.cp_cache_layer_split_layout)
+            logger.info(
+                "CP Cache LayerSplit layout=%s", self.cp_cache_layer_split_layout
+            )
         # PP-local slice; matches DeepSeekV4TokenToKVPool's stage_ratios.
         self.compression_ratios = cfg.compress_ratios[
             kvc.layer_info.start_layer : kvc.layer_info.end_layer
@@ -1157,7 +1212,9 @@ class DSV4PoolConfigurator(MemoryPoolConfigurator):
                 + kv_bytes / 128 * layout.c128_layer_num
                 + extra_staging_bytes
                 + indexer_bytes / 4 * (layout.c4_indexer_layer_num + 1)
-                + self.swa_ratio * c4_state_ratio * (
+                + self.swa_ratio
+                * c4_state_ratio
+                * (
                     c4_state_bytes * layout.c4_state_layer_num
                     + c4_indexer_state_bytes * layout.c4_indexer_state_layer_num
                 )
@@ -1218,7 +1275,8 @@ class DSV4PoolConfigurator(MemoryPoolConfigurator):
 
         num_layers = (
             self.cp_cache_layer_split_layout.c128_state_layer_num
-            if self.use_cp_cache_layer_split else self.num_layers_ca128
+            if self.use_cp_cache_layer_split
+            else self.num_layers_ca128
         )
         return state_rows * state_last_dim * c128_state_dtype_size * num_layers
 

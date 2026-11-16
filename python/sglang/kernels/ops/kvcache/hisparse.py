@@ -6,9 +6,25 @@ from typing import TYPE_CHECKING
 import torch
 
 from sglang.kernels.jit.utils import load_jit, make_cpp_args
+from sglang.srt.utils import is_hcu
 
 if TYPE_CHECKING:
     from tvm_ffi.module import Module
+
+
+HCU_MAX_HISPARSE_BLOCK_SIZE = 256
+
+
+def resolve_hisparse_block_size(block_size: int) -> int:
+    """Limit register-heavy swap-in kernels to a launch-safe block on HCU."""
+    if is_hcu():
+        block_size = min(block_size, HCU_MAX_HISPARSE_BLOCK_SIZE)
+        if block_size <= 0 or block_size % 64:
+            raise ValueError(
+                "HCU HiSparse block size must be a positive multiple of 64 "
+                f"after capping at {HCU_MAX_HISPARSE_BLOCK_SIZE}, got {block_size}."
+            )
+    return block_size
 
 
 @functools.cache
@@ -142,6 +158,7 @@ def _load_cache_to_device_buffer_mla(
     ), f"hot_buffer_size ({hot_buffer_size}) must be >= num_top_k ({num_top_k})"
 
     record_miss_plan = miss_src is not None
+    block_size = resolve_hisparse_block_size(block_size)
     module = _jit_sparse_module(
         item_size_bytes,
         block_size,
@@ -265,6 +282,7 @@ def copy_cache_planned_mla(
     """
     assert miss_src.dtype == torch.int64 and miss_dst.dtype == torch.int32
     assert miss_count.dtype == torch.int32
+    block_size = resolve_hisparse_block_size(block_size)
     module = _jit_copy_planned_module(block_size, True, is_dsv4_layout, skip_io)
     empty = torch.empty(0)
     module.copy_cache_planned(

@@ -12,6 +12,8 @@
 
 #include <sgl_kernel/utils.cuh>
 
+#include <tvm/ffi/container/tensor.h>
+
 #include <cstddef>
 #include <cstdint>
 #ifndef USE_ROCM
@@ -53,6 +55,24 @@ cudaOccupancyAvailableDynamicSMemPerBlock(std::size_t* smem, const void* func, i
 namespace sglang {
 
 namespace host::runtime {
+
+// A registered CPU tensor may have a different device-side virtual address.
+// Device tensors already carry an address that the kernel can dereference.
+inline void* get_device_accessible_ptr(const tvm::ffi::TensorView& tensor) {
+  void* ptr = tensor.data_ptr();
+  const auto device_type = tensor.device().device_type;
+  if (device_type != kDLCPU && device_type != kDLGPUHost) {
+    return ptr;
+  }
+
+  void* device_ptr = nullptr;
+#ifdef USE_ROCM
+  RuntimeDeviceCheck(::hipHostGetDevicePointer(&device_ptr, ptr, 0));
+#else
+  RuntimeDeviceCheck(::cudaHostGetDevicePointer(&device_ptr, ptr, 0));
+#endif
+  return device_ptr;
+}
 
 // Return the maximum number of active blocks per SM for the given kernel
 template <typename T>

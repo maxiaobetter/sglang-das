@@ -1004,7 +1004,10 @@ class DecodeCudaGraphRunner(BaseCudaGraphRunner):
         # graph; backends read it from self.model_runner.hisparse_coordinator.
         forward_batch.hisparse_coordinator = self.model_runner.hisparse_coordinator
         if forward_batch.hisparse_coordinator is not None:
-            forward_batch.hisparse_coordinator.num_real_reqs.fill_(bs)
+            coordinator = forward_batch.hisparse_coordinator
+            # No admitted requests/scratch exist at capture time. The kernels
+            # still enter the graph; replay supplies the local real batch size.
+            coordinator.num_real_reqs.fill_(0 if coordinator.speculative_state else bs)
 
         if buffers.ngram_embedding_info is not None:
             forward_batch.ngram_embedding_info = buffers.ngram_embedding_info.slice(bs)

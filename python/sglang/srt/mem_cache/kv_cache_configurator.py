@@ -98,8 +98,7 @@ def _should_elide_dsa_index_k(*, is_draft_worker: bool) -> bool:
     memory_config = get_memory()
     return (
         not get_parallel().dcp_enabled
-        and
-        not memory_config.enable_hisparse
+        and not memory_config.enable_hisparse
         and not is_draft_worker
     )
 
@@ -352,6 +351,18 @@ class KVCacheConfigurator:
         # allocator's virtual locs in [0, max_total * dcp_size) untranslated.
         loc_scale = self.loc_space_scale
         max_total_num_tokens *= loc_scale
+        if (
+            self.is_draft_worker
+            and get_memory().enable_hisparse
+            and is_deepseek_dsa(self.model_config.hf_config)
+        ):
+            from sglang.srt.mem_cache.sparsity import parse_hisparse_config
+
+            # The draft indexes the target's full logical address space. Only
+            # capacity scales: the physical KV/indexer page size remains 64.
+            max_total_num_tokens *= parse_hisparse_config(
+                self.server_args
+            ).host_to_device_ratio
         if full_max_total_num_tokens is not None:
             full_max_total_num_tokens *= loc_scale
         if swa_max_total_num_tokens is not None:
@@ -1150,7 +1161,9 @@ class KVCacheConfigurator:
             )
 
             pool_cls = CpCacheLayerSplitDeepSeekV4TokenToKVPool
-            pool_kwargs = dict(cp_rank=self.ps.attn_cp_rank, cp_size=self.ps.attn_cp_size)
+            pool_kwargs = dict(
+                cp_rank=self.ps.attn_cp_rank, cp_size=self.ps.attn_cp_size
+            )
 
         token_to_kv_pool = pool_cls(
             **pool_kwargs,
@@ -1365,7 +1378,7 @@ class KVCacheConfigurator:
         ) = get_glm_dsa_cp_layer_shard_info(self)
         pool_kwargs = {}
         use_layer_split_pool = False
-        if get_memory().enable_hisparse:
+        if get_memory().enable_hisparse and not self.is_draft_worker:
             PoolCls = HiSparseDSATokenToKVPool
             from sglang.srt.mem_cache.sparsity import parse_hisparse_config
 
@@ -1405,7 +1418,7 @@ class KVCacheConfigurator:
             # HiCache uses dense storage/transfer metadata, but skip-topk
             # layers still must not enqueue an Index-K collective.
             pool_kwargs["indexer_prefetch_layer_ids"] = full_indexer_layer_ids
-        if not get_memory().enable_hisparse:
+        if not get_memory().enable_hisparse or self.is_draft_worker:
             pool_kwargs["indexer_layer_ids"] = indexer_layer_ids
         if self.is_draft_worker and self.loc_space_scale > 1:
             # The replicated draft stores global virtual token ids, so its KV
@@ -1845,7 +1858,7 @@ class KVCacheConfigurator:
                         need_sort=need_sort,
                     )
                 else:
-                    if get_memory().enable_hisparse:
+                    if get_memory().enable_hisparse and not self.is_draft_worker:
                         from sglang.srt.mem_cache.sparsity import (
                             parse_hisparse_config,
                         )
@@ -1859,6 +1872,7 @@ class KVCacheConfigurator:
                             kvcache=token_to_kv_pool,
                             need_sort=need_sort,
                             host_to_device_ratio=hisparse_cfg.host_to_device_ratio,
+                            speculative=is_hcu() and self.spec_algorithm.is_eagle(),
                         )
                     elif (
                         get_schedule().page_size == 1 and not get_parallel().dcp_enabled

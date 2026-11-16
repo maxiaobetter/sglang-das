@@ -2567,7 +2567,20 @@ class DeepseekSparseAttnBackend(
         # NOTE(dark): here, we use page size = 1
         topk_transform_method = self.get_topk_transform_method(forward_mode)
 
-        if self.use_fused_topk:
+        hisparse_verify = (
+            self.hisparse_coordinator is not None
+            and self.hisparse_coordinator.speculative_state is not None
+            and forward_mode.is_target_verify()
+        )
+        if hisparse_verify:
+            topk_indices = self._pad_topk_indices(topk_indices, q_nope.shape[0])
+            page_table_1 = self.hisparse_coordinator.swap_in_speculative_pages(
+                forward_batch.req_pool_indices,
+                forward_batch.positions,
+                topk_indices,
+                layer.layer_id,
+            )
+        elif self.use_fused_topk:
             if topk_indices is not None:
                 topk_indices = self._pad_topk_indices(topk_indices, q_nope.shape[0])
 
@@ -2614,7 +2627,7 @@ class DeepseekSparseAttnBackend(
                 )
 
         # todo hisparse: to cover more backends
-        if self.hisparse_coordinator is not None:
+        if self.hisparse_coordinator is not None and not hisparse_verify:
             # flash_mla_sparse_fwd / tilelang require int32 page indices.
             page_table_1 = self.token_to_kv_pool.translate_loc_to_hisparse_device(
                 page_table_1
@@ -2622,7 +2635,7 @@ class DeepseekSparseAttnBackend(
 
         # Index-K keeps physical metadata. Translate only the final Main-KV
         # consumer locations into this batch's compact scratch layout.
-        if topk_transform_method == TopkTransformMethod.PAGED:
+        if topk_transform_method == TopkTransformMethod.PAGED and not hisparse_verify:
             page_table_1 = self._translate_main_kv_loc_to_compact(page_table_1)
 
         if dsa_impl == "tilelang":
@@ -4319,7 +4332,14 @@ class DeepseekSparseAttnBackend(
     ) -> DSAIndexerMetadata:
         forward_mode = effective_forward_mode(forward_batch)
         force_unfused = not self.use_fused_topk or (
-            self.hisparse_coordinator is not None and forward_mode.is_decode_or_idle()
+            self.hisparse_coordinator is not None
+            and (
+                forward_mode.is_decode_or_idle()
+                or (
+                    self.hisparse_coordinator.speculative_state is not None
+                    and forward_mode.is_target_verify()
+                )
+            )
         )
         return DSAIndexerMetadata(
             attn_metadata=self.forward_metadata,

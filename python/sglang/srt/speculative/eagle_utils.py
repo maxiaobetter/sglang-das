@@ -1061,3 +1061,5 @@ def eagle_prepare_for_decode(batch: ScheduleBatch):
         num_needed_tokens=num_needed_tokens,
         batch=batch,
     )
+    if batch.hisparse_coordinator is not None:
+        batch.hisparse_coordinator.prepare_spec_host_capacity(batch.reqs)

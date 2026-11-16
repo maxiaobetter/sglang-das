@@ -375,7 +375,7 @@ class ModelRunner:
         self._pending_elastic_scale_update = None
         self.init_new_workspace = False
         self.draft_model_idx = draft_model_idx
-        self.enable_hisparse = get_memory().enable_hisparse
+        self.enable_hisparse = get_memory().enable_hisparse and not self.is_draft_worker
         self._sampling_observer: Optional[SamplingObserver] = None
 
         self.init_startup_observability()
@@ -900,6 +900,14 @@ class ModelRunner:
                 hf_text_config=self.model_config.hf_text_config,
                 pp_size=self.ps.pp_size,
                 is_speculative=self.spec_algorithm.is_speculative(),
+                enable_spec_prefetch=bool(
+                    getattr(self.token_to_kv_pool_allocator, "speculative", False)
+                ),
+            ),
+            num_draft_tokens=(
+                get_spec().speculative_num_draft_tokens
+                if getattr(self.token_to_kv_pool_allocator, "speculative", False)
+                else 0
             ),
         )
 
@@ -1448,6 +1456,8 @@ class ModelRunner:
         forward path needs — the cuda-graph path does the equivalent inside the
         runner's capture/replay, so this is skipped there.
         """
+        # Preserve the local request count before DP padding adds dummy rows.
+        num_real_reqs = forward_batch.batch_size
         # For MLP sync
         if forward_batch.global_num_tokens_cpu is not None:
             forward_batch.prepare_mlp_sync_batch(self)
@@ -1473,7 +1483,7 @@ class ModelRunner:
 
         # Hisparse coordinator — backends now read it from self.model_runner.
         if self.hisparse_coordinator is not None:
-            self.hisparse_coordinator.num_real_reqs.fill_(forward_batch.batch_size)
+            self.hisparse_coordinator.num_real_reqs.fill_(num_real_reqs)
 
     def _pp_kwargs(self, pp_proxy_tensors) -> dict:
         """Build the pp_proxy_tensors forward kwarg, in one place.
@@ -1708,9 +1718,9 @@ class ModelRunner:
             )
 
             if (
-                forward_batch.forward_mode.is_decode()
-                and self.hisparse_coordinator is not None
-            ):
+                forward_batch.forward_mode.is_decode_or_idle()
+                or forward_batch.forward_mode.is_target_verify()
+            ) and self.hisparse_coordinator is not None:
                 forward_batch.hisparse_coordinator = self.hisparse_coordinator
                 self.hisparse_coordinator.wait_for_pending_backup()
                 self.hisparse_coordinator.num_real_reqs.fill_(forward_batch.batch_size)

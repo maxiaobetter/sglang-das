@@ -542,6 +542,16 @@ def run_eagle_verify(
             ),
         )
 
+    hisparse = target_worker.model_runner.hisparse_coordinator
+    if hisparse is not None and hisparse.speculative_state is None:
+        hisparse = None
+    if hisparse is not None and not batch.forward_mode.is_idle():
+        # Bind logical verify writes to the reserved physical page only after
+        # the planning stream has finished rebinding out_cache_loc.
+        hisparse.prepare_spec_verify(
+            batch.req_pool_indices, batch.seq_lens, batch.out_cache_loc
+        )
+
     # Must stay ahead of the target verify launch below.
     grammar_tree = (
         GrammarTree.from_device(
@@ -596,6 +606,10 @@ def run_eagle_verify(
         accept_index,
     ) = eagle_sample(verify_input, batch, logits_output, grammar_mask)
     new_seq_lens = batch.seq_lens + accept_lens
+    if hisparse is not None and not batch.forward_mode.is_idle():
+        hisparse.commit_spec_verify(
+            batch.req_pool_indices, batch.seq_lens, batch.out_cache_loc, accept_lens
+        )
     clear_unaccepted_c128 = getattr(
         token_to_kv_pool_allocator.get_kvcache(),
         "clear_unaccepted_c128_draft_states",

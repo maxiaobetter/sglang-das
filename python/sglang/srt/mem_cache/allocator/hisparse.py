@@ -22,6 +22,7 @@ class HiSparseTokenToKVPoolAllocator(BaseTokenToKVPoolAllocator):
         kvcache: HiSparseDSATokenToKVPool,
         need_sort: bool,
         host_to_device_ratio: int = 2,
+        speculative: bool = False,
     ):
         self._kvcache = kvcache
         self._size_full = size * host_to_device_ratio
@@ -31,6 +32,7 @@ class HiSparseTokenToKVPoolAllocator(BaseTokenToKVPoolAllocator):
         self.device = device
         self.page_size = page_size
         self.need_sort = need_sort
+        self.speculative = speculative
 
         self.logical_attn_allocator = PagedTokenToKVPoolAllocator(
             self._size_full,
@@ -77,6 +79,8 @@ class HiSparseTokenToKVPoolAllocator(BaseTokenToKVPoolAllocator):
         return self._size_full
 
     def available_size(self) -> int:
+        if self.speculative:
+            return self.logical_attn_allocator.available_size()
         return min(
             self.logical_attn_allocator.available_size(),
             self.hisparse_attn_allocator.available_size(),
@@ -185,6 +189,17 @@ class HiSparseTokenToKVPoolAllocator(BaseTokenToKVPoolAllocator):
         last_loc: torch.Tensor,  # last_loc for full layers
         extend_num_tokens: int,
     ):
+        if self.speculative:
+            # MTP writes into the coordinator's reserved page. Logical reserve
+            # growth must not allocate a second set of physical KV pages.
+            return self.alloc_logical_only(
+                prefix_lens,
+                prefix_lens_cpu,
+                seq_lens,
+                seq_lens_cpu,
+                last_loc,
+                extend_num_tokens,
+            )
         num_new_pages = get_num_new_pages(
             seq_lens=seq_lens_cpu, page_size=self.page_size, prefix_lens=prefix_lens_cpu
         )

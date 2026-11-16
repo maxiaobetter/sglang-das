@@ -50,12 +50,13 @@ def resolve_shared_index_layers(
     hf_text_config,
     pp_size: int,
     is_speculative: bool,
+    enable_spec_prefetch: bool = False,
 ) -> Optional[List[bool]]:
     """Per-layer "reuses the previous layer's top-k index" pattern, or None.
 
     Mirrors DeepseekV2AttentionMLA's skip_topk derivation (index_topk_pattern /
     index_topk_freq / cli_factor); None when the model has no sharing or the
-    prefetch cannot run (PP, speculative decoding, kill-switch).
+    prefetch cannot run (PP, unsupported speculation, kill-switch).
     """
     if not is_deepseek_dsa(hf_text_config):
         return None
@@ -63,7 +64,7 @@ def resolve_shared_index_layers(
     pattern = [dsa_layer_skips_topk(hf_text_config, i) for i in range(num_layers)]
     if not any(pattern):
         return None
-    if pp_size != 1 or is_speculative:
+    if pp_size != 1 or (is_speculative and not enable_spec_prefetch):
         logger.warning(
             "HiSparse shared-index prefetch is unsupported under pipeline "
             "parallelism / speculative decoding; falling back to synchronous "
@@ -119,6 +120,7 @@ class HiSparseCoordinator:
         host_to_device_ratio: int = 2,
         swap_in_block_size: int = 960,
         shared_index_layers: Optional[List[bool]] = None,
+        num_draft_tokens: int = 0,
     ):
         self.req_to_token_pool = req_to_token_pool
         self.token_to_kv_pool_allocator = token_to_kv_pool_allocator
@@ -256,13 +258,88 @@ class HiSparseCoordinator:
             shared_index_layers=shared_index_layers,
             layer_num=layer_num,
             max_num_req_slots=max_num_req_slots,
+            num_draft_tokens=num_draft_tokens,
         )
+        self.speculative_state = None
+        if num_draft_tokens:
+            from sglang.srt.managers.hisparse_dsa_spec import (
+                DSAHiSparseSpeculativeState,
+            )
+
+            self.speculative_state = DSAHiSparseSpeculativeState(self, num_draft_tokens)
+
+    @property
+    def request_device_buffer_size(self) -> int:
+        scratch = self.speculative_state.capacity if self.speculative_state else 0
+        return self.padded_buffer_size + scratch
+
+    def prepare_spec_host_capacity(self, reqs) -> None:
+        """Reserve host pages on the scheduler stream, outside graph capture."""
+        if self.speculative_state is None:
+            return
+        for req in reqs:
+            rid = req.req_pool_idx
+            start = int(self.req_to_host_pool_allocated_len[rid])
+            end = req.kv.kv_allocated_len
+            if end > start:
+                self.mem_pool_host.alloc_paged_token_slots(
+                    self.req_to_host_pool,
+                    self.req_to_host_pool_allocated_len,
+                    rid,
+                    start,
+                    end - start,
+                )
+
+    def prepare_spec_verify(self, reqs, prefix, locs) -> None:
+        self.wait_for_pending_backup()
+        self.speculative_state.prepare(reqs, prefix, locs)
+
+    def commit_spec_verify(self, reqs, prefix, locs, accepted) -> None:
+        self.speculative_state.commit(reqs, prefix, locs, accepted)
+
+    def swap_in_speculative_pages(self, reqs, positions, topk, layer) -> torch.Tensor:
+        if not self.enable_prefetch:
+            return self.speculative_state.swap(reqs, positions, topk, layer)
+        num_reqs = reqs.numel()
+        if self._is_shared_index_layer[layer]:
+            self._prefetch_events[self._prefetch_slot[layer]].wait(
+                device_module.current_stream()
+            )
+            # Only the anchor plans/rotates slots. Copies into each layer use
+            # the anchor's physical offsets, so its output remains authoritative.
+            return self.speculative_state.output[:num_reqs].view(
+                num_reqs * self.speculative_state.width, self.top_k
+            )
+        group = self._prefetch_groups.get(layer)
+        plan = (
+            dict(
+                miss_src=self._miss_src[:num_reqs],
+                miss_dst=self._miss_dst[:num_reqs],
+                miss_count=self._miss_count[:num_reqs],
+            )
+            if group
+            else {}
+        )
+        output = self.speculative_state.swap(reqs, positions, topk, layer, **plan)
+        if group:
+            self.prefetch_stream.wait_stream(device_module.current_stream())
+            with device_module.stream(self.prefetch_stream):
+                for skip_layer in group:
+                    self._run_copy_only_kernel(num_reqs, skip_layer)
+                    self._prefetch_events[self._prefetch_slot[skip_layer]].record(
+                        self.prefetch_stream
+                    )
+        # The last skip-layer wait joins this group before the next anchor
+        # overwrites the shared plan and output. New verify KV is layer-local
+        # in the fixed write page; only committed historical misses are copied.
+        return output
 
     def _init_shared_index_prefetch(
         self,
         shared_index_layers: Optional[List[bool]],
         layer_num: int,
         max_num_req_slots: int,
+        num_draft_tokens: int = 0,
     ) -> None:
         """Set up the plan-then-IO prefetch for shared-index (IndexShare) models:
         the anchor's kernel records its miss plan and skip layers replay it on
@@ -294,11 +371,12 @@ class HiSparseCoordinator:
         # Plan recorded by the current anchor, replayed by its skip layers. One
         # buffer set suffices: the last skip layer's event wait orders the next
         # anchor's writes after this group's copies.
+        plan_capacity = self.top_k * max(1, num_draft_tokens)
         self._miss_src = torch.zeros(
-            (max_num_req_slots, self.top_k), dtype=torch.int64, device=self.device
+            (max_num_req_slots, plan_capacity), dtype=torch.int64, device=self.device
         )
         self._miss_dst = torch.zeros(
-            (max_num_req_slots, self.top_k), dtype=torch.int32, device=self.device
+            (max_num_req_slots, plan_capacity), dtype=torch.int32, device=self.device
         )
         self._miss_count = torch.zeros(
             (max_num_req_slots,), dtype=torch.int32, device=self.device
@@ -319,6 +397,12 @@ class HiSparseCoordinator:
         # See HostKVCache.destroy for why the explicit unregister matters.
         self.write_staging_stream.synchronize()
         self.decode_backup_stream.synchronize()
+        if (
+            self.speculative_state is not None
+            and self.decode_producer_stream is not None
+        ):
+            # MTP accepted-KV backup runs on the verify/producer stream.
+            self.decode_producer_stream.synchronize()
         if self.enable_prefetch:
             # Skip-layer copies read the pinned host pool on the prefetch stream.
             self.prefetch_stream.synchronize()
@@ -396,7 +480,12 @@ class HiSparseCoordinator:
         """
         self.alloc_device_buffer(req)
 
-        host_len = self.host_token_len(req.kv.kv_allocated_len)
+        committed_len = (
+            req.extend_range.end
+            if self.speculative_state is not None
+            else req.kv.kv_allocated_len
+        )
+        host_len = self.host_token_len(committed_len)
         if host_len <= self.device_buffer_size:
             # Short sequences (seq_len <= device_buffer_size): the kernel fast path
             # returns device_buffer_locs directly without any host loading, so we
@@ -412,6 +501,8 @@ class HiSparseCoordinator:
 
         req.hisparse_staging = False
         self._skip_first_backup[req.req_pool_idx] = True
+        if self.speculative_state is not None:
+            self.speculative_state.admit(req)
         logger.debug("HiSparse: admitting request %s directly", req.rid)
 
     def host_token_len(self, kv_allocated_len: int) -> int:
@@ -421,7 +512,11 @@ class HiSparseCoordinator:
 
     def _preload_to_device_buffer(self, req: Req) -> None:
         """Preload all tokens from host pool into the device buffer."""
-        n = self.host_token_len(req.kv.kv_allocated_len)
+        n = self.host_token_len(
+            req.extend_range.end
+            if self.speculative_state is not None
+            else req.kv.kv_allocated_len
+        )
         host_indices = self.req_to_host_pool[req.req_pool_idx, :n]
         device_locs = self.req_to_device_buffer[req.req_pool_idx, :n]
 
@@ -435,7 +530,10 @@ class HiSparseCoordinator:
             )
 
     def alloc_device_buffer(self, req: Req) -> None:
-        if self.is_dsv4_hisparse:
+        if self.speculative_state is not None:
+            allocated_len = req.kv.kv_allocated_len
+            alloc_size = self.padded_buffer_size
+        elif self.is_dsv4_hisparse:
             allocated_len = req.extend_range.end
             alloc_size = self.padded_buffer_size
         else:
@@ -887,6 +985,10 @@ class HiSparseCoordinator:
         if self.decode_producer_stream is not None:
             device_module.current_stream().wait_stream(self.decode_producer_stream)
         self.wait_for_pending_backup()
+        if self.enable_prefetch:
+            device_module.current_stream().wait_stream(self.prefetch_stream)
+        if self.speculative_state is not None:
+            self.speculative_state.release(req)
 
         # Use kv_allocated_len (not seqlen): under speculative decoding the
         # allocator can over-allocate beyond the committed seqlen, and those

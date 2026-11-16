@@ -1,6 +1,7 @@
 #include <sgl_kernel/tensor.h>
 #include <sgl_kernel/utils.h>
 
+#include <sgl_kernel/runtime.cuh>  // For mapped host pointers in JIT launches
 #include <sgl_kernel/utils.cuh>
 
 #include <sgl_kernel/deepseek_v4/kvcacheio.cuh>
@@ -25,6 +26,14 @@ constexpr BallotMask FULL_WARP_MASK = 0xFFFFFFFFu;
 #endif
 constexpr int32_t TOKEN_HIT = 0xFFFFFFFF;
 constexpr int32_t HASH_EMPTY = -1;
+
+__device__ __forceinline__ BallotMask hisparse_ballot(bool pred) {
+#ifdef USE_ROCM
+  return __ballot(pred);
+#else
+  return __ballot_sync(FULL_WARP_MASK, pred);
+#endif
+}
 
 // Knuth multiplicative hash for open-addressing table of size hash_size.
 __device__ __forceinline__ int hash_slot(int32_t key, int hash_size) {
@@ -333,31 +342,35 @@ template <
     bool SkipIO,
     typename SeqLensT,
     typename ReqPoolIndicesT>
-__global__ void load_cache_to_device_buffer_kernel(
-    const int32_t* __restrict__ top_k_tokens,
-    int32_t* __restrict__ device_buffer_tokens,
-    const int64_t* __restrict__ host_cache_locs,
-    const int32_t* __restrict__ device_buffer_locs,
-    const void* __restrict__ host_cache_k,
-    const void* __restrict__ host_cache_v,
-    void* __restrict__ device_buffer_k,
-    void* __restrict__ device_buffer_v,
-    int32_t* __restrict__ top_k_device_locs,
-    const ReqPoolIndicesT* __restrict__ req_pool_indices,
-    const SeqLensT* __restrict__ seq_lens,
-    int16_t* __restrict__ lru_slots,
-    const int32_t* __restrict__ num_real_reqs,
-    int64_t buffer_stride_0,
-    int64_t host_stride,
-    int64_t lru_slot_stride_0,
-    int64_t top_k_tokens_stride,
-    int64_t top_k_device_locs_stride,
-    int64_t page_size,
-    int64_t item_size_bytes,
-    int64_t* __restrict__ miss_src_out,
-    int32_t* __restrict__ miss_dst_out,
-    int32_t* __restrict__ miss_count_out,
-    int64_t plan_stride) {
+__global__
+#ifdef USE_ROCM
+__launch_bounds__(BLOCK_SIZE, 1)
+#endif
+    void load_cache_to_device_buffer_kernel(
+        const int32_t* __restrict__ top_k_tokens,
+        int32_t* __restrict__ device_buffer_tokens,
+        const int64_t* __restrict__ host_cache_locs,
+        const int32_t* __restrict__ device_buffer_locs,
+        const void* __restrict__ host_cache_k,
+        const void* __restrict__ host_cache_v,
+        void* __restrict__ device_buffer_k,
+        void* __restrict__ device_buffer_v,
+        int32_t* __restrict__ top_k_device_locs,
+        const ReqPoolIndicesT* __restrict__ req_pool_indices,
+        const SeqLensT* __restrict__ seq_lens,
+        int16_t* __restrict__ lru_slots,
+        const int32_t* __restrict__ num_real_reqs,
+        int64_t buffer_stride_0,
+        int64_t host_stride,
+        int64_t lru_slot_stride_0,
+        int64_t top_k_tokens_stride,
+        int64_t top_k_device_locs_stride,
+        int64_t page_size,
+        int64_t item_size_bytes,
+        int64_t* __restrict__ miss_src_out,
+        int32_t* __restrict__ miss_dst_out,
+        int32_t* __restrict__ miss_count_out,
+        int64_t plan_stride) {
   static_assert(!IsDsv4Layout || IsMLA, "DSv4 page-padded layout is K-only (MLA).");
   // todo hisparse: support page wise sparsity
   constexpr int NUM_WARPS = BLOCK_SIZE / WARP_SIZE;
@@ -516,8 +529,8 @@ __global__ void load_cache_to_device_buffer_kernel(
     int local_hit_offset = 0;
     int local_evict_offset = 0;
     if (has_valid_chunk) {
-      const BallotMask hit_mask = __ballot_sync(FULL_WARP_MASK, is_hit);
-      const BallotMask evict_mask = __ballot_sync(FULL_WARP_MASK, is_evictable);
+      const BallotMask hit_mask = hisparse_ballot(is_hit);
+      const BallotMask evict_mask = hisparse_ballot(is_evictable);
       local_hit_offset = popc_mask(hit_mask & lanes_before);
       local_evict_offset = popc_mask(evict_mask & lanes_before);
       if (lane_id == 0) {
@@ -593,7 +606,7 @@ __global__ void load_cache_to_device_buffer_kernel(
     }
 
     if (has_valid_chunk) {
-      const BallotMask miss_mask = __ballot_sync(FULL_WARP_MASK, is_miss);
+      const BallotMask miss_mask = hisparse_ballot(is_miss);
       local_miss_offset = popc_mask(miss_mask & lanes_before);
       const int warp_miss_count = popc_mask(miss_mask);
       if (lane_id == 0) {
@@ -748,8 +761,8 @@ void load_cache_to_device_buffer(
         static_cast<int32_t*>(device_buffer_tokens.data_ptr()),
         static_cast<const int64_t*>(host_cache_locs.data_ptr()),
         static_cast<const int32_t*>(device_buffer_locs.data_ptr()),
-        host_cache_k.data_ptr(),
-        (IsMLA || host_cache_v.ndim() == 0) ? (const void*)nullptr : host_cache_v.data_ptr(),
+        runtime::get_device_accessible_ptr(host_cache_k),
+        (IsMLA || host_cache_v.ndim() == 0) ? nullptr : runtime::get_device_accessible_ptr(host_cache_v),
         device_buffer_k.data_ptr(),
         (IsMLA || device_buffer_v.ndim() == 0) ? (void*)nullptr : device_buffer_v.data_ptr(),
         static_cast<int32_t*>(top_k_device_locs.data_ptr()),
@@ -915,8 +928,8 @@ void copy_cache_planned(
       static_cast<const int32_t*>(miss_dst_locs.data_ptr()),
       static_cast<const int32_t*>(miss_counts.data_ptr()),
       static_cast<const int32_t*>(num_real_reqs.data_ptr()),
-      host_cache_k.data_ptr(),
-      (IsMLA || host_cache_v.ndim() == 0) ? (const void*)nullptr : host_cache_v.data_ptr(),
+      runtime::get_device_accessible_ptr(host_cache_k),
+      (IsMLA || host_cache_v.ndim() == 0) ? nullptr : runtime::get_device_accessible_ptr(host_cache_v),
       device_buffer_k.data_ptr(),
       (IsMLA || device_buffer_v.ndim() == 0) ? (void*)nullptr : device_buffer_v.data_ptr(),
       plan_stride,
