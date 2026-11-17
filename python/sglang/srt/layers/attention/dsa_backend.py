@@ -244,9 +244,9 @@ def _validate_dsa_dcp_launch(
             "DSA DCP does not support fused DSA top-k in the first phase; set "
             "SGLANG_DSA_FUSE_TOPK=false."
         )
-    if dcp_comm_backend != "ag_rs":
+    if dcp_comm_backend not in ("ag_rs", "a2a"):
         raise ValueError(
-            "DSA DCP first-phase support requires the ag_rs communication backend; "
+            "DSA DCP supports the ag_rs and a2a communication backends; "
             f"got {dcp_comm_backend}."
         )
 
@@ -4371,6 +4371,11 @@ class DeepseekSparseAttnBackend(
 
 
 class DeepseekSparseAttnMultiStepBackend:
+
+    # Eager DP synchronization may pad an already pre-planned draft batch.
+    # Each DSA step has an independent init_forward_metadata implementation;
+    # EagerRunner can rebuild the active step with the final padded geometry.
+    eager_metadata_replan_equivalent: bool = True
 
     # Per-step draft decode replays from precomputed GPU metadata; opt out so
     # decide_needs_cpu_seq_lens' OR over the backends stays False.
