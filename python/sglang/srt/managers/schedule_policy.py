@@ -836,6 +836,21 @@ class PrefillAdder:
             return self._mamba_slot_cost
         return 0
 
+    def _request_slot_reserve_for_req(
+        self, req: Req, *, extend_input_len: Optional[int] = None
+    ) -> int:
+        reserve = getattr(self.token_to_kv_pool_allocator, "request_slot_reserve", None)
+        if reserve is None:
+            return 0
+        if extend_input_len is None:
+            extend_input_len = len(req.full_untruncated_fill_ids) - len(
+                req.prefix_indices
+            )
+        return reserve(
+            has_req_pool_slot=req.req_pool_idx is not None,
+            prefill_tokens=len(req.prefix_indices) + extend_input_len,
+        )
+
     def ceil_paged_tokens(self, tokens: int) -> int:
         return -(-tokens // self.page_size) * self.page_size
 
@@ -869,6 +884,7 @@ class PrefillAdder:
         max_new_tokens: int,
         retracted_stain: bool,
         mamba_gap_reserve: int = 0,
+        request_slot_reserve: int = 0,
         host_hit_len: int = 0,
         storage_hit_len: int = 0,
     ):
@@ -882,10 +898,14 @@ class PrefillAdder:
         # immediately (counts against `cur_rem`) and held for the request lifetime
         # (counts against `rem_total`). See `_mamba_gap_budget_for_req`.
         self.rem_total_token_offset += (
-            extend_input_len + max_new_tokens + page_overhead + mamba_gap_reserve
+            extend_input_len
+            + max_new_tokens
+            + page_overhead
+            + mamba_gap_reserve
+            + request_slot_reserve
         )
         self.cur_rem_token_offset += (
-            extend_input_len + page_overhead + mamba_gap_reserve
+            extend_input_len + page_overhead + mamba_gap_reserve + request_slot_reserve
         )
         # The new mamba slot also consumes one mamba-recoverable slot (gated
         # separately so full_evictable can't cover it — see __init__).
@@ -951,6 +971,9 @@ class PrefillAdder:
             0,
             req.retracted_stain,
             mamba_gap_reserve=self._mamba_gap_budget_for_req(req),
+            request_slot_reserve=self._request_slot_reserve_for_req(
+                req, extend_input_len=req.extend_range.length
+            ),
             host_hit_len=req.host_hit_length,
             storage_hit_len=req.storage_hit_length,
         )
@@ -993,6 +1016,9 @@ class PrefillAdder:
             max_new_tokens,
             req.retracted_stain,
             mamba_gap_reserve=self._mamba_gap_budget_for_req(req),
+            request_slot_reserve=self._request_slot_reserve_for_req(
+                req, extend_input_len=req.extend_range.length
+            ),
         )
 
         # Return based on remaining token availability
@@ -1036,6 +1062,11 @@ class PrefillAdder:
         )
         truncated = cand_extend_input_len > _rem_tokens
         new_len = min(cand_extend_input_len, _rem_tokens)
+        reserve = self._request_slot_reserve_for_req(req, extend_input_len=new_len)
+        if reserve and self.ceil_paged_tokens(new_len) + self.page_size + reserve > min(
+            self.cur_rem_tokens, self.rem_total_tokens
+        ):
+            return req
         req.set_extend_range(len(req.prefix_indices), len(req.prefix_indices) + new_len)
         self.can_run_list.append(req)
         self._update_prefill_budget(
@@ -1048,6 +1079,9 @@ class PrefillAdder:
             ),
             req.retracted_stain,
             mamba_gap_reserve=self._mamba_gap_budget_for_req(req),
+            request_slot_reserve=self._request_slot_reserve_for_req(
+                req, extend_input_len=req.extend_range.length
+            ),
         )
 
         # Return if chunked prefill not finished
@@ -1078,6 +1112,7 @@ class PrefillAdder:
         # Shared Mamba pool: fold the new mamba state's shared-gap cost into the
         # budget gate so admission can't over-commit (0 for baseline / non-Mamba).
         paged_input += self._mamba_gap_budget_for_req(req)
+        paged_input += self._request_slot_reserve_for_req(req)
         if paged_input > min(self.cur_rem_tokens, self.rem_total_tokens):
             return AddReqResult.NO_TOKEN
         if self.is_hybrid_swa:
@@ -1179,6 +1214,9 @@ class PrefillAdder:
                 min(req.sampling_params.max_new_tokens, CLIP_MAX_NEW_TOKENS),
                 req.retracted_stain,
                 mamba_gap_reserve=self._mamba_gap_budget_for_req(req),
+                request_slot_reserve=self._request_slot_reserve_for_req(
+                    req, extend_input_len=req.extend_range.length
+                ),
             )
         else:
             if self.rem_chunk_tokens <= 0:
@@ -1202,6 +1240,9 @@ class PrefillAdder:
                 0,
                 req.retracted_stain,
                 mamba_gap_reserve=self._mamba_gap_budget_for_req(req),
+                request_slot_reserve=self._request_slot_reserve_for_req(
+                    req, extend_input_len=req.extend_range.length
+                ),
             )
 
         return self.budget_state()
@@ -1235,6 +1276,7 @@ class PrefillAdder:
         # Shared Mamba pool: fold the new mamba state's shared-gap cost into
         # `total_tokens` so both `rem_total_tokens` gates reflect the joint budget.
         total_tokens += self._mamba_gap_budget_for_req(req)
+        total_tokens += self._request_slot_reserve_for_req(req)
 
         # adjusting the input_tokens based on host_hit_length and page_size
         real_input_tokens = cand_extend_input_len - req.host_hit_length
@@ -1384,6 +1426,9 @@ class PrefillAdder:
                     ),
                     req.retracted_stain,
                     mamba_gap_reserve=self._mamba_gap_budget_for_req(req),
+                    request_slot_reserve=self._request_slot_reserve_for_req(
+                        req, extend_input_len=req.extend_range.length
+                    ),
                     host_hit_len=req.host_hit_length,
                     storage_hit_len=req.storage_hit_length,
                 )
@@ -1432,6 +1477,9 @@ class PrefillAdder:
                     0,
                     req.retracted_stain,
                     mamba_gap_reserve=self._mamba_gap_budget_for_req(req),
+                    request_slot_reserve=self._request_slot_reserve_for_req(
+                        req, extend_input_len=req.extend_range.length
+                    ),
                     host_hit_len=req.host_hit_length,
                     storage_hit_len=req.storage_hit_length,
                 )

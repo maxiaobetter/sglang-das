@@ -324,6 +324,9 @@ def alloc_for_extend(
     req_pool_indices_cpu = torch.tensor(req_pool_indices, dtype=torch.int64)
     req_pool_indices_device = req_pool_indices_cpu.to(batch.device, non_blocking=True)
 
+    if batch.hisparse_coordinator is not None:
+        batch.hisparse_coordinator.allocate_spec_scratch(req_pool_indices)
+
     # Allocate KV cache (throws exception on failure)
     alloc_page_size = _alloc_page_size(batch)
     if reuse_kv is not None and any(reuse_kv):
@@ -680,7 +683,22 @@ def alloc_for_spec_decode(
     batch: Optional[ScheduleBatch] = None,
 ) -> None:
     if num_needed_tokens > 0:
-        if tree_cache.token_to_kv_pool_allocator.page_size == 1:
+        coordinator = batch.hisparse_coordinator if batch is not None else None
+        if coordinator is not None and coordinator.spec_swap.enabled:
+            last_loc = get_last_loc(
+                req_to_token_pool.req_to_token, req_pool_indices, cur_kv_lens
+            )
+            out_cache_loc = tree_cache.token_to_kv_pool_allocator.alloc_logical_only(
+                cur_kv_lens,
+                cur_kv_lens_cpu,
+                nxt_kv_lens,
+                nxt_kv_lens_cpu,
+                last_loc,
+                num_needed_tokens,
+            )
+            if out_cache_loc is None:
+                raise RuntimeError("HiSparse speculative logical allocation failed.")
+        elif tree_cache.token_to_kv_pool_allocator.page_size == 1:
             out_cache_loc = alloc_token_slots(tree_cache, num_needed_tokens)
         else:
             last_loc = get_last_loc(

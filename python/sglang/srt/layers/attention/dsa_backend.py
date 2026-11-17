@@ -222,11 +222,6 @@ def _validate_dsa_dcp_launch(
                 f"pp_size={pp_size}, attn_cp_size={attn_cp_size}, "
                 f"enable_dp_attention={enable_dp_attention}."
             )
-        if index_share_for_mtp_iteration:
-            raise ValueError(
-                "DSA DCP EAGLE does not support index_share_for_mtp_iteration "
-                "in the first phase."
-            )
         if decode_cuda_graph_backend not in ("disabled", "full"):
             raise ValueError(
                 "DSA DCP EAGLE only supports disabled or full decode CUDA Graph; "
@@ -2567,20 +2562,7 @@ class DeepseekSparseAttnBackend(
         # NOTE(dark): here, we use page size = 1
         topk_transform_method = self.get_topk_transform_method(forward_mode)
 
-        hisparse_verify = (
-            self.hisparse_coordinator is not None
-            and self.hisparse_coordinator.speculative_state is not None
-            and forward_mode.is_target_verify()
-        )
-        if hisparse_verify:
-            topk_indices = self._pad_topk_indices(topk_indices, q_nope.shape[0])
-            page_table_1 = self.hisparse_coordinator.swap_in_speculative_pages(
-                forward_batch.req_pool_indices,
-                forward_batch.positions,
-                topk_indices,
-                layer.layer_id,
-            )
-        elif self.use_fused_topk:
+        if self.use_fused_topk:
             if topk_indices is not None:
                 topk_indices = self._pad_topk_indices(topk_indices, q_nope.shape[0])
 
@@ -2627,15 +2609,27 @@ class DeepseekSparseAttnBackend(
                 )
 
         # todo hisparse: to cover more backends
-        if self.hisparse_coordinator is not None and not hisparse_verify:
-            # flash_mla_sparse_fwd / tilelang require int32 page indices.
-            page_table_1 = self.token_to_kv_pool.translate_loc_to_hisparse_device(
-                page_table_1
-            ).to(torch.int32)
+        if self.hisparse_coordinator is not None:
+            if forward_mode.is_target_verify():
+                num_reqs = forward_batch.req_pool_indices.shape[0]
+                num_steps = self.speculative_num_draft_tokens
+                assert topk_indices is not None
+                grouped_topk_indices = topk_indices.view(num_reqs, num_steps, -1)
+                assert metadata.dsa_seqlens_expanded is not None
+                page_table_1 = self.hisparse_coordinator.swap_in_selected_pages(
+                    forward_batch.req_pool_indices,
+                    metadata.dsa_seqlens_expanded,
+                    grouped_topk_indices,
+                    layer.layer_id,
+                ).view(num_reqs * num_steps, -1)
+            else:
+                page_table_1 = self.token_to_kv_pool.translate_loc_to_hisparse_device(
+                    page_table_1
+                ).to(torch.int32)
 
         # Index-K keeps physical metadata. Translate only the final Main-KV
         # consumer locations into this batch's compact scratch layout.
-        if topk_transform_method == TopkTransformMethod.PAGED and not hisparse_verify:
+        if topk_transform_method == TopkTransformMethod.PAGED:
             page_table_1 = self._translate_main_kv_loc_to_compact(page_table_1)
 
         if dsa_impl == "tilelang":
@@ -2921,6 +2915,11 @@ class DeepseekSparseAttnBackend(
         if topk_indices is not None:
             topk_indices = self._pad_topk_indices(topk_indices, q_nope.shape[0])
 
+        if _is_hcu and self.dcp_size > 1:
+            valid_rows = get_flashmla_kv_valid_rows(forward_batch, q_nope.shape[0])
+            if valid_rows is not None:
+                topk_indices = topk_indices[:valid_rows]
+
         if self.hisparse_coordinator is not None:
             page_table_1 = self.hisparse_coordinator.swap_in_selected_pages(
                 forward_batch.req_pool_indices,
@@ -2931,8 +2930,11 @@ class DeepseekSparseAttnBackend(
         elif self.use_fused_topk:
             page_table_1 = self._get_fused_topk_page_table(topk_indices)
         else:
+            page_table = metadata.page_table_1
+            if _is_hcu and self.dcp_size > 1:
+                page_table = page_table[: topk_indices.shape[0]]
             page_table_1 = transform_index_page_table_decode(
-                page_table=metadata.page_table_1,
+                page_table=page_table,
                 topk_indices=topk_indices,
                 page_size=1,
                 dcp_size=self.dcp_size,
@@ -4333,13 +4335,7 @@ class DeepseekSparseAttnBackend(
         forward_mode = effective_forward_mode(forward_batch)
         force_unfused = not self.use_fused_topk or (
             self.hisparse_coordinator is not None
-            and (
-                forward_mode.is_decode_or_idle()
-                or (
-                    self.hisparse_coordinator.speculative_state is not None
-                    and forward_mode.is_target_verify()
-                )
-            )
+            and (forward_mode.is_decode_or_idle() or forward_mode.is_target_verify())
         )
         return DSAIndexerMetadata(
             attn_metadata=self.forward_metadata,

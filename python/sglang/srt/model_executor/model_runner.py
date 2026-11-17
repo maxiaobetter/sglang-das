@@ -896,18 +896,15 @@ class ModelRunner:
             ),
             host_to_device_ratio=hisparse_cfg.host_to_device_ratio,
             swap_in_block_size=hisparse_cfg.swap_in_block_size,
+            num_draft_tokens=(
+                0
+                if self.spec_algorithm.is_none()
+                else get_spec().speculative_num_draft_tokens
+            ),
             shared_index_layers=resolve_shared_index_layers(
                 hf_text_config=self.model_config.hf_text_config,
                 pp_size=self.ps.pp_size,
                 is_speculative=self.spec_algorithm.is_speculative(),
-                enable_spec_prefetch=bool(
-                    getattr(self.token_to_kv_pool_allocator, "speculative", False)
-                ),
-            ),
-            num_draft_tokens=(
-                get_spec().speculative_num_draft_tokens
-                if getattr(self.token_to_kv_pool_allocator, "speculative", False)
-                else 0
             ),
         )
 

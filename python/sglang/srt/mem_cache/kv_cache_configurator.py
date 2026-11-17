@@ -495,6 +495,16 @@ class KVCacheConfigurator:
                     sizes, max_total_num_tokens=draft_virtual_id_space
                 )
 
+            elif isinstance(token_to_kv_pool_allocator, HiSparseTokenToKVPoolAllocator):
+                draft_virtual_id_space = token_to_kv_pool_allocator.size_full
+                page = max(int(self.pool_page_size or 1), 1)
+                draft_virtual_id_space = (
+                    (draft_virtual_id_space + page - 1) // page * page
+                )
+                sizes = msgspec.structs.replace(
+                    sizes, max_total_num_tokens=draft_virtual_id_space
+                )
+
         # Initialize req_to_token_pool
         if req_to_token_pool is None:
             req_to_token_pool = self._build_req_to_token_pool(
@@ -1872,7 +1882,6 @@ class KVCacheConfigurator:
                             kvcache=token_to_kv_pool,
                             need_sort=need_sort,
                             host_to_device_ratio=hisparse_cfg.host_to_device_ratio,
-                            speculative=is_hcu() and self.spec_algorithm.is_eagle(),
                         )
                     elif (
                         get_schedule().page_size == 1 and not get_parallel().dcp_enabled
