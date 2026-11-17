@@ -118,9 +118,7 @@ def _remap_hcu_dcp_graph_kv_write_locs(
     )
     valid_mask = loc % dcp_size == dcp_rank
     local_loc = loc // dcp_size
-    padding_loc = pool_size + torch.arange(
-        num_rows, dtype=loc.dtype, device=loc.device
-    )
+    padding_loc = pool_size + torch.arange(num_rows, dtype=loc.dtype, device=loc.device)
     return torch.where(valid_mask, local_loc, padding_loc)
 
 
@@ -150,6 +148,7 @@ def compute_hcu_dcp_graph_kv_padding_capacity(
     required_rows = max_bs * draft_tokens
     aligned_rows = (required_rows + page_size - 1) // page_size * page_size
     return max(capacity, aligned_rows)
+
 
 from sglang.srt.utils import get_bool_env_var
 
@@ -4903,8 +4902,10 @@ class DSATokenToKVPool(MLATokenToKVPool):
             assert self.index_page_size == 64
             if self.index_page_size != self.page_size:
                 assert self.index_k_cache_mode in (
-                    IndexKCacheMode.BF16, IndexKCacheMode.INT8_SCALED
-                ), "Virtual DCP draft pages support BF16 or INT8 index-K storage"
+                    IndexKCacheMode.BF16,
+                    IndexKCacheMode.INT8_SCALED,
+                    IndexKCacheMode.FP8_SCALED,
+                ), "Unsupported index-K storage for virtual DCP draft pages"
         self.index_key_cache = self._create_index_key_cache()
         self._initialize_int8_index_k_workspace()
         self._finalize_allocation_log(size)
@@ -5186,9 +5187,7 @@ class DSATokenToKVPool(MLATokenToKVPool):
             }
 
         index_k_cache = self.index_k_buffer
-        page_indices = (
-            indices[:: self.index_page_size] // self.index_page_size
-        )
+        page_indices = indices[:: self.index_page_size] // self.index_page_size
         torch.cuda.synchronize()
         index_k_cpu = []
         chunk_size = self.cpu_offloading_chunk_size
@@ -5213,9 +5212,7 @@ class DSATokenToKVPool(MLATokenToKVPool):
             self.index_key_cache.load_cpu_copy(kv_cache_cpu_dict["index_k"], indices)
             return
 
-        page_indices = (
-            indices[:: self.index_page_size] // self.index_page_size
-        )
+        page_indices = indices[:: self.index_page_size] // self.index_page_size
         index_k_cpu = kv_cache_cpu_dict["index_k"]
         index_k_cache = self.index_k_buffer
         torch.cuda.synchronize()
