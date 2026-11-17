@@ -2153,14 +2153,9 @@ else:
                 )
                 if not input.is_contiguous():
                     input = input.contiguous()
-                from sglang.kernels.ops.quantization.glm_prefill_inverse_survivors import (
-                    try_token_quant_inverse,
-                )
                 from sglang.srt.layers.glm_decode_quant import try_o_proj_quant
 
-                if not try_o_proj_quant(
-                    input, output, scale
-                ) and not try_token_quant_inverse(input, output, scale):
+                if not try_o_proj_quant(input, output, scale):
                     output, scale = lightop_per_token_quant_fp8(
                         input,
                         dtype=output.dtype,
