@@ -477,11 +477,13 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
         weights: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
         hadamard_scale = self.head_dim**-0.5
+        write_buffer = pool.get_index_k_with_scale_write_buffer(layer_id=layer_id)
+        write_loc = self._get_index_k_write_loc(pool, layer_id, out_cache_loc)
         result = lightop_kvcache.fuse_qk_quant_and_store_index_k_cache(
             query,
             key,
-            pool.get_index_k_with_scale_write_buffer(layer_id=layer_id),
-            out_cache_loc.contiguous(),
+            write_buffer,
+            write_loc.contiguous(),
             _get_index_page_size(pool),
             weights,
             hadamard_scale * self.softmax_scale,
@@ -993,10 +995,23 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
         dst.copy_(src)
 
     @staticmethod
+    def _get_index_k_write_loc(pool, layer_id: int, loc: torch.Tensor) -> torch.Tensor:
+        translate = getattr(pool, "translate_index_k_write_loc", None)
+        return translate(layer_id, loc) if translate is not None else loc
+
+    @staticmethod
+    def _get_index_k_read_page_table(
+        pool, layer_id: int, page_table: torch.Tensor
+    ) -> torch.Tensor:
+        # Only Index-K consumers use this table. TopK still needs the original
+        # physical metadata to translate logical results into attention KV slots.
+        translate = getattr(pool, "translate_index_k_read_page_table", None)
+        return translate(layer_id, page_table) if translate is not None else page_table
+
+    @staticmethod
     def _get_index_k_read_buffer(pool, layer_id: int) -> torch.Tensor:
-        # Read path: prefer the owner-broadcast scratch buffer under DSA cache
-        # layer split; fall back to the owned buffer for plain pools. Stores go
-        # through get_index_k_with_scale_buffer() (owned buffer) instead.
+        # LayerSplit selects persistent physical storage on the compact owner
+        # and compact scratch elsewhere; pair with _get_index_k_read_page_table.
         if hasattr(pool, "get_broadcastable_index_k_with_scale_buffer"):
             return pool.get_broadcastable_index_k_with_scale_buffer(layer_id)
         return pool.get_index_k_with_scale_buffer(layer_id=layer_id)
@@ -1148,6 +1163,7 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
         else:
             block_tables = metadata.get_page_table_64()
 
+        block_tables = self._get_index_k_read_page_table(pool, layer_id, block_tables)
         max_seq_len = block_tables.shape[1] * page_size
         blocksize = page_size
         forward_mode = effective_forward_mode(forward_batch)
@@ -1580,6 +1596,7 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
         else:
             block_tables = metadata.get_page_table_64()
 
+        block_tables = self._get_index_k_read_page_table(pool, layer_id, block_tables)
         assert (
             forward_batch.seq_lens_cpu is not None
             and forward_batch.extend_seq_lens_cpu is not None
@@ -1939,7 +1956,9 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
         actual_seq_q_list = []
         batch_idx_list = []
 
-        block_tables = metadata.get_page_table_64()
+        block_tables = self._get_index_k_read_page_table(
+            pool, layer_id, metadata.get_page_table_64()
+        )
 
         if self._use_hcu_int8_index_cache(pool):
             pool.dequantize_index_k_int8_paged(
@@ -2167,10 +2186,11 @@ class Indexer(DSANPUIndexerMixin, BaseFusedOp):
                 return
 
             write_buffer = pool.get_index_k_with_scale_write_buffer(layer_id=layer_id)
+            write_loc = self._get_index_k_write_loc(pool, layer_id, out_cache_loc)
             lightop_kvcache.fuse_act_quant_and_store_index_k_cache(
                 key,
                 write_buffer,
-                out_cache_loc.contiguous(),
+                write_loc.contiguous(),
                 _get_index_page_size(pool),
                 1e-5,
                 False,

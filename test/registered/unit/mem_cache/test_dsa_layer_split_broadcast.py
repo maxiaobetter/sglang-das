@@ -106,9 +106,7 @@ def _run(rank: int, world: int, port: int, compact_index: bool = False):
     for layer_id in range(LAYER_NUM):
         # Use the format-independent storage: HCU BF16 pools intentionally
         # have no scaled Index-K accessor, while FP8 pools use packed bytes.
-        store_buf = pool.index_key_cache.buffer[
-            pool._get_indexer_cache_index(layer_id)
-        ]
+        store_buf = pool.index_key_cache.buffer[pool._get_indexer_cache_index(layer_id)]
         if pool._is_layer_owned(layer_id):
             store_buf.fill_(layer_id + 10)
     torch.cuda.synchronize()
@@ -141,7 +139,8 @@ def _run(rank: int, world: int, port: int, compact_index: bool = False):
         class BatchMarker:
             pass
 
-        os.environ["SGLANG_HCU_COMPACT_INDEX_BROADCAST"] = "1"
+        # Exercise the default-on behavior rather than explicitly opting in.
+        os.environ.pop("SGLANG_HCU_COMPACT_INDEX_BROADCAST", None)
         cache = pool.index_key_cache
         for history in ([], [1], [1, 2], [2], [], [1, 2]):
             marker = BatchMarker()
@@ -172,11 +171,22 @@ def _run(rank: int, world: int, port: int, compact_index: bool = False):
                         reference
                     )
                 expected = cache.remote_buffer.clone()
-                expected[page_ids] = reference[page_ids]
+                # History stays in compact slots; page zero and unused slots
+                # retain their original bytes instead of receiving a scatter.
+                expected[1 : page_ids.numel() + 1] = reference[page_ids]
                 pool.prefetch_index_buffer(layer_id)
                 actual = pool._get_broadcastable_index_buffer(layer_id)
-                assert torch.equal(actual, expected), (
-                    rank, layer_id, history
+                assert torch.equal(actual, expected), (rank, layer_id, history)
+                # The compact owner consumes physical persistent storage and
+                # needs no current-token mirror into the broadcast scratch.
+                read_buffer = cache.get_buffer(layer_id)
+                read_expected = (
+                    reference if pool._is_layer_owned(layer_id) else expected
+                )
+                assert torch.equal(read_buffer, read_expected), (
+                    rank,
+                    layer_id,
+                    history,
                 )
         pool.configure_main_kv_page_plan(None, BatchMarker())
         os.environ["SGLANG_HCU_COMPACT_INDEX_BROADCAST"] = "0"
