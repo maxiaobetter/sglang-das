@@ -259,7 +259,12 @@ class LayerSplitIndexKeyCache(IndexKeyCache):
             self.pool.layer_transfer_counter.wait_until(
                 layer_id - self.pool.start_layer
             )
-        return self.get_broadcastable_buffer(layer_id)
+        remote_buffer = self.get_broadcastable_buffer(layer_id)
+        if self.pool._compact_index_k_enabled and self.pool._is_layer_owned(layer_id):
+            # Still participate in the collective before reading persistent
+            # physical pages. The owner need not mirror current K into scratch.
+            return self.buffer[self.pool._get_indexer_cache_index(layer_id)]
+        return remote_buffer
 
     def get_write_buffer(self, layer_id: int) -> torch.Tensor:
         if not self.prepare_remote_write(layer_id):
@@ -281,6 +286,9 @@ class LayerSplitIndexKeyCache(IndexKeyCache):
         if not self.pool._is_layer_owned(layer_id) or not self.prepare_remote_write(
             layer_id
         ):
+            return
+        if self.pool._compact_index_k_enabled:
+            # Compact consumers on the owner read its persistent buffer directly.
             return
 
         loc = loc.reshape(-1)
@@ -344,13 +352,16 @@ class LayerSplitIndexKeyCache(IndexKeyCache):
     ) -> None:
         if not self.prepare_remote_write(layer_id):
             self.get_broadcastable_buffer(layer_id)
-        index_buf_accessor.SetKAndS.execute(
-            pool=self.pool,
-            buf=self.remote_buffer,
-            loc=loc,
-            index_k=index_k,
-            index_k_scale=index_k_scale,
-        )
+        if not (
+            self.pool._compact_index_k_enabled and self.pool._is_layer_owned(layer_id)
+        ):
+            index_buf_accessor.SetKAndS.execute(
+                pool=self.pool,
+                buf=self.remote_buffer,
+                loc=self.pool.translate_index_k_write_loc(layer_id, loc),
+                index_k=index_k,
+                index_k_scale=index_k_scale,
+            )
         if self.pool._is_layer_owned(layer_id):
             super().store_quantized(layer_id, loc, index_k, index_k_scale)
 
@@ -360,7 +371,7 @@ class LayerSplitIndexKeyCache(IndexKeyCache):
         loc: torch.Tensor,
         index_k: torch.Tensor,
     ) -> None:
-        """Store BF16 Index-K into scratch and the owner's persistent shard."""
+        """Store BF16 Index-K into the read buffer and the owner's shard."""
 
         if not self.prepare_remote_write(layer_id):
             self.get_broadcastable_buffer(layer_id)
@@ -369,7 +380,13 @@ class LayerSplitIndexKeyCache(IndexKeyCache):
 
         page_indices = loc // self.pool.page_size
         token_offsets = loc % self.pool.page_size
-        self.remote_buffer[page_indices, token_offsets] = index_k
+        if not (
+            self.pool._compact_index_k_enabled and self.pool._is_layer_owned(layer_id)
+        ):
+            remote_loc = self.pool.translate_index_k_write_loc(layer_id, loc)
+            self.remote_buffer[remote_loc // self.pool.page_size, token_offsets] = (
+                index_k
+            )
         if self.pool._is_layer_owned(layer_id):
             cache_idx = self.pool._get_indexer_cache_index(layer_id)
             self.buffer[cache_idx][page_indices, token_offsets] = index_k
@@ -380,20 +397,23 @@ class LayerSplitIndexKeyCache(IndexKeyCache):
         loc: torch.Tensor,
         index_k: torch.Tensor,
     ) -> None:
-        """Store current INT8 Index-K into scratch and the owner's shard."""
+        """Store INT8 Index-K, quantizing once on the compact owner."""
 
         if not self.prepare_remote_write(layer_id):
             self.get_broadcastable_buffer(layer_id)
-        assert self.pool.index_k_int8_remote_aliases is not None
-        remote_int8_k, remote_fp32_scales = self.pool.index_k_int8_remote_aliases
-        quantize_and_store_index_k_int8(
-            index_k,
-            self.remote_buffer,
-            loc,
-            page_size=self.pool.page_size,
-            int8_k=remote_int8_k,
-            fp32_scales=remote_fp32_scales,
-        )
+        if not (
+            self.pool._compact_index_k_enabled and self.pool._is_layer_owned(layer_id)
+        ):
+            assert self.pool.index_k_int8_remote_aliases is not None
+            remote_int8_k, remote_fp32_scales = self.pool.index_k_int8_remote_aliases
+            quantize_and_store_index_k_int8(
+                index_k,
+                self.remote_buffer,
+                self.pool.translate_index_k_write_loc(layer_id, loc),
+                page_size=self.pool.page_size,
+                int8_k=remote_int8_k,
+                fp32_scales=remote_fp32_scales,
+            )
         if not self.pool._is_layer_owned(layer_id):
             return
 
@@ -419,6 +439,63 @@ class LayerSplitIndexKeyCache(IndexKeyCache):
             self.remote_layer_id = None
         self.pending_layer_id = None
 
+    def _broadcast(
+        self,
+        layer_id: int,
+        src_tensor: Optional[torch.Tensor],
+        *,
+        include_current: bool = False,
+    ) -> None:
+        if not self.pool._compact_index_k_enabled:
+            self.pool._broadcast_tensor_from_owner(
+                self.remote_buffer,
+                layer_id,
+                src_tensor=src_tensor,
+                use_layer_broadcast_comm=True,
+            )
+            return
+
+        page_plan = self.pool._active_main_kv_page_plan
+        assert page_plan is not None
+        page_ids = (
+            self.pool._active_main_kv_compact_page_ids
+            if include_current
+            else page_plan.history_page_ids
+        )
+        num_pages = page_ids.numel()
+        if num_pages == 0:
+            return
+
+        # Reuse Main-KV's history-first page mapping. Broadcast straight into
+        # the final read buffer, leaving compact page zero for dummy entries.
+        payload = self.remote_buffer[1 : num_pages + 1]
+        is_owner = self.pool._is_layer_owned(layer_id)
+        if is_owner:
+            assert src_tensor is not None
+            torch.index_select(src_tensor, 0, page_ids, out=payload)
+        if not getattr(self, "compact_history_logged", False):
+            logger.info(
+                "Compact Index-K direct broadcast: rank=%s layer=%s "
+                "pages=%s/%s payload_bytes=%s full_bytes=%s",
+                self.pool.layer_shard_rank,
+                layer_id,
+                num_pages,
+                self.remote_buffer.shape[0],
+                payload.nbytes,
+                self.remote_buffer.nbytes,
+            )
+            self.compact_history_logged = True
+        with torch.profiler.record_function(
+            "layersplit_compact_index_broadcast "
+            f"layer={layer_id} pages={num_pages} bytes={payload.nbytes}"
+        ):
+            self.pool._broadcast_tensor_from_owner(
+                payload,
+                layer_id,
+                src_tensor=(payload if is_owner else None),
+                use_layer_broadcast_comm=True,
+            )
+
     def prefetch(
         self,
         layer_id: int,
@@ -426,7 +503,7 @@ class LayerSplitIndexKeyCache(IndexKeyCache):
         layer_transfer_idx: Optional[int] = None,
         has_history: bool = True,
     ) -> None:
-        """Broadcast a full Index-K buffer ahead of its indexer layer."""
+        """Broadcast Index-K history ahead of its indexer layer."""
 
         # GLM-5.2 only allocates caches for layers that really run the
         # indexer. skip-topk layers reuse prior results and need no collective.
@@ -459,12 +536,7 @@ class LayerSplitIndexKeyCache(IndexKeyCache):
         if self.pool.layer_broadcast_comm is None:
             if transfer_counter is not None:
                 transfer_counter.wait_until(transfer_idx)
-            self.pool._broadcast_tensor_from_owner(
-                self.remote_buffer,
-                layer_id,
-                src_tensor=src_tensor,
-                use_layer_broadcast_comm=True,
-            )
+            self._broadcast(layer_id, src_tensor)
             self.remote_layer_id = layer_id
             return
 
@@ -479,12 +551,7 @@ class LayerSplitIndexKeyCache(IndexKeyCache):
                 "layersplit_index_k_broadcast "
                 f"layer={layer_id} bytes={self.remote_buffer.nbytes}"
             ):
-                self.pool._broadcast_tensor_from_owner(
-                    self.remote_buffer,
-                    layer_id,
-                    src_tensor=src_tensor,
-                    use_layer_broadcast_comm=True,
-                )
+                self._broadcast(layer_id, src_tensor)
             self.pending_event.record()
         self.remote_layer_id = None
         self.pending_layer_id = layer_id
@@ -508,16 +575,20 @@ class LayerSplitIndexKeyCache(IndexKeyCache):
             # Index-K and Main-KV share the dedicated communicator. A fallback
             # on the current stream must follow all side-stream collectives.
             self.pool._drain_pending_layer_broadcasts(discard_index=True)
+            # Stores can reach this fallback without going through get_buffer.
+            # Order the owner pack after HiCache reload on this stream too.
+            if self.pool.layer_transfer_counter is not None:
+                self.pool.layer_transfer_counter.wait_until(
+                    layer_id - self.pool.start_layer
+                )
             cache_idx = self.pool._get_indexer_cache_index(layer_id)
             src_tensor = (
                 self.buffer[cache_idx] if self.pool._is_layer_owned(layer_id) else None
             )
-            self.pool._broadcast_tensor_from_owner(
-                self.remote_buffer,
-                layer_id,
-                src_tensor=src_tensor,
-                use_layer_broadcast_comm=True,
-            )
+            # A read fallback can run after current K was written. Bootstrap
+            # all compact pages, as the Main-KV fallback does, then mirror any
+            # subsequent non-owner writes into these same compact slots.
+            self._broadcast(layer_id, src_tensor, include_current=True)
             self.remote_layer_id = layer_id
         return self.remote_buffer
 
@@ -595,6 +666,7 @@ class LayerSplitDSATokenToKVPool(DSATokenToKVPool):
         # indexer scratch, communicator, stream and validity state.
         self._main_kv_scratch_user = None
         self._main_kv_scratch_stream = None
+        self._compact_index_k_enabled = False
         self.layer_shard_enabled = True
         self.layer_broadcast_comm = None
         self.indexer_prefetch_layer_ids = (
@@ -678,57 +750,6 @@ class LayerSplitDSATokenToKVPool(DSATokenToKVPool):
         src_tensor: Optional[torch.Tensor] = None,
         use_layer_broadcast_comm: bool = False,
     ) -> torch.Tensor:
-        # Broadcast encoded history pages only; retain physical cache indexing.
-        index_cache = getattr(self, "index_key_cache", None)
-        page_plan = getattr(self, "_active_main_kv_page_plan", None)
-        if (
-            os.environ.get("SGLANG_HCU_COMPACT_INDEX_BROADCAST", "0") == "1"
-            and index_cache is not None
-            and tensor is index_cache.remote_buffer
-            and page_plan is not None
-        ):
-            page_ids = page_plan.history_page_ids
-            num_pages = page_ids.numel()
-            if num_pages == 0:
-                return tensor
-            payload_shape = (num_pages, *tensor.shape[1:])
-            payload = getattr(index_cache, "compact_history_payload", None)
-            if payload is None or tuple(payload.shape) != payload_shape:
-                payload = torch.empty(
-                    payload_shape, dtype=tensor.dtype, device=tensor.device
-                )
-                index_cache.compact_history_payload = payload
-            # A fallback can reuse the payload on the forward stream after
-            # allocation/prefetch on the side stream. Track its last users so
-            # resizing for the next batch cannot recycle storage prematurely.
-            if payload.is_cuda:
-                payload.record_stream(torch.cuda.current_stream(payload.device))
-                if not getattr(index_cache, "compact_history_logged", False):
-                    logger.info(
-                        "Compact Index-K history broadcast: rank=%s layer=%s "
-                        "pages=%s/%s payload_bytes=%s full_bytes=%s",
-                        self.layer_shard_rank, layer_id, num_pages,
-                        tensor.shape[0], payload.nbytes, tensor.nbytes,
-                    )
-                    index_cache.compact_history_logged = True
-            owner_rank = self._get_layer_owner_rank(layer_id)
-            is_owner = self.layer_shard_rank == owner_rank
-            if is_owner:
-                assert src_tensor is not None
-                torch.index_select(src_tensor, 0, page_ids, out=payload)
-            with torch.profiler.record_function(
-                "layersplit_compact_index_broadcast "
-                f"layer={layer_id} pages={num_pages} bytes={payload.nbytes}"
-            ):
-                self._broadcast_tensor_from_owner(
-                    payload,
-                    layer_id,
-                    src_tensor=(payload if is_owner else None),
-                    use_layer_broadcast_comm=use_layer_broadcast_comm,
-                )
-                tensor.index_copy_(0, page_ids, payload)
-            return tensor
-
         owner_rank = self._get_layer_owner_rank(layer_id)
         if self.layer_shard_rank == owner_rank:
             assert src_tensor is not None
@@ -879,6 +900,7 @@ class LayerSplitDSATokenToKVPool(DSATokenToKVPool):
                 # Keep this device-side to avoid a synchronous scalar H2D.
                 self.physical_to_compact_main_kv_page[0:1].zero_()
                 self._active_main_kv_page_plan: Optional[MainKVPagePlan] = None
+                self._compact_index_k_enabled = False
                 self._active_main_kv_batch_marker: Optional[
                     weakref.ReferenceType[Any]
                 ] = None
@@ -921,6 +943,7 @@ class LayerSplitDSATokenToKVPool(DSATokenToKVPool):
         del self._active_main_kv_compact_page_ids
         self._active_main_kv_page_plan = None
         self._active_main_kv_batch_marker = None
+        self._compact_index_k_enabled = False
         self._clear_index_k_buffers()
 
     # ---- MLA latent KV: owned-only writes, owner-broadcast reads ----------
@@ -1054,10 +1077,17 @@ class LayerSplitDSATokenToKVPool(DSATokenToKVPool):
         """
 
         self._acquire_main_kv_scratch()
+        # Default to direct compact Index-K reads for eligible prefill batches;
+        # set SGLANG_HCU_COMPACT_INDEX_BROADCAST=0 to retain physical scratch.
+        compact_index_k_enabled = (
+            page_plan is not None
+            and os.environ.get("SGLANG_HCU_COMPACT_INDEX_BROADCAST", "1") == "1"
+        )
         if (
             self._active_main_kv_batch_marker is not None
             and self._active_main_kv_batch_marker() is batch_marker
             and self._active_main_kv_page_plan is page_plan
+            and self._compact_index_k_enabled == compact_index_k_enabled
         ):
             return
 
@@ -1075,6 +1105,7 @@ class LayerSplitDSATokenToKVPool(DSATokenToKVPool):
         self.physical_to_compact_main_kv_page[0:1].zero_()
         self._active_main_kv_batch_marker = None
         self._active_main_kv_page_plan = None
+        self._compact_index_k_enabled = False
         self._active_main_kv_compact_page_ids = torch.empty(
             0, dtype=torch.long, device=self.device
         )
@@ -1137,7 +1168,34 @@ class LayerSplitDSATokenToKVPool(DSATokenToKVPool):
             (history_page_ids, current_only_page_ids)
         ).contiguous()
         self._active_main_kv_page_plan = page_plan
+        self._compact_index_k_enabled = compact_index_k_enabled
         self._active_main_kv_batch_marker = weakref.ref(batch_marker)
+
+    def translate_index_k_read_page_table(
+        self, layer_id: int, page_table: torch.Tensor
+    ) -> torch.Tensor:
+        """Map only non-owner Index-K reads; TopK metadata stays physical."""
+        if not self._compact_index_k_enabled or self._is_layer_owned(layer_id):
+            return page_table
+
+        valid = (page_table >= 0) & (page_table < self.num_pool_pages)
+        safe_pages = page_table.clamp(0, self.num_pool_pages - 1).to(torch.long)
+        compact_pages = self.physical_to_compact_main_kv_page.index_select(
+            0, safe_pages.reshape(-1)
+        ).reshape(page_table.shape)
+        return torch.where(
+            valid,
+            compact_pages.to(page_table.dtype),
+            torch.full_like(page_table, -1),
+        )
+
+    def translate_index_k_write_loc(
+        self, layer_id: int, loc: torch.Tensor
+    ) -> torch.Tensor:
+        """Keep owner stores physical and write non-owner K into compact slots."""
+        if not self._compact_index_k_enabled or self._is_layer_owned(layer_id):
+            return loc
+        return self.translate_main_kv_loc_to_compact(loc)
 
     def translate_main_kv_loc_to_compact(self, loc: torch.Tensor) -> torch.Tensor:
         """Translate physical token locations for the active compact buffer."""
@@ -1258,9 +1316,10 @@ class LayerSplitDSATokenToKVPool(DSATokenToKVPool):
         # a side stream after HiCache reload. Match the GLM5-Next path: keep
         # both draft Main-KV and Index-K on the forward stream, while target
         # layers retain asynchronous prefetch.
-        if self.shares_layer_split_scratch or os.environ.get(
-            "SGLANG_HCU_LAYER_SPLIT_SYNC_PREFETCH", "0"
-        ) == "1":
+        if (
+            self.shares_layer_split_scratch
+            or os.environ.get("SGLANG_HCU_LAYER_SPLIT_SYNC_PREFETCH", "0") == "1"
+        ):
             return self.device_module.current_stream()
         return self.kv_broadcast_stream
 
