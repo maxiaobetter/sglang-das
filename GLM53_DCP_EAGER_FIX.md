@@ -1,9 +1,11 @@
 # GLM-5.3 DCP eager metadata fix
 
-This branch starts from `25720158d4beddc4586fcbf97f6f90f44b0b3974`, the
-`feat/support_1M_context` source baseline used for the GLM-5.3 investigation.
-It preserves that baseline's DCP/model support; it is not a port onto the
-fork's older `main` branch.
+This PR branch starts from `maxiaobetter/sglang-das:glm5.3-w4a8` at
+`1082506f463ea12572bdf18bf321b096519e5d5e`. The eager fixes were carried from
+the investigated container baseline, `25720158d4beddc4586fcbf97f6f90f44b0b3974`.
+The target branch already admits FP8 index-K storage for virtual DCP draft
+pages via PR #61 (`fe5387189`); its existing check is preserved, without
+importing the older commit that removed the dtype guard entirely.
 
 ## Failure and change
 
@@ -57,3 +59,15 @@ comparison workload uses session workers that send requests sequentially within
 each session; it has not been claimed as the same completed regression.
 Historical trace gaps are a separate investigation: this change has not been
 shown to remove them.
+
+The target-based PR branch passes the eight CPU control-flow checks. No new
+end-to-end device run has been performed on this target-based branch; the
+device results above refer to the original investigated container baseline.
+
+## Additional container snapshot change
+
+A separate commit preserves the container snapshot's DSA launch-validation
+change: `dcp_comm_backend` accepts both `ag_rs` and `a2a`, instead of only
+`ag_rs`. This is a validation-guard change; it does not add an A2A implementation.
+The completed device regression above used `ag_rs`. A2A correctness,
+compatibility and performance have not been established by that regression.
