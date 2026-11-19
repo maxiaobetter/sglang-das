@@ -187,8 +187,11 @@ def _validate_hcu_dsa_mtp(server_args: ServerArgs, hf_config) -> None:
             "HCU DSA HiSparse MTP currently uses one verify transaction at a time; "
             "two-batch overlap and PDMux require separate transaction workspaces."
         )
-    if server_args.disaggregation_transfer_backend != "mooncake":
-        raise ValueError("HCU DSA HiSparse MTP requires Mooncake PD transfer.")
+    if server_args.disaggregation_transfer_backend not in ("mooncake", "fake"):
+        raise ValueError(
+            "HCU DSA HiSparse MTP requires Mooncake for PD transfer or fake "
+            "for decode smoke testing."
+        )
     width = server_args.speculative_num_draft_tokens
     cfg = parse_hisparse_config(server_args)
     top_k = getattr(model_config.hf_text_config, "index_topk", cfg.top_k)
