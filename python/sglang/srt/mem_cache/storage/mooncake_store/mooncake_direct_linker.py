@@ -370,6 +370,7 @@ class MooncakeDirectLinker(UnifiedCacheLinker):
             )
         self.pending_loads: dict[str, list[PoolTransfer]] = {}
         self.pending_load_tokens: dict[str, int] = {}
+        self.pending_load_started: dict[str, float] = {}
         self.gc_frozen = False
         self.load_queue: Queue[
             tuple[int, dict[str, list[PoolTransfer]], object] | None
@@ -660,6 +661,10 @@ class MooncakeDirectLinker(UnifiedCacheLinker):
         if pending_load_tokens is None:
             pending_load_tokens = self.pending_load_tokens = {}
         pending_load_tokens[rid] = len(logical_pages) * self.page_size
+        pending_load_started = getattr(self, "pending_load_started", None)
+        if pending_load_started is None:
+            pending_load_started = self.pending_load_started = {}
+        pending_load_started[rid] = time.perf_counter()
         return True
 
     def prepare_load(self, rid: str, transfers: list[PoolTransfer]) -> bool:
@@ -1178,11 +1183,15 @@ class MooncakeDirectLinker(UnifiedCacheLinker):
         self._abort_prepared_load_now(rid)
 
     def cancel_queued_load(self, rid: str) -> bool:
-        getattr(self, "pending_load_tokens", {}).pop(rid, None)
         cancelled = self.pending_loads.pop(rid, None) is not None
-        if cancelled and self.host_prefetch_enabled:
+        if not cancelled:
+            # A dispatched load still needs its token/time record at completion.
+            return False
+        getattr(self, "pending_load_tokens", {}).pop(rid, None)
+        getattr(self, "pending_load_started", {}).pop(rid, None)
+        if self.host_prefetch_enabled:
             self.abort_prepared_load(rid)
-        return cancelled
+        return True
 
     def finish_layer_wise_loading(self, counter_index: int) -> bool:
         # Drain session cleanup too before a failed request can free its slots.
@@ -1222,7 +1231,6 @@ class MooncakeDirectLinker(UnifiedCacheLinker):
                     return
                 counter_index, pending, ready_event = task
                 success = False
-                started = time.perf_counter()
                 try:
                     ready_event.synchronize()
                     if self.host_prefetch_enabled:
@@ -1239,9 +1247,7 @@ class MooncakeDirectLinker(UnifiedCacheLinker):
                     self.layer_done_counter.fail(counter_index, error)
                     logger.exception("Mooncake layer-wise load batch failed")
                 finally:
-                    self._finish_prefetch_metrics(
-                        list(pending), success is True, time.perf_counter() - started
-                    )
+                    self._finish_prefetch_metrics(list(pending), success is True)
             finally:
                 self.load_queue.task_done()
 
@@ -1419,14 +1425,20 @@ class MooncakeDirectLinker(UnifiedCacheLinker):
                     )
             self.layer_done_counter.complete(counter_index, layer)
 
-    def _finish_prefetch_metrics(
-        self, rids: list[str], success: bool, duration: float
-    ) -> None:
+    def _finish_prefetch_metrics(self, rids: list[str], success: bool) -> None:
         pending_load_tokens = getattr(self, "pending_load_tokens", {})
-        token_counts = [pending_load_tokens.pop(rid, 0) for rid in rids]
-        for tokens in token_counts:
-            self._log_l4_prefetch_metric(tokens, duration, success)
-        tokens = sum(token_counts)
+        pending_load_started = getattr(self, "pending_load_started", {})
+        completed_at = time.perf_counter()
+        tokens = 0
+        for rid in rids:
+            request_tokens = pending_load_tokens.pop(rid, 0)
+            started = pending_load_started.pop(rid, completed_at)
+            if request_tokens <= 0:
+                continue
+            self._log_l4_prefetch_metric(
+                request_tokens, completed_at - started, success
+            )
+            tokens += request_tokens
         if not success or tokens <= 0:
             return
         recorder = getattr(
@@ -1678,6 +1690,7 @@ class MooncakeDirectLinker(UnifiedCacheLinker):
                 self.abort_prepared_load(rid)
         self.pending_loads.clear()
         getattr(self, "pending_load_tokens", {}).clear()
+        getattr(self, "pending_load_started", {}).clear()
         self.load_queue.join()
         self.offload_queue.join()
         if self.host_prefetch_threads:

@@ -801,7 +801,6 @@ class Envs:
     MOONCAKE_PROTOCOL = EnvStr("rdma")
     MOONCAKE_DEVICE = EnvStr("")
     MOONCAKE_MASTER_METRICS_PORT = EnvInt(9003)
-    MOONCAKE_CLIENT_METRICS_PORT_BASE = EnvInt(0)
     MOONCAKE_CHECK_SERVER = EnvBool(False)
     MOONCAKE_STANDALONE_STORAGE = EnvBool(False)
     MOONCAKE_ENABLE_SSD_OFFLOAD = EnvBool(False)
@@ -1941,6 +1940,9 @@ _DEPRECATED_ENVS: Dict[str, _DeprecatedEnv] = {
         note="Note the unit change: milliseconds -> seconds.",
     ),
     # Removed without replacement.
+    "MOONCAKE_CLIENT_METRICS_PORT_BASE": _DeprecatedEnv(
+        note="Mooncake client HTTP ports are now assigned automatically; scrape the SGLang /metrics endpoint."
+    ),
     "SGLANG_ENABLE_CP_V2": _DeprecatedEnv(
         note="Strategy-based prefill context parallelism is now the only generic implementation."
     ),
