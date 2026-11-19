@@ -575,8 +575,20 @@ class DefaultPoolConfigurator(MemoryPoolConfigurator):
         )
 
     @staticmethod
+    def _dsa_allocated_indexer_layers(kvc: KVCacheConfigurator):
+        from sglang.srt.mem_cache.kv_cache_configurator import (
+            _should_elide_dsa_index_k,
+        )
+
+        start, end = kvc.layer_info.start_layer, kvc.layer_info.end_layer
+        if _should_elide_dsa_index_k(is_draft_worker=kvc.is_draft_worker):
+            return get_dsa_full_indexer_layer_ids(
+                kvc.model_config.hf_config, start, end
+            )
+        return range(start, end)
+
     def _compute_dsa_layer_split_draft_cell_size(
-        *, kvc: KVCacheConfigurator, num_layers: int, main_kv_bytes_per_layer: int
+        self, *, kvc: KVCacheConfigurator, num_layers: int, main_kv_bytes_per_layer: int
     ) -> int:
         """Worst-rank bytes/token for a target and its single sharded NextN."""
         from sglang.srt.layers.cp.utils import get_layer_shard_range
@@ -590,20 +602,25 @@ class DefaultPoolConfigurator(MemoryPoolConfigurator):
         index_bytes = index_k_cache_bytes_per_token(cache_mode)
         # Each pool has its own INT8 workspace, irrespective of layer ownership.
         workspace_bytes = 2 * index_k_workspace_bytes_per_token(cache_mode)
+        target_indexers = set(self._dsa_allocated_indexer_layers(kvc))
         rank_costs = []
         for rank in range(shard_size):
             start, end = get_layer_shard_range(rank, shard_size, num_layers)
             draft_start, draft_end = get_layer_shard_range(
                 (rank - (shard_size - 1)) % shard_size, shard_size, 1
             )
-            owned = end - start + draft_end - draft_start
-            # PD allocates dense Index-K storage even for skip-topk layers.
+            draft_owned = draft_end - draft_start
+            owned = end - start + draft_owned
+            owned_indexers = draft_owned + sum(
+                kvc.layer_info.start_layer + i in target_indexers
+                for i in range(start, end)
+            )
             # Main-KV shares one target scratch; Index-K has two independent
             # scratches. Take the maximum combined cost, not separate maxima
             # for target and draft, whose heaviest ranks can differ.
             rank_costs.append(
                 (owned + 1) * main_kv_bytes_per_layer
-                + (owned + 2) * index_bytes
+                + (owned_indexers + 2) * index_bytes
                 + workspace_bytes
             )
         return math.ceil(max(rank_costs))
@@ -625,24 +642,10 @@ class DefaultPoolConfigurator(MemoryPoolConfigurator):
         )
         indexer_ratio = _get_dsa_indexer_cache_token_multiplier(kvc)
 
-        from sglang.srt.mem_cache.kv_cache_configurator import (
-            _should_elide_dsa_index_k,
-        )
-
         if allocate_all_layers:
             num_indexer_layers = num_layers
         else:
-            if _should_elide_dsa_index_k(is_draft_worker=kvc.is_draft_worker):
-                active_indexer_layers = get_dsa_full_indexer_layer_ids(
-                    kvc.model_config.hf_config,
-                    kvc.layer_info.start_layer,
-                    kvc.layer_info.end_layer,
-                )
-            else:
-                active_indexer_layers = list(
-                    range(kvc.layer_info.start_layer, kvc.layer_info.end_layer)
-                )
-
+            active_indexer_layers = self._dsa_allocated_indexer_layers(kvc)
             num_indexer_layers = len(active_indexer_layers)
             from sglang.srt.layers.cp.utils import (
                 get_glm_dsa_cp_layer_shard_info,
