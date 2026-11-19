@@ -666,6 +666,10 @@ class HiSparseCoordinator:
             max_num_req_slots=max_num_req_slots,
         )
 
+    @property
+    def request_device_buffer_size(self) -> int:
+        return self.padded_buffer_size + self.spec_swap.scratch_capacity
+
     def prepare_spec_verify(self, batch: ScheduleBatch) -> None:
         self.spec_swap.prepare_verify(batch)
 
