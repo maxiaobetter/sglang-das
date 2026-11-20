@@ -4364,9 +4364,18 @@ class MLATokenToKVPool(KVCache):
             ):
                 # Padding rows absorb graph dummy/non-owner writes and are not
                 # visible to the allocator.
+                _sz = self.size + self.padding_capacity
+                if not isinstance(_sz, int) or not isinstance(self.kv_cache_dim, int):
+                    print(
+                        f"[DBG-INTCAST] size={self.size!r}({type(self.size).__name__}) "
+                        f"pad={self.padding_capacity!r}({type(self.padding_capacity).__name__}) "
+                        f"dim={self.kv_cache_dim!r}({type(self.kv_cache_dim).__name__}) "
+                        f"cls={type(self).__name__}",
+                        flush=True,
+                    )
                 self.kv_buffer = [
                     torch.zeros(
-                        (self.size + self.padding_capacity, 1, self.kv_cache_dim),
+                        (int(_sz), 1, int(self.kv_cache_dim)),
                         dtype=self.store_dtype,
                         device=self.device,
                     )

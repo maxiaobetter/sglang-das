@@ -126,7 +126,10 @@ class MLATokenToKVPoolHost(HiSparseHostPoolMixin, HostKVCache):
     def get_contiguous_buf_infos(self):
         """Return (data_ptrs, data_lens, item_lens) in the same format as device pool,
         for registering host memory with the disaggregation transfer engine."""
-        data_ptrs = [int(self.data_ptrs[i].item()) for i in range(self.layer_num)]
+        # RDMA must register CPU virtual addresses. HCU data_ptrs contains
+        # GPU aliases returned by hipHostGetDevicePointer for kernel access;
+        # ibv_reg_mr rejects those aliases with EPERM.
+        data_ptrs = [self.data_refs[i].data_ptr() for i in range(self.layer_num)]
         data_lens = [self.kv_buffer[i].nbytes for i in range(self.layer_num)]
         item_lens = [self.token_stride_size * self.page_size] * self.layer_num
         return data_ptrs, data_lens, item_lens

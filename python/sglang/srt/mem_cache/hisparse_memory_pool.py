@@ -55,7 +55,7 @@ class HiSparseDSATokenToKVPool(DSATokenToKVPool):
             kv_cache_dim=kv_cache_dim,
             start_layer=start_layer,
             end_layer=end_layer,
-            index_buf_size=size * host_to_device_ratio,
+            index_buf_size=int(size * host_to_device_ratio),
         )
         self.bytes_per_token = self.kv_cache_dim * self.dtype.itemsize
 

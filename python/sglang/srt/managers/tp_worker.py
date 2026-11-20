@@ -420,7 +420,7 @@ class TpModelWorker(BaseTpWorker):
         assert self.model_runner.max_running_requests > 0, "max_running_request is zero"
         max_req_len = min(
             self.model_config.context_len - 1,
-            self.model_runner.effective_max_total_num_tokens * self.ps.attn_dcp_size
+            self.model_runner.max_token_pool_size * self.ps.attn_dcp_size
             - 1,
         )
         assert max_req_len > 0, "Memory pool size is too small"
@@ -535,11 +535,14 @@ class TpModelWorker(BaseTpWorker):
     def get_worker_info(self):
         max_req_len = min(
             self.model_config.context_len - 1,
-            self.model_runner.effective_max_total_num_tokens * self.ps.attn_dcp_size
+            self.model_runner.max_token_pool_size * self.ps.attn_dcp_size
             - 1,
         )
         return (
-            self.model_runner.max_total_num_tokens,
+            # [HiSparse] Request-token capacity must use the host-backed logical
+            # pool (port of upstream PR #34345): with --enable-hisparse the
+            # device pool only bounds decode concurrency, not context length.
+            self.model_runner.max_token_pool_size,
             get_schedule().max_prefill_tokens,
             self.model_runner.max_running_requests,
             get_schedule().max_queued_requests,
