@@ -136,19 +136,23 @@ def validate_hisparse(server_args: ServerArgs) -> None:
             )
         return
 
+    from sglang.srt.arg_groups.overrides import resolved_view
+
     if _is_hcu():
-        if server_args.disaggregation_mode != "decode":
+        is_unified_glm_fp8 = (
+            server_args.disaggregation_mode == "null"
+            and "GlmMoeDsaForCausalLM" in (hf_config.architectures or [])
+            and resolved_view(server_args).kv_cache_dtype == "fp8_e4m3"
+        )
+        if server_args.disaggregation_mode != "decode" and not is_unified_glm_fp8:
             raise ValueError(
-                "HCU DSA HiSparse requires --disaggregation-mode decode. "
-                "Enable HiSparse only on the decode instance; the prefill "
-                "instance transfers the full KV cache into its host pool."
+                "HCU DSA HiSparse supports PD decode, and unified serving "
+                "for GLM DSA with FP8 KV cache."
             )
         if server_args.page_size != 64:
             raise ValueError("HCU DSA HiSparse requires --page-size 64.")
         if server_args.speculative_algorithm is not None:
             _validate_hcu_dsa_mtp(server_args, hf_config)
-
-    from sglang.srt.arg_groups.overrides import resolved_view
 
     if resolved_view(server_args).kv_cache_dtype not in (
         "bfloat16",
@@ -187,7 +191,9 @@ def _validate_hcu_dsa_mtp(server_args: ServerArgs, hf_config) -> None:
             "HCU DSA HiSparse MTP currently uses one verify transaction at a time; "
             "two-batch overlap and PDMux require separate transaction workspaces."
         )
-    if server_args.disaggregation_transfer_backend not in ("mooncake", "fake"):
+    if server_args.disaggregation_mode == "decode" and (
+        server_args.disaggregation_transfer_backend not in ("mooncake", "fake")
+    ):
         raise ValueError(
             "HCU DSA HiSparse MTP requires Mooncake for PD transfer or fake "
             "for decode smoke testing."
