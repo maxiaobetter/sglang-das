@@ -339,7 +339,7 @@ class KVCacheConfigurator:
         )
 
     def _derive_pool_sizes(self, *, config: MemoryPoolConfig) -> _PoolSizes:
-        max_total_num_tokens = config.max_total_num_tokens
+        max_total_num_tokens = int(config.max_total_num_tokens)
         max_running_requests = config.max_running_requests
         full_max_total_num_tokens = None
         swa_max_total_num_tokens = None
@@ -360,9 +360,10 @@ class KVCacheConfigurator:
 
             # The draft indexes the target's full logical address space. Only
             # capacity scales: the physical KV/indexer page size remains 64.
-            max_total_num_tokens *= parse_hisparse_config(
-                self.server_args
-            ).host_to_device_ratio
+            max_total_num_tokens = int(
+                max_total_num_tokens
+                * parse_hisparse_config(self.server_args).host_to_device_ratio
+            )
         if full_max_total_num_tokens is not None:
             full_max_total_num_tokens *= loc_scale
         if swa_max_total_num_tokens is not None:

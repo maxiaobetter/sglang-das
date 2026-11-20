@@ -4364,9 +4364,10 @@ class MLATokenToKVPool(KVCache):
             ):
                 # Padding rows absorb graph dummy/non-owner writes and are not
                 # visible to the allocator.
+                buffer_size = int(self.size + self.padding_capacity)
                 self.kv_buffer = [
                     torch.zeros(
-                        (self.size + self.padding_capacity, 1, self.kv_cache_dim),
+                        (buffer_size, 1, int(self.kv_cache_dim)),
                         dtype=self.store_dtype,
                         device=self.device,
                     )

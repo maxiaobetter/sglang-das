@@ -418,11 +418,7 @@ class TpModelWorker(BaseTpWorker):
 
         # Validation
         assert self.model_runner.max_running_requests > 0, "max_running_request is zero"
-        max_req_len = min(
-            self.model_config.context_len - 1,
-            self.model_runner.effective_max_total_num_tokens * self.ps.attn_dcp_size
-            - 1,
-        )
+        _, max_req_len = self._get_request_limits()
         assert max_req_len > 0, "Memory pool size is too small"
 
     def init_attention_backends(self):
@@ -532,14 +528,26 @@ class TpModelWorker(BaseTpWorker):
     def register_hisparse_coordinator(self, coordinator):
         self.model_runner.hisparse_coordinator = coordinator
 
-    def get_worker_info(self):
+    def _get_request_limits(self) -> tuple[int, int]:
+        max_total_num_tokens = self.model_runner.max_total_num_tokens
+        request_token_capacity = self.model_runner.effective_max_total_num_tokens
+        if (
+            self.server_args.disaggregation_mode == "decode"
+            and self.model_runner.enable_hisparse
+        ):
+            # PD decode receives prefill KV directly in the host pool.
+            max_total_num_tokens = self.model_runner.max_token_pool_size
+            request_token_capacity = max_total_num_tokens
         max_req_len = min(
             self.model_config.context_len - 1,
-            self.model_runner.effective_max_total_num_tokens * self.ps.attn_dcp_size
-            - 1,
+            request_token_capacity * self.ps.attn_dcp_size - 1,
         )
+        return max_total_num_tokens, max_req_len
+
+    def get_worker_info(self):
+        max_total_num_tokens, max_req_len = self._get_request_limits()
         return (
-            self.model_runner.max_total_num_tokens,
+            max_total_num_tokens,
             get_schedule().max_prefill_tokens,
             self.model_runner.max_running_requests,
             get_schedule().max_queued_requests,
