@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import os
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
@@ -205,6 +206,17 @@ def _get_hcu_mqa_logits_max_rows(
     return min(num_q, max_rows)
 
 
+def _lightop_ragged_mqa_key(k: torch.Tensor) -> torch.Tensor:
+    # LightOP beta validates [N,D]; KPool gathers [N,1,D].
+    if (
+        os.getenv("LIGHTOP_MQA_LOGITS_BETA") == "1"
+        and k.ndim == 3
+        and k.shape[1] == 1
+    ):
+        return k.squeeze(1)
+    return k
+
+
 def _run_hcu_mqa_logits_with_workspace(
     q: torch.Tensor,
     k: torch.Tensor,
@@ -244,7 +256,7 @@ def _run_hcu_mqa_logits_with_workspace(
     output = workspace[:required_numel].view(output_rows, output_cols)
     logits = op.mqa_logits(
         q,
-        k,
+        _lightop_ragged_mqa_key(k),
         weights.to(torch.float32),
         ks,
         ke,
@@ -1306,7 +1318,7 @@ class Indexer(MultiPlatformOp):
                     # gathered BF16 K chunks, then call mqa_logits with scale=None.
                     logits = op.mqa_logits(
                         q,
-                        kv_bf16,
+                        _lightop_ragged_mqa_key(kv_bf16),
                         weights.to(torch.float32),
                         ks,
                         ke,
@@ -1365,7 +1377,7 @@ class Indexer(MultiPlatformOp):
                     # direct BF16 K input and no quant scale tensor.
                     logits = op.mqa_logits(
                         q,
-                        k_fp8,
+                        _lightop_ragged_mqa_key(k_fp8),
                         weights.to(torch.float32),
                         ks,
                         ke,

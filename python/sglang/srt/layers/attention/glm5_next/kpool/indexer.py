@@ -21,6 +21,7 @@ from sglang.srt.layers.attention.glm5_next.indexer import (
     BaseIndexerMetadata,
     Indexer,
     _get_hcu_mqa_logits_max_rows,
+    _lightop_ragged_mqa_key,
     _run_hcu_mqa_logits_with_workspace,
     reserve_hcu_mqa_logits_workspace,
     rotate_activation,
@@ -1345,7 +1346,7 @@ class IndexerKPool(Indexer):
                     kv_scale_mqa = None
                 logits = op.mqa_logits(
                     q_mqa,
-                    kv_mqa,
+                    _lightop_ragged_mqa_key(kv_mqa),
                     weights.to(torch.float32).contiguous(),
                     ks,
                     ke,

@@ -83,6 +83,8 @@ from sglang.srt.runtime_context import get_parallel
 from sglang.srt.utils import is_cuda, is_hcu, is_hip
 from sglang.srt.utils.common import print_warning_once
 
+from sglang.srt.utils.common import is_hcu_native_fp8_supported as _is_hcu_gfx938
+
 logger = logging.getLogger(__name__)
 
 
@@ -2523,16 +2525,26 @@ class NativeSparseAttnBackend(
         required_padding = 128 if self.device_sm_major >= 10 else 64
         need_padding = num_heads % required_padding != 0
 
+        use_native_hcu_q8 = (
+            _is_hcu
+            and use_hcu_fp8_no_rope_512
+            and num_heads == 8
+            and head_dim == v_head_dim == 512
+            and q_all.dtype == kv_cache.dtype == torch.bfloat16
+            and q_all.is_contiguous()
+            and kv_cache.is_contiguous()
+            and kv_cache.shape[-2:] == (1, 512)
+            and os.getenv("HANGTIAN_HCU_SPARSE_PREFILL_Q8", "1") == "1"
+            and _is_hcu_gfx938()
+        )
         hcu_padded_q_heads = False
-        if _is_hcu and need_padding:
+        if _is_hcu and need_padding and not use_native_hcu_q8:
             assert required_padding % num_heads == 0, (
                 f"num_heads {num_heads} cannot be padded to {required_padding}. "
                 f"TP size may be too large for this model."
             )
 
-            # HCU FlashMLA sparse prefill has the same head-count restriction as
-            # decode; TP8 leaves GLM5-Next with only 4 local q heads, so pad to
-            # the supported head variant and trim the output below.
+            # Retain the padded kernel for other HCU layouts.
             q_padded = q_all.new_zeros((num_tokens, required_padding, head_dim))
             q_padded[:, :num_heads, :] = q_all
             q_input = q_padded
