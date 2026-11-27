@@ -424,6 +424,8 @@ class Envs:
     SGLANG_TEST_STUCK_TOKENIZER = EnvFloat(0)
     SGLANG_TEST_CRASH_AFTER_STREAM_OUTPUTS = EnvInt(0)
     SGLANG_TEST_REQUEST_TIME_STATS = EnvBool(False)
+    SGLANG_TEST_LINKER_LOAD_FAILURE_PROB = EnvFloat(0.0)
+    SGLANG_TEST_LINKER_LOAD_FAILURE_RANKS = EnvStr(None)
     SGLANG_TEST_DISAGG_FAILURE_PROB = EnvFloat(0.0)
     SGLANG_TEST_RETRACT = EnvBool(False)
     SGLANG_TEST_RETRACT_INTERVAL = EnvInt(3)
@@ -697,6 +699,7 @@ class Envs:
     SGLANG_DISAGGREGATION_NIXL_BACKEND = EnvStr("UCX")
     SGLANG_DISAGGREGATION_NIXL_BACKEND_PARAMS = EnvStr("{}")
     SGLANG_DISAGG_PREFILL_EARLY_SEND_CACHED_PREFIX = EnvBool(True)
+    SGLANG_MOONCAKE_FINAL_POLL_TIMEOUT_MS = EnvFloat(0.0)
     SGLANG_DISAGGREGATION_ZMQ_MAX_SOCKETS = EnvInt(16384)
     SGLANG_DISAGGREGATION_ALL_CP_RANKS_TRANSFER = EnvBool(False)
     SGLANG_DISAGGREGATION_FORCE_QUERY_PREFILL_DP_RANK = EnvBool(False)
@@ -1652,6 +1655,7 @@ class Envs:
         False, deprecated_name="SGLANG_NSA_HIP_DISABLE_PRESHUFFLE"
     )
     SGLANG_DSA_MQA_LOGITS_FREE_MEM_FRACTION = EnvFloat(0.2)
+    SGLANG_DSV4_PAGED_MQA_LOGITS_FREE_MEM_FRACTION = EnvFloat(None)
     SGLANG_ENABLE_PCG_DSV2_DUAL_STREAM = EnvBool(False)
     SGLANG_DSA_TOPK_BROADCAST = EnvBool(False)
     SGLANG_DISABLE_DSA_INDEXER_FUSION = EnvBool(False)
@@ -1934,6 +1938,9 @@ _DEPRECATED_ENVS: Dict[str, _DeprecatedEnv] = {
         note="Note the unit change: milliseconds -> seconds.",
     ),
     # Removed without replacement.
+    "MOONCAKE_CLIENT_METRICS_PORT_BASE": _DeprecatedEnv(
+        note="Mooncake client HTTP ports are now assigned automatically; scrape the SGLang /metrics endpoint."
+    ),
     "SGLANG_ENABLE_CP_V2": _DeprecatedEnv(
         note="Strategy-based prefill context parallelism is now the only generic implementation."
     ),
