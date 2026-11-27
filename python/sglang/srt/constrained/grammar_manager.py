@@ -45,10 +45,11 @@ class GrammarManager:
             else False
         )
 
-        self.grammar_sync_group = scheduler.dp_tp_cpu_group
-        self.grammar_sync_size = scheduler.dp_tp_group.world_size
-        self.grammar_sync_entry = scheduler.dp_tp_group.first_rank
-        self.is_grammar_sync_entry = scheduler.dp_tp_group.is_first_rank
+        # With DP attention each request spans both attention TP and CP.
+        # Reduce along those two axes without involving other DP replicas.
+        self.grammar_sync_groups = [scheduler.dp_tp_group]
+        if scheduler.enable_dp_attention and scheduler.ps.attn_cp_size > 1:
+            self.grammar_sync_groups.append(scheduler.attn_cp_group)
         self.pp_rank = scheduler.ps.pp_rank
         self.pp_size = scheduler.ps.pp_size
         self.pp_group = scheduler.pp_group
@@ -185,13 +186,8 @@ class GrammarManager:
         """
         Move requests whose grammar objects are ready from grammar_queue to waiting_queue.
 
-        For PP0, DP/TP group rank i returns two sets ready_reqs_i,
-        failed_reqs_i. ready_reqs_all = all_gather(ready_reqs_i) within
-        PP0's DP/TP group. failed_reqs_all = all_gather(failed_reqs_i)
-        within PP0's DP/TP group.
-
-        ready_reqs = intersect(ready_reqs_all)
-        failed_reqs = union(failed_reqs_all)
+        PP0 intersects ready indexes and unions failed indexes across the
+        ranks serving the same request.
 
         PP0 then propagates the synced result to later PP ranks. Later PP
         ranks receive and apply the propagated ready/failed decision.
@@ -238,32 +234,23 @@ class GrammarManager:
                         # The actual waiting time is SGLANG_GRAMMAR_MAX_POLL_ITERATIONS * max(SGLANG_GRAMMAR_POLL_INTERVAL, GPU_forward_batch_latency)
                         failed_req_idxs.add(i)
 
-            # Sync ready and failed requests across all TP ranks in PP0.
-            if self.grammar_sync_size == 1:
-                synced_ready_req_idxs = ready_req_idxs
-                synced_failed_req_idxs = failed_req_idxs
-            else:
-                all_gather_output = [None] * self.grammar_sync_size
+            for group in self.grammar_sync_groups:
+                if group.world_size == 1:
+                    continue
+                gathered = [None] * group.world_size
                 torch.distributed.all_gather_object(
-                    all_gather_output,
-                    (ready_req_idxs, failed_req_idxs),
-                    group=self.grammar_sync_group,
+                    gathered, (ready_req_idxs, failed_req_idxs), group=group.cpu_group
                 )
-                synced_ready_req_idxs = set.intersection(
-                    *[x[0] for x in all_gather_output]
-                )
-                synced_failed_req_idxs = set.union(*[x[1] for x in all_gather_output])
-        else:
-            synced_ready_req_idxs = ready_req_idxs
-            synced_failed_req_idxs = failed_req_idxs
+                ready_req_idxs = set.intersection(*(ready for ready, _ in gathered))
+                failed_req_idxs = set.union(*(failed for _, failed in gathered))
 
         # Propagate PP0's grammar queue decision to later PP ranks.
         (
             synced_ready_req_idxs,
             synced_failed_req_idxs,
         ) = self._pp_sync_ready_failed(
-            synced_ready_req_idxs,
-            synced_failed_req_idxs,
+            ready_req_idxs,
+            failed_req_idxs,
         )
 
         # Return ready requests
